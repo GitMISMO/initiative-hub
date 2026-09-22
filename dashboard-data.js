@@ -123,6 +123,20 @@
     return relayOnce(path, opts);
   }
 
+  function accessError(res, body) {
+    var code = body && body.error;
+    var msg = res.status === 404
+        ? 'This needs the newest version of the save relay, which has not been deployed yet.'
+      : code === 'NOT_PLATFORM_ADMIN'
+        ? 'Only a platform administrator can view or change who has access.'
+      : code === 'NO_PLATFORM_ADMIN' || code === 'WOULD_LOCK_SELF_OUT'
+        ? (body && body.message) || 'That change would lock everyone out.'
+      : res.status === 409
+        ? 'Someone else changed this while you were editing. Discard changes and try again.'
+      : (body && body.message) || ('The relay returned ' + res.status + (code ? ' (' + code + ')' : '') + '.');
+    var e = new Error(msg); e.code = code; e.status = res.status; return e;
+  }
+
   /* ---------- reading ---------- */
 
   /* The SHA captured here is the SHA of the version this page READ. It is sent with the
@@ -548,6 +562,26 @@
 
   window.MismoStore = {
     facilitators: { get: facilitatorsGet, put: facilitatorsPut, generatePasscode: generatePasscode, sha256Hex: sha256Hex, pbkdf2Hash: pbkdf2Hash },
+    /* The central access list: everyone, once, with a role per tool. Only a platform
+       administrator may read or change it, and only through a signed-in session — the
+       relay refuses it otherwise. */
+    access: {
+      /* relay() hands back the raw response, so these parse it and throw something the
+         panel can read. Returning the response itself silently produced an empty table:
+         no error, no rows, nothing to explain it. */
+      get: async function () {
+        var res = await relay('/access', { method: 'GET' });
+        var body = null; try { body = await res.json(); } catch (e) {}
+        if (!res.ok) throw accessError(res, body);
+        return body;
+      },
+      put: async function (people, sha) {
+        var res = await relay('/access', { method: 'PUT', body: { people: people, sha: sha } });
+        var body = null; try { body = await res.json(); } catch (e) {}
+        if (!res.ok) throw accessError(res, body);
+        return body;
+      }
+    },
     config: { get: configGet, put: configPut },
     initials: initialsOf,
     session: session,

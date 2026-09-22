@@ -18,7 +18,7 @@
   Renames reach the dashboards when the site next deploys, about a minute after saving.
 -->
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=7772d8cb42"></script>
+<script src="dashboard-data.js?v=b611142413"></script>
 <style>
   :root { --navy:#0b1a33; --brand:#1d4ed8; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --ok:#166534; --okbg:#dcfce7; --warn:#7c2d12; --warnbg:#fff7ed; --warnline:#fed7aa; --err:#991b1b; --errbg:#fee2e2; }
   * { box-sizing:border-box; }
@@ -103,12 +103,47 @@
   <!-- ===== panel ===== -->
   <div id="panel" class="hidden">
     <div class="tabs">
-      <button class="tab active" data-tab="fac">Facilitators</button>
+      <button class="tab active" data-tab="people">People &amp; access</button>
+      <button class="tab" data-tab="fac">Facilitators (this tool only)</button>
       <button class="tab" data-tab="types">Stakeholder types</button>
     </div>
 
     <!-- ----- facilitators ----- -->
-    <section id="tab-fac">
+    <section id="tab-people">
+      <h2>People &amp; access</h2>
+      <p class="hint">Everyone who can sign in, and what they can do in each tool. One account, one
+        password, set here once. Changes take effect within about a minute; nobody is signed out.</p>
+      <div class="err" id="accErr"></div>
+      <div id="accUnavailable" class="hidden">
+        <p class="hint"><strong>Not available yet.</strong> This needs the newest version of the save
+          relay, which is waiting to be deployed. Until then, use the Facilitators tab, which manages
+          this tool's own list.</p>
+      </div>
+      <div id="accReady" class="hidden">
+        <table id="accTable">
+          <thead><tr><th>Person</th><th>Initiative Hub</th><th>Business Glossary</th><th>Files</th><th>Expires</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <h2 style="margin-top:26px">Add a person</h2>
+        <p class="hint">A password is generated here and shown once. Only its scrambled form is stored,
+          so it cannot be looked up later — if it is lost, reset it and send a new one.</p>
+        <div class="row">
+          <div><label for="accName">Full name</label><input type="text" id="accName" placeholder="Meghan Tidgewell"></div>
+          <div><label for="accEmail">MISMO email — used to sign in</label><input type="email" id="accEmail" placeholder="meghan@mismo.org"></div>
+          <div><label for="accExp">Access expires (optional)</label><input type="date" id="accExp"></div>
+          <button id="accAdd">Create account</button>
+        </div>
+
+        <div class="bar">
+          <span id="accStatus" class="status"></span>
+          <button class="secondary" id="accReload">Discard changes</button>
+          <button id="accSave" disabled>Save access</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-fac" class="hidden">
       <div class="card">
         <h2>People</h2>
         <p class="hint">Everyone who can save. Their name becomes the author on their commits, so a save is always attributable. Removing someone takes effect on their next save — a save already in flight is not interrupted.</p>
@@ -206,6 +241,10 @@
     showSignedIn();
     applyFac(r); renderFac();
     await loadTypes();
+    /* The central list is separate and may be unavailable — an older relay, or an
+       account that is not a platform administrator. Neither should stop the rest of the
+       panel working, so it is loaded on its own and reports its own state. */
+    loadAccess();
     return true;
   }
   $('siBtn').addEventListener('click', async () => {
@@ -244,7 +283,8 @@
   function setStatus(id, dirty, text){
     const el = $(id); el.textContent = text || (dirty ? 'Unsaved changes' : 'No changes'); el.classList.toggle('dirty', !!dirty);
   }
-  function showErr(id, msg){ const el = $(id); if (!msg){ el.classList.add('hidden'); return; } el.textContent = msg; el.classList.remove('hidden'); }
+  function showErr(id, msg){ const el = $(id); if (!msg){ el.classList.add('hidden'); el.classList.remove('show'); return; }
+    el.textContent = msg; el.classList.remove('hidden'); el.classList.add('show'); }
   function reveal(name, code){
     $('revealTitle').textContent = `Password for ${name}`;
     $('revealCode').textContent = code;
@@ -255,6 +295,137 @@
   window.addEventListener('beforeunload', e => { if (fac.dirty || types.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
   /* ---------- facilitators ---------- */
+  /* ---------- People & access: the central list, one row per person ----------
+     Each column is a tool, and a tool someone has no access to is shown as such rather
+     than left blank, so the row says what is true rather than what is missing. Admin
+     cannot be granted here for a tool: that is a deliberate limit in the relay, so a
+     single compromised session cannot mint more admins. */
+  const TOOLS = [
+    { key:'hub',       label:'Initiative Hub' },
+    { key:'glossary',  label:'Business Glossary' },
+    { key:'hub-files', label:'Files' }
+  ];
+  let acc = null;   // { people, sha, dirty }
+
+  async function loadAccess(){
+    try {
+      const r = await S.access.get();
+      acc = { people: r.people || {}, sha: r.sha, dirty:false };
+      $('accUnavailable').classList.add('hidden');
+      $('accReady').classList.remove('hidden');
+      renderAccess();
+    } catch (e) {
+      /* 404 means the relay predates this feature; 403 means this account may not edit
+         the list. They need different words, because one is a deployment and the other
+         is a permission. */
+      $('accReady').classList.add('hidden');
+      if (e.code === 'NOT_PLATFORM_ADMIN') {
+        $('accUnavailable').classList.remove('hidden');
+        $('accUnavailable').innerHTML = '<p class="hint"><strong>You cannot change who has access.</strong> ' +
+          'That is limited to platform administrators. The Facilitators tab still manages this tool\'s own list.</p>';
+      } else {
+        $('accUnavailable').classList.remove('hidden');
+      }
+    }
+  }
+
+  function roleSelect(email, tool, role){
+    const opt = (v, t) => `<option value="${v}"${role===v?' selected':''}>${t}</option>`;
+    /* Admin is offered only where it is already set, so an existing admin is not silently
+       demoted by saving, but a new one cannot be created here. */
+    return `<select data-acc-role="${esc(email)}" data-tool="${tool}">` +
+      opt('', 'No access') + opt('staff', 'Staff') + (role === 'admin' ? opt('admin', 'Admin') : '') +
+      '</select>';
+  }
+
+  function renderAccess(){
+    const tb = $('accTable').querySelector('tbody');
+    const rows = Object.entries(acc.people).sort((a,b) => a[1].name.localeCompare(b[1].name));
+    tb.innerHTML = rows.map(([email, p]) => `
+      <tr>
+        <td>
+          <span class="who">
+            <span class="av">${esc(MismoStore.initials(p.name))}</span>
+            <span><span class="nm">${esc(p.name)}</span><span class="em">${esc(email)}</span>
+              ${p.platformAdmin ? '<span class="em" style="color:var(--navy)">Platform administrator</span>' : ''}</span>
+          </span>
+        </td>
+        ${TOOLS.map(t => `<td>${roleSelect(email, t.key, (p.access||{})[t.key] || '')}</td>`).join('')}
+        <td><input type="date" class="inline" data-acc-exp="${esc(email)}" value="${esc(p.expires || '')}"></td>
+        <td class="actions">
+          <button class="secondary small" data-acc-reset="${esc(email)}">Reset password</button>
+          <button class="danger small" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Platform administrators are removed in the repository"' : ''}>Remove</button>
+        </td>
+      </tr>`).join('');
+    $('accSave').disabled = !acc.dirty;
+  }
+  function markAcc(){ acc.dirty = true; renderAccess(); }
+
+  document.addEventListener('change', e => {
+    if (!acc) return;
+    const sel = e.target.closest('[data-acc-role]');
+    if (sel) {
+      const p = acc.people[sel.dataset.accRole];
+      p.access = p.access || {};
+      if (sel.value) p.access[sel.dataset.tool] = sel.value; else delete p.access[sel.dataset.tool];
+      markAcc(); return;
+    }
+    const exp = e.target.closest('[data-acc-exp]');
+    if (exp) {
+      const p = acc.people[exp.dataset.accExp];
+      if (exp.value) p.expires = exp.value; else delete p.expires;
+      markAcc();
+    }
+  });
+
+  document.addEventListener('click', async e => {
+    if (!acc) return;
+    const rs = e.target.closest('[data-acc-reset]');
+    if (rs) {
+      const email = rs.dataset.accReset, p = acc.people[email];
+      const code = S.facilitators.generatePasscode();
+      p.hash = await S.facilitators.pbkdf2Hash(code);
+      reveal(p.name, code); markAcc(); return;
+    }
+    const rm = e.target.closest('[data-acc-remove]');
+    if (rm) {
+      const email = rm.dataset.accRemove;
+      if (confirm(`Remove ${acc.people[email].name}? They lose access to every tool within about a minute.`)) {
+        delete acc.people[email]; markAcc();
+      }
+    }
+  });
+
+  $('accAdd').addEventListener('click', async () => {
+    const name = $('accName').value.trim();
+    const email = $('accEmail').value.trim().toLowerCase();
+    const err = $('accErr');
+    if (!name) return showErr('accErr', 'A full name is needed.');
+    if (!email || !email.includes('@')) return showErr('accErr', 'A MISMO email is needed — it is what they sign in with.');
+    if (acc.people[email]) return showErr('accErr', 'There is already an account with that email.');
+    const code = S.facilitators.generatePasscode();
+    const entry = { name, hash: await S.facilitators.pbkdf2Hash(code), access: { hub: 'staff' } };
+    if ($('accExp').value) entry.expires = $('accExp').value;
+    acc.people[email] = entry;
+    $('accName').value = ''; $('accEmail').value = ''; $('accExp').value = '';
+    err.classList.remove('show');
+    reveal(name, code); markAcc();
+  });
+
+  $('accReload').addEventListener('click', loadAccess);
+  $('accSave').addEventListener('click', async () => {
+    $('accSave').disabled = true;
+    try {
+      const r = await S.access.put(acc.people, acc.sha);
+      acc.sha = r.sha; acc.dirty = false;
+      setStatus('accStatus', true, `Saved. ${r.count} ${r.count === 1 ? 'person' : 'people'}.`);
+      renderAccess();
+    } catch (e) {
+      $('accSave').disabled = false;
+      showErr('accErr', e.message || 'Could not save.');
+    }
+  });
+
   function applyFac(r){ fac = { sha:r.sha, admin:r.admin, admins:r.admins || (r.admin ? [r.admin] : []), list:(r.facilitators||[]).map(f => ({...f})), dirty:false }; }
   function renderFac(){
     const tb = $('facTable').querySelector('tbody');
