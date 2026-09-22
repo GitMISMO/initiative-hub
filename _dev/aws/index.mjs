@@ -357,12 +357,15 @@ async function findPerson(email, password) {
   if (dir.error) return { error: dir.error };
   const id = String(email).trim().toLowerCase();
 
-  // Walk every entry even after a match, so timing does not reveal which emails exist.
-  let found = null;
+  // Exactly one PBKDF2 per attempt — see findAccount. The comment this replaces claimed
+  // walking every entry hid which emails exist; it did not, because the hash only ran on
+  // a match, so a miss returned immediately.
+  let found = null, matched = null;
   for (const [addr, person] of Object.entries(dir.people)) {
-    const ok = addr.toLowerCase() === id && person && verifyPassword(password, person.hash);
-    if (ok && !found) found = { email: addr, ...person };
+    if (!matched && person && addr.toLowerCase() === id) matched = { email: addr, ...person };
   }
+  const ok = verifyPassword(password, matched ? matched.hash : DECOY_HASH);
+  if (matched && ok) found = matched;
   if (!found) return { error: 'SIGNIN_FAILED' };
   if (isExpired(found)) return { error: 'ACCOUNT_EXPIRED' };
   return found;
@@ -436,6 +439,16 @@ const sha256hex = (s) => createHash('sha256').update(s, 'utf8').digest('hex');
 function pbkdf2Hex(password, saltHex, iterations) {
   return pbkdf2Sync(password, Buffer.from(saltHex, 'hex'), iterations, PBKDF2_KEYLEN, 'sha256').toString('hex');
 }
+
+/* A stored hash that matches no password, at the same iteration count as real accounts.
+ * When no account matches the identifier, the password is checked against this instead,
+ * so a failed sign-in costs one full PBKDF2 whether or not the email exists.
+ *
+ * Without it, an unknown email skipped the hash entirely and returned several hundred
+ * times faster than a known one — measured at 374x — which let anyone discover which MISMO
+ * addresses have accounts simply by timing failed sign-ins. The salt and derived key are
+ * arbitrary; only the iteration count matters, and it must track PBKDF2_ITERATIONS. */
+const DECOY_HASH = 'pbkdf2$' + PBKDF2_ITERATIONS + '$' + '9f8e7d6c5b4a39281706f5e4d3c2b1a0' + '$' + '0'.repeat(64);
 
 function verifyPassword(password, stored) {
   if (typeof stored !== 'string' || !stored) return false;
@@ -585,11 +598,17 @@ async function findAccount(repo, branch, identifier, password) {
 
   const id = String(identifier).trim().toLowerCase();
   let found = null;
+  /* Exactly one PBKDF2 per attempt, whether or not the identifier matched. Resolve the
+   * candidate first, then hash once — against the real hash on a match, the decoy on a
+   * miss. Hashing inside the loop with && short-circuited on a miss, which is what made
+   * unknown emails return hundreds of times faster than known ones. */
+  let matched = null;
   for (const c of candidates) {
     const matchesId = (c.email && c.email.toLowerCase() === id) || (c.name && c.name.toLowerCase() === id);
-    const ok = matchesId && verifyPassword(password, c.hash);
-    if (ok && !found) found = c;
+    if (matchesId && !matched) matched = c;
   }
+  const ok = verifyPassword(password, matched ? matched.hash : DECOY_HASH);
+  if (matched && ok) found = matched;
   if (!found) return { error: 'KEY_BAD' };
   if (isExpired(found)) return { error: 'KEY_EXPIRED' };
   return { email: found.email || found.name, name: found.name, role: found.role };

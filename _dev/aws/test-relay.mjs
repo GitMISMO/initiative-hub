@@ -567,3 +567,23 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
   ok('/version is the SHA-256 of the running source', J(v).sha256===expected);
   ok('/version reveals nothing but the hash', Object.keys(J(v)).join()==='sha256');
 }
+
+/* ---------- a failed sign-in must not reveal whether the account exists ---------- */
+{
+  facCacheBust();
+  hubFac = facFile = {
+    admins: [ { name:'Timing Real', email:'real@mismo.org', hash: mkHash('real-password') } ],
+    facilitators: []
+  };
+  const attempt = async (who) => { const s = performance.now();
+    await handler({ rawPath:'/hub/data/mcd', requestContext:{http:{method:'GET'}},
+      headers:{ origin:'https://org.github.io', 'x-facilitator-key': who+':wrong-password' } });
+    return performance.now() - s; };
+  await attempt('warm@x');
+  const avg = async (who, n=5) => { let t=0; for (let i=0;i<n;i++) t += await attempt(who); return t/n; };
+  const known = await avg('real@mismo.org'), unknown = await avg('nobody-here@mismo.org');
+  /* Generous bounds so this is not flaky: before the fix the ratio was ~374x. Anything
+     within 3x either way means both paths ran a full PBKDF2. */
+  const ratio = known / unknown;
+  ok(`an unknown email costs the same as a known one (ratio ${ratio.toFixed(2)})`, ratio > 0.33 && ratio < 3);
+}
