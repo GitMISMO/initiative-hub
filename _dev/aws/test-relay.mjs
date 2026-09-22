@@ -717,3 +717,75 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
   ok('a path that climbs out is refused', r.statusCode===400 || r.statusCode===403);
   globalThis.fetch = prev2;
 }
+
+/* ---------- editing who has access ---------- */
+{
+  facCacheBust(); accessBust(); projectsCacheBust();
+  process.env.PROJECTS_REPO = 'Org/SiteConfig';
+  accessStatus = 200;
+  accessFile = { people: {
+    'boss@mismo.org':  { name:'Platform Boss', hash: mkHash('boss-pw'),  access:{hub:'admin', glossary:'admin'}, platformAdmin:true },
+    'other@mismo.org': { name:'Other Admin',   hash: mkHash('other-pw'), access:{hub:'admin'} },
+    'staff@mismo.org': { name:'Just Staff',    hash: mkHash('staff-pw'), access:{hub:'staff'} }
+  }};
+  let written = null;
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (opts.method === 'PUT' && String(url).includes('/Org/SiteConfig/contents/')) {
+      written = JSON.parse(Buffer.from(JSON.parse(opts.body).content, 'base64').toString('utf8'));
+      return { status: 200, json: async () => ({ content: { sha: 'n'.repeat(40) } }) };
+    }
+    return prevFetch(url, opts);
+  };
+  /* The admin panel uses a session token, which resolves against the directory. The
+     passcode route resolves against each tool's own list, where these people do not
+     appear, so testing with a token is the faithful path. */
+  const tokenFor = (email) => mint({ sub: email, name: email, iat: Math.floor(Date.now()/1000),
+                                     exp: Math.floor(Date.now()/1000) + 3600 });
+  const call = (method, email, body) => handler({
+    rawPath:'/hub/access', requestContext:{http:{method}},
+    headers:{ origin:'https://org.github.io', authorization:'Bearer ' + tokenFor(email), 'content-type':'application/json' },
+    body: body ? JSON.stringify(body) : undefined });
+
+  r = await call('GET', 'boss@mismo.org');
+  ok('a platform administrator can read the directory', r.statusCode===200 && Object.keys(J(r).people).length===3);
+
+  r = await call('GET', 'other@mismo.org');
+  ok('being an admin of a tool is NOT enough to read it', r.statusCode===403 && J(r).error==='NOT_PLATFORM_ADMIN');
+  r = await call('GET', 'staff@mismo.org');
+  ok('nor is being staff', r.statusCode===403);
+
+  /* the ordinary edit: give someone access to another tool */
+  const next = JSON.parse(JSON.stringify(accessFile.people));
+  next['staff@mismo.org'].access.glossary = 'staff';
+  r = await call('PUT', 'boss@mismo.org', { people: next, sha:'a'.repeat(40) });
+  ok('a platform administrator can change who has access', r.statusCode===200);
+  ok('the change is what gets written', written && written.people['staff@mismo.org'].access.glossary==='staff');
+  ok('and platformAdmin is preserved, not dropped', written && written.people['boss@mismo.org'].platformAdmin===true);
+
+  r = await call('PUT', 'other@mismo.org', { people: next });
+  ok('an admin of a tool cannot change the directory', r.statusCode===403);
+
+  /* the two lockouts */
+  const noAdmins = JSON.parse(JSON.stringify(next));
+  delete noAdmins['boss@mismo.org'].platformAdmin;
+  r = await call('PUT', 'boss@mismo.org', { people: noAdmins });
+  ok('removing the last platform administrator is refused', r.statusCode===400 && J(r).error==='NO_PLATFORM_ADMIN');
+
+  const someoneElse = JSON.parse(JSON.stringify(next));
+  delete someoneElse['boss@mismo.org'].platformAdmin;
+  someoneElse['other@mismo.org'].platformAdmin = true;
+  r = await call('PUT', 'boss@mismo.org', { people: someoneElse });
+  ok('removing your own platform access is refused too', r.statusCode===400 && J(r).error==='WOULD_LOCK_SELF_OUT');
+
+  /* validation */
+  r = await call('PUT', 'boss@mismo.org', { people: { 'notanemail': { name:'X', hash: mkHash('x'), access:{} } } });
+  ok('an entry whose key is not an email is refused', r.statusCode===400 && J(r).error==='BAD_EMAIL');
+  r = await call('PUT', 'boss@mismo.org', { people: { 'a@b.org': { name:'X', hash:'nope', access:{} } } });
+  ok('a malformed password hash is refused', r.statusCode===400 && J(r).error==='BAD_HASH');
+  r = await call('PUT', 'boss@mismo.org', { people: { 'a@b.org': { name:'X', hash: mkHash('x'), access:{hub:'owner'} } } });
+  ok('an unknown role is refused', r.statusCode===400 && J(r).error==='BAD_ROLE');
+
+  globalThis.fetch = prevFetch;
+  accessBust();
+}

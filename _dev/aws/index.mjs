@@ -401,6 +401,25 @@ async function findPerson(email, password) {
 }
 
 /* What this person may do on this project, read fresh. Returns a role or null. */
+/* Editing the directory is its own permission, not "admin of something".
+ *
+ * The directory spans every tool, so if any tool's admin could edit it, an admin of one
+ * tool could grant themselves admin of another. It is marked explicitly instead, with
+ * platformAdmin on the person. Nobody gets it by implication.
+ *
+ * If no one is marked, the directory cannot be edited through the relay at all and has to
+ * be changed in the repository by hand. That is the safe failure: it locks the door rather
+ * than opening it to whoever happens to be an admin somewhere. */
+async function isPlatformAdmin(email) {
+  const dir = await loadAccess();
+  if (dir.error) return { error: dir.error };
+  const person = Object.entries(dir.people)
+    .find(([addr]) => addr.toLowerCase() === String(email).toLowerCase())?.[1];
+  if (!person || person.platformAdmin !== true) return { error: 'NOT_PLATFORM_ADMIN' };
+  if (isExpired(person)) return { error: 'ACCOUNT_EXPIRED' };
+  return { ok: true };
+}
+
 async function roleFor(email, projectKey) {
   const dir = await loadAccess();
   if (dir.error) return { error: dir.error };
@@ -780,11 +799,12 @@ export async function handler(event) {
 
   const dataMatch = subPath.match(/^\/data\/([^/]+)$/);
   const fileMatch = subPath.match(/^\/file\/(.+)$/);
+  const isAccess = subPath === '/access';
   const potentialMatch = subPath.match(/^\/potential\/([^/]+)$/);
   const configMatch = subPath.match(/^\/config\/([a-z0-9-]+)$/);
   const commitMatch = subPath === '/commit';
   const isFacilitators = subPath === '/facilitators';
-  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch) return respond(404, { error: 'NOT_FOUND' });
+  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess) return respond(404, { error: 'NOT_FOUND' });
   if (configMatch && !CONFIG_FILES[configMatch[1]]) return respond(404, { error: 'NOT_FOUND' });
 
   const who = await authenticate(headers, repo, branch);
@@ -805,6 +825,97 @@ export async function handler(event) {
   if (who.error) return respond(401, { error: 'KEY_BAD', message: 'That email and password were not recognised.' });
 
   /* ----- dashboards: facilitator or admin ----- */
+  /* GET  /{project}/access — the whole directory, for the admin panel.
+   * PUT  /{project}/access — replaces it.
+   *
+   * The directory lives beside projects.json in the config repository, not in any
+   * project's own repository, so this writes there rather than to proj.repo. */
+  if (isAccess) {
+    const configRepo = process.env.PROJECTS_REPO;
+    if (!configRepo) return respond(500, { error: 'NO_DIRECTORY' });
+    const accessPath = process.env.ACCESS_PATH || ACCESS_PATH_DEFAULT;
+    const configBranch = process.env.PROJECTS_BRANCH || 'main';
+
+    const may = await isPlatformAdmin(who.email);
+    if (may.error === 'NOT_PLATFORM_ADMIN') {
+      return respond(403, { error: 'NOT_PLATFORM_ADMIN',
+        message: 'Only a platform administrator can view or change who has access.' });
+    }
+    if (may.error) return respond(502, { error: may.error });
+
+    if (method === 'GET') {
+      const file = await readFile(configRepo, configBranch, accessPath);
+      if (file.status !== 200) return respond(502, { error: 'GITHUB', status: file.status });
+      return respond(200, { people: file.data?.people || {}, sha: file.sha });
+    }
+
+    if (method === 'PUT') {
+      const parsed = parseBody(event);
+      if (parsed.error) return parsed.error;
+      const people = parsed.body?.people;
+      if (!people || typeof people !== 'object' || Array.isArray(people)) {
+        return respond(400, { error: 'BAD_BODY', message: 'people must be an object keyed by email.' });
+      }
+      const entries = Object.entries(people);
+      if (entries.length > 500) return respond(400, { error: 'TOO_MANY' });
+
+      const clean = {};
+      const seen = new Set();
+      for (const [rawEmail, p] of entries) {
+        const email = String(rawEmail).trim().toLowerCase();
+        if (!email.includes('@') || email.length > 160) return respond(400, { error: 'BAD_EMAIL', email: rawEmail });
+        if (seen.has(email)) return respond(400, { error: 'DUPLICATE_EMAIL', email });
+        seen.add(email);
+        if (!p || typeof p !== 'object') return respond(400, { error: 'BAD_PERSON', email });
+        const name = String(p.name || '').trim();
+        if (!name || name.length > 120) return respond(400, { error: 'BAD_NAME', email });
+        if (!isStoredHash(p.hash)) return respond(400, { error: 'BAD_HASH', email });
+
+        const access = {};
+        for (const [proj, role] of Object.entries(p.access || {})) {
+          if (!/^[a-z0-9-]{1,40}$/.test(proj)) return respond(400, { error: 'BAD_PROJECT', project: proj });
+          if (role === 'admin' || role === 'staff') access[proj] = role;
+          else if (role === 'facilitator') access[proj] = 'staff';
+          else if (role) return respond(400, { error: 'BAD_ROLE', project: proj, role });
+        }
+        const entry = { name, hash: p.hash, access };
+        if (p.platformAdmin === true) entry.platformAdmin = true;
+        if (p.expires) {
+          const d = String(p.expires).slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return respond(400, { error: 'BAD_DATE', email });
+          entry.expires = d;
+        }
+        clean[email] = entry;
+      }
+
+      /* Two ways to lock everyone out, both refused rather than saved:
+       * removing the last platform administrator, and removing your own. */
+      const remaining = Object.entries(clean).filter(([, p]) => p.platformAdmin === true && !isExpired(p));
+      if (!remaining.length) {
+        return respond(400, { error: 'NO_PLATFORM_ADMIN',
+          message: 'At least one platform administrator must remain.' });
+      }
+      if (!remaining.some(([email]) => email === String(who.email).toLowerCase())) {
+        return respond(400, { error: 'WOULD_LOCK_SELF_OUT',
+          message: 'You cannot remove your own platform administrator access here.' });
+      }
+
+      const { status, json } = await github('PUT', `/repos/${configRepo}/contents/${accessPath}`, {
+        message: `Update who has access (by ${who.name})`,
+        content: encodeBase64Utf8({ people: clean }),
+        branch: configBranch,
+        sha: parsed.body.sha || undefined,
+        author: authorFor(who.name)
+      });
+      const bad = writeOutcome(status, json, !!parsed.body.sha);
+      if (bad) return bad;
+      __resetAccessCache();          // the next request must see the change, not the cache
+      return respond(200, { sha: json.content?.sha, savedBy: who.name, count: Object.keys(clean).length });
+    }
+
+    return respond(405, { error: 'METHOD' });
+  }
+
   /* GET /{project}/file/{path} — hands one file back, base64, to a recognised account.
    *
    * Deliberately narrow. It reads only inside the folders the project declares as
