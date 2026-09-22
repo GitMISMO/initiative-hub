@@ -11,5 +11,10 @@
       "hash": "pbkdf2$210000$c7f711325c80dfdd5b013a297cdc5b34$f373ff22027d23ea58098732816bc980cdda109d1449936d9dcf5fb16d767689"
     }
   ],
-  "facilitators": []
+  "facilitators": [
+    {
+      "name": "Erin Bittenbender",
+      "hash": "pbkdf2$210000$5cd66ea150e8aef324ee0acbedea3fa4$b1928fd9b5d8e812f2e46e07b175b4924c40e830bd81675d5e6b81cdc2b85438"
+    }
+  ]
 }
