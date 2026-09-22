@@ -239,6 +239,20 @@ comments, and it's the same tradeoff already live on all four real dashboards
   since the browser default (`middle`) looks fine on short rows but visibly
   misaligns content whenever a row's first cell wraps to two lines.
 
+## Waiting on the relay redeploy
+
+Three things are ready and deliberately held back until IT deploys the current relay.
+Check with `GET /version` on the relay — it must match `sha256sum _dev/aws/index.mjs`.
+
+1. **Merge the Glossary's `relay-migration` branch.** The console is moved onto the relay
+   and tested; merging before the fix would let Glossary accounts rewrite the build
+   workflow through /commit.
+2. **Move Jonna Critchley back to admin.** facilitators.json was put back into the
+   single-`admin` shape because the running relay cannot read `admins`. Switch both
+   repos back to the `admins` array once the new code is live.
+3. **Only then add staff accounts** through the admin panel. Until the fix is deployed,
+   a staff account could promote itself through /commit.
+
 ## What /commit may write
 
 `/commit` writes through the Git Data API and would accept any path in the repository if
