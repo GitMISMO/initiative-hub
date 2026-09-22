@@ -779,11 +779,12 @@ export async function handler(event) {
   const branch = proj.branch;
 
   const dataMatch = subPath.match(/^\/data\/([^/]+)$/);
+  const fileMatch = subPath.match(/^\/file\/(.+)$/);
   const potentialMatch = subPath.match(/^\/potential\/([^/]+)$/);
   const configMatch = subPath.match(/^\/config\/([a-z0-9-]+)$/);
   const commitMatch = subPath === '/commit';
   const isFacilitators = subPath === '/facilitators';
-  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch) return respond(404, { error: 'NOT_FOUND' });
+  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch) return respond(404, { error: 'NOT_FOUND' });
   if (configMatch && !CONFIG_FILES[configMatch[1]]) return respond(404, { error: 'NOT_FOUND' });
 
   const who = await authenticate(headers, repo, branch);
@@ -804,6 +805,34 @@ export async function handler(event) {
   if (who.error) return respond(401, { error: 'KEY_BAD', message: 'That email and password were not recognised.' });
 
   /* ----- dashboards: facilitator or admin ----- */
+  /* GET /{project}/file/{path} — hands one file back, base64, to a recognised account.
+   *
+   * Deliberately narrow. It reads only inside the folders the project declares as
+   * writable, so it cannot be used to read the account list or anything else in the
+   * repository, and it exists so that files kept in a PRIVATE repository can reach a
+   * signed-in person without the repository being public. Anyone not signed in gets
+   * nothing: the authentication above has already run. */
+  if (fileMatch && method === 'GET') {
+    const wanted = decodeURIComponent(fileMatch[1]);
+    if (wanted.includes('..') || wanted.startsWith('/')) return respond(400, { error: 'BAD_PATH' });
+    if (!commitPathAllowed(wanted, proj.writable)) {
+      return respond(403, { error: 'PATH_NOT_READABLE', path: wanted,
+        message: 'That file is outside what this application holds.' });
+    }
+    const res = await github('GET', `/repos/${repo}/contents/${encodeURI(wanted)}?ref=${encodeURIComponent(branch)}`);
+    if (res.status === 404) return respond(404, { error: 'NOT_FOUND', path: wanted });
+    if (res.status !== 200) return respond(502, { error: 'GITHUB', status: res.status });
+    /* Larger files come back without content and have to be fetched as a blob. */
+    let content = res.json && res.json.content ? String(res.json.content).replace(/\s/g, '') : null;
+    if (!content && res.json && res.json.sha) {
+      const blob = await github('GET', `/repos/${repo}/git/blobs/${res.json.sha}`);
+      if (blob.status !== 200) return respond(502, { error: 'GITHUB', status: blob.status });
+      content = String(blob.json.content || '').replace(/\s/g, '');
+    }
+    if (!content) return respond(502, { error: 'EMPTY', path: wanted });
+    return respond(200, { path: wanted, size: res.json.size || null, sha: res.json.sha, content: content });
+  }
+
   if (dataMatch) {
     const id = dataMatch[1];
     if (!DASHBOARD_ID.test(id) || RESERVED_IDS.has(id)) return respond(400, { error: 'BAD_ID' });
@@ -880,8 +909,17 @@ export async function handler(event) {
 
       const tree = [];
       for (const f of files) {
+        /* Text is the default and is encoded here. A file with encoding:'base64' is
+         * passed through untouched: treating a PDF as UTF-8 text would mangle every byte
+         * that is not valid UTF-8, and the corruption would only show when someone tried
+         * to open it. */
+        const isB64 = f.encoding === 'base64';
+        if (isB64 && !/^[A-Za-z0-9+/]*={0,2}$/.test(String(f.content).replace(/\s/g, ''))) {
+          return respond(400, { error: 'BAD_BASE64', path: f.path });
+        }
         const blob = await github('POST', `/repos/${repo}/git/blobs`, {
-          content: Buffer.from(f.content, 'utf8').toString('base64'), encoding: 'base64'
+          content: isB64 ? String(f.content).replace(/\s/g, '') : Buffer.from(f.content, 'utf8').toString('base64'),
+          encoding: 'base64'
         });
         if (blob.status !== 201) return respond(502, { error: 'GITHUB', status: blob.status, path: f.path });
         tree.push({ path: f.path, mode: '100644', type: 'blob', sha: blob.json.sha });

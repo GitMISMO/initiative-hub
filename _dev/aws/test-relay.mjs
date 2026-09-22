@@ -649,3 +649,71 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
     body: JSON.stringify({ files:[{path:'data/x.json',content:'{}'}], message:'x' }) });
   ok('a project that declares no writable paths cannot /commit anything', pr.statusCode===403 || pr.statusCode===401);
 }
+
+/* ---------- documents: stored without corruption, read back only by an account ---------- */
+{
+  facCacheBust(); projectsCacheBust();
+  hubFac = facFile = {
+    admins: [ { name:'Files Admin', email:'admin@mismo.org', hash: mkHash('admin-pw') } ],
+    facilitators: [ { name:'Files Staff', email:'staff@mismo.org', hash: mkHash('staff-pw') } ]
+  };
+  /* A real PDF header: bytes that are not valid UTF-8, so any text handling corrupts them. */
+  const pdfBytes = Buffer.from([0x25,0x50,0x44,0x46,0x2d,0x31,0x2e,0x37,0x0a,0x80,0xff,0xfe,0x00,0x01,0x02]);
+  const b64 = pdfBytes.toString('base64');
+  let stored = null;
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (opts.method === 'POST' && String(url).includes('/git/blobs')) {
+      stored = JSON.parse(opts.body);                       // what the relay sent GitHub
+      return { status: 201, json: async () => ({ sha: 'blob'.padEnd(40,'0') }) };
+    }
+    return prevFetch(url, opts);
+  };
+
+  const commit = (files, key='staff@mismo.org:staff-pw') => handler({
+    rawPath:'/hub/commit', requestContext:{http:{method:'POST'}},
+    headers:{ origin:'https://org.github.io', 'x-facilitator-key':key, 'content-type':'application/json' },
+    body: JSON.stringify({ files, message:'add a document' }) });
+
+  await commit([{ path:'data/doc.pdf', content:b64, encoding:'base64' }]);
+  ok('a document is stored byte for byte, not mangled as text',
+     stored && stored.encoding==='base64' && Buffer.from(stored.content,'base64').equals(pdfBytes));
+
+  stored = null;
+  await commit([{ path:'data/notes.json', content:'{"a":1}' }]);
+  ok('plain text still stores correctly',
+     stored && Buffer.from(stored.content,'base64').toString('utf8') === '{"a":1}');
+
+  r = await commit([{ path:'data/bad.pdf', content:'not valid base64 !!!', encoding:'base64' }]);
+  ok('content that claims to be base64 but is not is refused', r.statusCode===400 && J(r).error==='BAD_BASE64');
+  globalThis.fetch = prevFetch;
+
+  /* reading one back */
+  const prev2 = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (opts.method === 'GET' && String(url).includes('/contents/data/doc.pdf')) {
+      return { status: 200, json: async () => ({ content: b64, size: pdfBytes.length, sha: 'x'.repeat(40) }) };
+    }
+    return prev2(url, opts);
+  };
+  const getFile = (path, key) => handler({
+    rawPath:'/hub/file/'+path, requestContext:{http:{method:'GET'}},
+    headers:{ origin:'https://org.github.io', ...(key ? {'x-facilitator-key':key} : {}) } });
+
+  r = await getFile('data/doc.pdf', 'staff@mismo.org:staff-pw');
+  ok('a signed-in account can read a document back', r.statusCode===200 && J(r).content===b64);
+  ok('and it survives the round trip intact', Buffer.from(J(r).content,'base64').equals(pdfBytes));
+
+  r = await getFile('data/doc.pdf', null);
+  ok('someone with no account gets nothing', r.statusCode===401);
+
+  r = await getFile('_internal/facilitators.json', 'staff@mismo.org:staff-pw');
+  ok('it cannot be used to read the account list', r.statusCode===403 && J(r).error==='PATH_NOT_READABLE');
+
+  r = await getFile('index.html', 'admin@mismo.org:admin-pw');
+  ok('nor anything outside the declared folders, even for an admin', r.statusCode===403);
+
+  r = await getFile('data/../_internal/facilitators.json', 'staff@mismo.org:staff-pw');
+  ok('a path that climbs out is refused', r.statusCode===400 || r.statusCode===403);
+  globalThis.fetch = prev2;
+}
