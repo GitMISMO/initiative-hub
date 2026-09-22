@@ -22,7 +22,7 @@
   try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=b611142413"></script>
+<script src="dashboard-data.js?v=b709146391"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
@@ -96,6 +96,22 @@
   .addrow{display:flex; gap:8px; margin-bottom:14px;}
   .addrow input{flex:1; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px;}
   .addrow input.by{flex:0 0 180px;}
+  /* Files live in a private repository and are only ever shown to someone signed in
+     with access to it, so this block is absent entirely for everyone else. */
+  .files{margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);}
+  .files .lbl2{font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--slate-text); margin-bottom:8px;}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; align-items:center;}
+  .chip{display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 4px 0 10px; border-radius:999px;
+    border:1px solid var(--line); background:var(--card); font-size:11.5px; font-weight:600; color:var(--ink);
+    white-space:nowrap; max-width:300px; cursor:pointer;}
+  .chip .dot{width:7px; height:7px; border-radius:2px; flex:0 0 auto;}
+  .chip .nm{overflow:hidden; text-overflow:ellipsis;}
+  .chip .sz{font-weight:500; color:var(--slate-text); flex:0 0 auto;}
+  .chip .x{border:none; background:none; color:var(--slate-text); cursor:pointer; font-size:13px; padding:0 4px;}
+  .chip.add{border-style:dashed; color:var(--slate-text); font-weight:500; padding:0 12px;}
+  .files .note{font-size:11.5px; color:var(--slate-text); margin-top:8px;}
+
   /* Status updates: a timeline, newest first. */
   .tl{border-left:2px solid var(--line); margin-left:6px; padding-left:16px;}
   .tl-i{position:relative; padding-bottom:14px;} .tl-i:last-child{padding-bottom:0;}
@@ -169,6 +185,8 @@
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id = new URLSearchParams(location.search).get('id') || '';
   let rec = null, sha = null, dirty = false, activeType = null, search = '';
+  let files = null;        // null until loaded; [] means loaded and empty
+  let filesErr = '';
   let leadAddOpen = false;   // whether the "Add a potential leader" fields are expanded
 
   function fmtWhen(iso){ const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }
@@ -176,6 +194,36 @@
   function engColor(k){ const e = P.ENGAGEMENTS.find(x => x.key === k); return e ? e.color : '#8B94A7'; }
   function setDirty(v){ dirty = v; $('saveBtn').disabled = !v; $('saveBtn').classList.toggle('dirty', v); $('status').textContent = v ? 'Unsaved changes' : ''; }
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  const KIND = { pdf:'#C0392B', doc:'#2A4DFF', docx:'#2A4DFF', xls:'#1D9E75', xlsx:'#1D9E75',
+                 ppt:'#D35400', pptx:'#D35400', png:'#7F5AF0', jpg:'#7F5AF0', jpeg:'#7F5AF0' };
+  const kindColour = n => KIND[String(n).split('.').pop().toLowerCase()] || 'var(--slate)';
+  const niceSize = b => b >= 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b/1024)) + ' KB';
+
+  /* Absent entirely for a signed-out visitor, rather than shown empty or locked: the files
+     are private, and so is the fact that there are any. */
+  function filesBlock(){
+    if (!S.files.canUse()) return '';
+    if (files === null) return `<div class="files"><div class="lbl2">Files on this initiative</div><div class="muted">Loading…</div></div>`;
+    const chips = files.map(f => `<span class="chip" data-open="${esc(f.path)}" title="${esc(f.name)} · added by ${esc(f.by || 'someone')}">
+        <span class="dot" style="background:${kindColour(f.name)}"></span>
+        <span class="nm">${esc(f.name)}</span><span class="sz">${esc(niceSize(f.size || 0))}</span>
+        <button class="x" data-remove-file="${esc(f.path)}" title="Remove">×</button></span>`).join('');
+    return `<div class="files">
+      <div class="lbl2">Files on this initiative</div>
+      <div class="chips">${chips}<span class="chip add" id="fileAdd">+ Add a file</span></div>
+      <input type="file" id="fileInput" style="display:none">
+      ${filesErr ? `<div class="note" style="color:#C0392B">${esc(filesErr)}</div>`
+                 : `<div class="note">Only people signed in with access can see or open these. Up to 4 MB each.</div>`}
+    </div>`;
+  }
+
+  async function loadFiles(){
+    if (!S.files.canUse()) { files = []; return; }
+    try { files = await S.files.list(rec.id); }
+    catch (e) { files = []; filesErr = e.message || 'Could not load files.'; }
+    render();
+  }
 
   function render(){
     const types = rec.stakeholderTypes || [];
@@ -221,6 +269,7 @@
           <button class="btn" id="updAdd">Add</button>
         </div>
         ${updates.length ? `<div class="tl">${updates.map((u, i) => `<div class="tl-i ${u._pending ? 'pending' : ''}"><div class="tl-d">${esc(fmtWhen(u.at))}</div><div class="tl-t">${esc(u.text)}</div><div class="tl-w">${u.by ? esc(u.by) : ''}${u._pending ? ' · not saved yet' : ''}</div></div>`).join('')}</div>` : `<div class="muted">No updates logged yet.</div>`}
+        ${filesBlock()}
       </div></div>
 
       <div class="card"><div class="sec">Potential leadership</div><div class="body">
@@ -270,6 +319,49 @@
       // require reopening the form each time.
       $('ldName').focus();
     });
+    /* ---- files ---- */
+    const fAdd = $('fileAdd'), fIn = $('fileInput');
+    if (fAdd && fIn) {
+      fAdd.addEventListener('click', () => fIn.click());
+      fIn.addEventListener('change', async () => {
+        const f = fIn.files && fIn.files[0];
+        fIn.value = '';
+        if (!f) return;
+        /* The relay's request limit is about 6 MB and base64 adds a third, so anything
+           over roughly 4 MB would be refused with a confusing error. Say so first. */
+        if (f.size > 4 * 1024 * 1024) { filesErr = `${f.name} is ${niceSize(f.size)}. The limit is 4 MB.`; render(); return; }
+        filesErr = ''; fAdd.textContent = 'Uploading…'; fAdd.style.pointerEvents = 'none';
+        try {
+          const b64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result).split(',')[1]);
+            r.onerror = () => rej(new Error('Could not read that file.'));
+            r.readAsDataURL(f);
+          });
+          files = await S.files.upload(rec.id, f, b64);
+        } catch (e) { filesErr = e.message || 'Could not upload that file.'; }
+        render();
+      });
+    }
+    document.querySelectorAll('[data-open]').forEach(c => c.addEventListener('click', async ev => {
+      if (ev.target.closest('[data-remove-file]')) return;      // the × is a different action
+      const path = c.dataset.open, name = (files.find(f => f.path === path) || {}).name || 'file';
+      try {
+        const url = await S.files.open(path);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } catch (e) { filesErr = e.message || 'Could not open that file.'; render(); }
+    }));
+    document.querySelectorAll('[data-remove-file]').forEach(b => b.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      const path = b.dataset.removeFile, f = files.find(x => x.path === path);
+      if (!confirm(`Remove ${f ? f.name : 'this file'}? It stops being listed here.`)) return;
+      try { files = await S.files.remove(rec.id, path); }
+      catch (e) { filesErr = e.message || 'Could not remove that file.'; }
+      render();
+    }));
+
     $('updAdd').addEventListener('click', () => {
       const text = $('updText').value.trim(), by = $('updBy').value.trim();
       if (!text) return;
@@ -316,6 +408,11 @@
     if (!r.data) { $('app').innerHTML = `<div class="card"><div class="body">There is no potential initiative with the id “${esc(id)}”.</div></div>`; return; }
     rec = r.data; sha = r.sha; document.title = rec.name + ' — MISMO Initiative Hub';
     render();
+    /* Loaded after the record so the page appears immediately; the files block shows
+       "Loading…" in the meantime and fills in when it arrives. */
+    loadFiles();
+    /* Signing in on this page should reveal the files without a reload. */
+    if (window.ResourcesSession) window.ResourcesSession.onChange(() => { files = null; render(); loadFiles(); });
    } catch (e) {
     // Never leave the page on "Loading…". The usual cause is a stale cached copy of
     // dashboard-data.js after a deploy; a hard refresh clears it.

@@ -43,6 +43,7 @@
   /* The relay serves more than one project, so every path is prefixed with this key.
    * It must match a key in the Lambda's PROJECTS variable. */
   var PROJECT = 'hub';
+  var FILES_PROJECT = 'hub-files';   // a separate PRIVATE repository; see files below
 
   var KEY_KEY = 'resources:hub:facilitator-key';   // localStorage: "Display Name:passcode"
 
@@ -93,7 +94,7 @@
     if (s) headers['Authorization'] = 'Bearer ' + s.token;
     else headers['X-Facilitator-Key'] = getKey();
     if (opts.body) headers['Content-Type'] = 'application/json';
-    return fetch(RELAY_URL + '/' + PROJECT + path, {
+    return fetch(RELAY_URL + '/' + (opts.project || PROJECT) + path, {
       method: opts.method || 'GET',
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -565,6 +566,70 @@
     /* The central access list: everyone, once, with a role per tool. Only a platform
        administrator may read or change it, and only through a signed-in session — the
        relay refuses it otherwise. */
+    /* Documents attached to a record. They live in a SEPARATE PRIVATE repository, and so
+       does the list of them: a file name alone can give away more than it looks
+       ("Acme pricing.xlsx"), so neither the documents nor their names go anywhere public.
+       Everything here needs a session with access to that repository; a signed-out
+       visitor gets nothing and is shown nothing. */
+    files: {
+      project: FILES_PROJECT,
+      canUse: function () {
+        return !!(window.ResourcesSession && window.ResourcesSession.role(FILES_PROJECT));
+      },
+      indexPath: function (id) { return 'files/potential/' + id + '/index.json'; },
+
+      list: async function (id) {
+        var res = await relay('/file/' + this.indexPath(id), { method: 'GET', project: FILES_PROJECT });
+        if (res.status === 404) return [];                 // nothing uploaded yet
+        var body = null; try { body = await res.json(); } catch (e) {}
+        if (!res.ok) throw accessError(res, body);
+        try { return JSON.parse(atob(body.content)).files || []; } catch (e) { return []; }
+      },
+
+      /* The document and the updated index are committed together, so the list can never
+         name a file that is not there, or miss one that is. */
+      upload: async function (id, file, base64) {
+        var current = await this.list(id);
+        var safe = String(file.name).replace(/[^A-Za-z0-9._ -]/g, '_').slice(0, 120);
+        var path = 'files/potential/' + id + '/' + Date.now() + '-' + safe;
+        var entry = { path: path, name: file.name, size: file.size, type: file.type || '',
+                      by: (window.ResourcesSession.current() || {}).name || '', at: new Date().toISOString() };
+        var next = current.concat([entry]);
+        var res = await relay('/commit', { method: 'POST', project: FILES_PROJECT, body: {
+          message: 'Attach ' + safe + ' to ' + id,
+          files: [
+            { path: path, content: base64, encoding: 'base64' },
+            { path: this.indexPath(id), content: JSON.stringify({ files: next }, null, 2) + '\n' }
+          ]
+        }});
+        var body = null; try { body = await res.json(); } catch (e) {}
+        if (!res.ok) throw accessError(res, body);
+        return next;
+      },
+
+      remove: async function (id, path) {
+        var next = (await this.list(id)).filter(function (f) { return f.path !== path; });
+        var res = await relay('/commit', { method: 'POST', project: FILES_PROJECT, body: {
+          message: 'Remove a file from ' + id,
+          files: [{ path: this.indexPath(id), content: JSON.stringify({ files: next }, null, 2) + '\n' }]
+        }});
+        var body = null; try { body = await res.json(); } catch (e) {}
+        if (!res.ok) throw accessError(res, body);
+        return next;
+      },
+
+      /* Returns a blob URL the browser can download. The bytes come through the relay, so
+         the repository stays private. */
+      open: async function (path) {
+        var res = await relay('/file/' + path, { method: 'GET', project: FILES_PROJECT });
+        var body = null; try { body = await res.json(); } catch (e) {}
+        if (!res.ok) throw accessError(res, body);
+        var bin = atob(body.content), bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return URL.createObjectURL(new Blob([bytes]));
+      }
+    },
+
     access: {
       /* relay() hands back the raw response, so these parse it and throw something the
          panel can read. Returning the response itself silently produced an empty table:
