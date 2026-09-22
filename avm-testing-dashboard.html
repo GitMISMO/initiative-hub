@@ -909,7 +909,8 @@
     color:var(--ink-soft);
   }
 </style>
-  <script src="dashboard-data.js?v=384128a959"></script>
+  <script src="/assets/session.js"></script>
+<script src="dashboard-data.js?v=7772d8cb42"></script>
 </head>
 <body>
 
@@ -935,6 +936,10 @@
 
 <div class="floating-actions">
   <a class="back-to-hub" href="index.html">← Back to Initiative Hub</a>
+  <button type="button" id="signInToEdit" class="lock-toggle-btn" title="Sign in to edit this dashboard" style="display:none">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    <span>Sign in to edit</span>
+  </button>
   <button type="button" id="lockToggleBtn" class="lock-toggle-btn" aria-pressed="true" title="Unlock to allow edits">
     <span class="lock-icon" aria-hidden="true"></span><span class="lock-label">Locked</span>
   </button>
@@ -943,6 +948,7 @@
     <span class="save-label">Save</span>
     <span class="dirty-dot" aria-hidden="true"></span>
   </button>
+  <div id="rs-account"></div>
   <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
     <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
     <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
@@ -2317,6 +2323,11 @@
     e.preventDefault();
     e.returnValue = '';
   });
+
+  /* Editing controls appear only for someone who can actually edit. A signed-out visitor
+     sees "Sign in to edit" in their place, rather than a Save button that refuses. The
+     relay still decides for real on every request; this only decides what is shown. */
+  MismoStore.wireAccount({ editControls: ['#lockToggleBtn', '#saveSnapshotBtn'] });
 </script>
 
 </body>

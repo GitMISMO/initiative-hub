@@ -17,7 +17,8 @@
 
   Renames reach the dashboards when the site next deploys, about a minute after saving.
 -->
-<script src="dashboard-data.js?v=384128a959"></script>
+<script src="/assets/session.js"></script>
+<script src="dashboard-data.js?v=7772d8cb42"></script>
 <style>
   :root { --navy:#0b1a33; --brand:#1d4ed8; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --ok:#166534; --okbg:#dcfce7; --warn:#7c2d12; --warnbg:#fff7ed; --warnline:#fed7aa; --err:#991b1b; --errbg:#fee2e2; }
   * { box-sizing:border-box; }
@@ -81,6 +82,7 @@
 </head>
 <body>
 <header>
+  <div style="display:flex; justify-content:flex-end; margin-bottom:10px"><div id="rs-account"></div></div>
   <h1>MISMO Initiative Hub — Admin</h1>
   <div class="who" id="who"></div>
 </header>
@@ -214,6 +216,22 @@
     await trySignIn();
   });
   $('siPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('siBtn').click(); });
+
+  /* Someone who has signed in through the shared sign-in should not be asked for a
+     passcode as well. The store sends their session automatically, so the panel simply
+     tries to open. The passcode form stays for anyone who has not signed in yet, and
+     goes away when passcodes do. */
+  (async function () {
+    if (window.ResourcesSession && window.ResourcesSession.current()) {
+      const ok = await trySignIn();
+      if (!ok) {
+        /* Signed in, but not an admin here. Say so rather than showing a passcode box
+           they would have no reason to fill in. */
+        const s = window.ResourcesSession.current();
+        showErr('siErr', `Signed in as ${s.email}, but that account is not an administrator of the Initiative Hub.`);
+      }
+    }
+  })();
 
   /* ---------- tabs ---------- */
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {

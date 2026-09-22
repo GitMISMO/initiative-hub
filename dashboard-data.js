@@ -53,18 +53,45 @@
 
   /* ---------- facilitator key ---------- */
 
+  /* Two ways to prove who you are, on purpose.
+   *
+   * The session, from the shared sign-in, is preferred. The old facilitator passcode
+   * still works so that nobody is locked out mid-changeover; it goes away once everyone
+   * has signed in at least once.
+   *
+   * Session first also means someone who signs in stops using their passcode without
+   * being asked to do anything. */
+  function session() {
+    return (window.ResourcesSession && window.ResourcesSession.current()) || null;
+  }
   function getKey() {
     try { return localStorage.getItem(KEY_KEY) || ''; } catch (e) { return ''; }
   }
   function setKey(v) {
     try { v ? localStorage.setItem(KEY_KEY, v) : localStorage.removeItem(KEY_KEY); } catch (e) {}
   }
-  function hasKey() { return !!getKey(); }
-  function keyName() { var k = getKey(); return k.indexOf(':') > 0 ? k.slice(0, k.indexOf(':')) : ''; }
+  function hasKey() { return !!session() || !!getKey(); }
+  function keyName() {
+    var s = session();
+    if (s) return s.name || s.email || '';
+    var k = getKey();
+    return k.indexOf(':') > 0 ? k.slice(0, k.indexOf(':')) : '';
+  }
+  /* What this person may do HERE, from the session. Null when signed out, or signed in
+   * without access to this tool. Only ever used to decide which controls to show: the
+   * relay checks properly on every request, so being wrong here shows a button that is
+   * then refused, never the reverse. */
+  function role() {
+    var s = session();
+    return s && window.ResourcesSession ? window.ResourcesSession.role(PROJECT) : null;
+  }
+  function canEdit() { return !!getKey() || role() === 'staff' || role() === 'admin'; }
 
-  function relay(path, opts) {
-    opts = opts || {};
-    var headers = { 'X-Facilitator-Key': getKey() };
+  function relayOnce(path, opts) {
+    var headers = {};
+    var s = session();
+    if (s) headers['Authorization'] = 'Bearer ' + s.token;
+    else headers['X-Facilitator-Key'] = getKey();
     if (opts.body) headers['Content-Type'] = 'application/json';
     return fetch(RELAY_URL + '/' + PROJECT + path, {
       method: opts.method || 'GET',
@@ -72,6 +99,28 @@
       body: opts.body ? JSON.stringify(opts.body) : undefined,
       cache: 'no-store'
     });
+  }
+
+  /* A session lasts four hours, so it can run out with a page open and edits unsaved.
+   * Rather than failing the save, offer the sign-in screen and send the same request
+   * again afterwards: the person sees a pause, not lost work.
+   *
+   * Only once, and only for a token that has expired or been rejected. A wrong password
+   * or a genuine lack of access must not loop. */
+  async function relay(path, opts) {
+    opts = opts || {};
+    var res = await relayOnce(path, opts);
+    if (res.status !== 401 || !session() || opts.__retried) return res;
+
+    var body = null;
+    try { body = await res.clone().json(); } catch (e) {}
+    var code = body && body.error;
+    if (code !== 'TOKEN_EXPIRED' && code !== 'TOKEN_BAD' && code !== 'NO_ACCOUNT') return res;
+
+    try { await window.ResourcesSession.signIn({ reason: 'expired' }); }
+    catch (e) { return res; }                       // cancelled: let the original answer stand
+    opts.__retried = true;
+    return relayOnce(path, opts);
   }
 
   /* ---------- reading ---------- */
@@ -501,6 +550,34 @@
     facilitators: { get: facilitatorsGet, put: facilitatorsPut, generatePasscode: generatePasscode, sha256Hex: sha256Hex, pbkdf2Hash: pbkdf2Hash },
     config: { get: configGet, put: configPut },
     initials: initialsOf,
+    session: session,
+    role: role,
+    canEdit: canEdit,
+    /* Wires a page up to the shared sign-in: renders the account indicator, and shows or
+     * hides the editing controls to match. Called by every page that can be edited, so
+     * the rule lives in one place rather than in each dashboard. */
+    wireAccount: function (opts) {
+      opts = opts || {};
+      var mount = document.getElementById('rs-account');
+      if (mount && window.ResourcesSession) window.ResourcesSession.mount(mount);
+      /* style.display rather than the hidden attribute: these buttons set their own
+       * display in CSS, which beats [hidden] and leaves them on screen. Setting display
+       * directly cannot be overridden by a stylesheet. */
+      function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+      function apply() {
+        var editable = canEdit();
+        (opts.editControls || []).forEach(function (sel) { show(document.querySelector(sel), editable); });
+        show(document.querySelector(opts.signInPrompt || '#signInToEdit'), !editable);
+      }
+      var prompt = document.querySelector(opts.signInPrompt || '#signInToEdit');
+      if (prompt && window.ResourcesSession) {
+        prompt.addEventListener('click', function () {
+          window.ResourcesSession.signIn({}).catch(function () {});
+        });
+      }
+      if (window.ResourcesSession) window.ResourcesSession.onChange(apply);
+      apply();
+    },
     potential: { list: potentialList, get: potentialGet, put: potentialPut, validate: potentialValidate, slug: potentialSlug,
                  STAGES: POT.STAGES, ENGAGEMENTS: POT.ENGAGEMENTS, LEADERSHIP_ROLES: POT.LEADERSHIP_ROLES,
                  stageLabel: function (k) { return potLabel(POT.STAGES, k); }, engagementLabel: function (k) { return potLabel(POT.ENGAGEMENTS, k); } },
