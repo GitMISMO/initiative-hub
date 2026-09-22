@@ -77,7 +77,7 @@ const GITHUB_API = 'https://api.github.com';
 const FACILITATORS_PATH = '_internal/facilitators.json';
 const PBKDF2_ITERATIONS = 210000;        // OWASP's 2023 floor for PBKDF2-HMAC-SHA256
 const PBKDF2_KEYLEN = 32;
-const TOKEN_TTL_SECONDS = 8 * 60 * 60;   // one working day, then sign in again
+const TOKEN_TTL_SECONDS = 4 * 60 * 60;   // four hours; typical sessions run one to two
 const ACCESS_PATH_DEFAULT = '_internal/access.json';
 const ACCESS_CACHE_MS = 30000;           // a permission change lands within half a minute
 const FACILITATORS_CACHE_MS = 30_000;              // revocation lands within half a minute
@@ -268,7 +268,36 @@ async function projectConfig(key) {
   if (typeof p.repo !== 'string' || !/^[^/]+\/[^/]+$/.test(p.repo)) return null;
   if (typeof p.origin !== 'string' || !p.origin || p.origin.endsWith('/')) return null;
   if (!sameOwner(p.repo, process.env.PROJECTS_REPO)) return null;
-  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin };
+  /* 'writable' lists the path prefixes /commit may touch for this project. Absent or
+   * empty means /commit refuses everything for it — a project has to declare what it
+   * writes, rather than getting the whole repository by default. */
+  const writable = Array.isArray(p.writable)
+    ? p.writable.filter(w => typeof w === 'string' && w && !w.startsWith('/') && !w.includes('..'))
+    : [];
+  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable };
+}
+
+/* ---------- what /commit may write ----------
+ *
+ * /commit writes through the Git Data API and would otherwise accept any path in the
+ * repository. That is far wider than any tool needs, and it was reachable by every
+ * account, not only admins. A staff account could have rewritten _internal/
+ * facilitators.json — making itself an admin, or locking everyone else out — and in a
+ * repository with a GitHub Actions workflow, could have rewritten the workflow and run
+ * its own code in the build.
+ *
+ * Two layers, deliberately independent:
+ *   1. The path must sit under a prefix the project declares in projects.json.
+ *   2. Some locations are refused whatever a project declares: account and configuration
+ *      files, CI workflows and git internals. A mistaken projects.json entry must not be
+ *      able to reopen them. */
+const NEVER_WRITABLE = ['_internal/', '.github/', '.git/'];
+
+function commitPathAllowed(path, writable) {
+  const p = String(path).replace(/^\.\//, '');
+  if (NEVER_WRITABLE.some(n => p === n.slice(0, -1) || p.startsWith(n))) return false;
+  if (!writable || !writable.length) return false;
+  return writable.some(prefix => p.startsWith(prefix));
 }
 
 /* ---------- GitHub ---------- */
@@ -827,6 +856,12 @@ export async function handler(event) {
     for (const f of files) {
       if (typeof f?.path !== 'string' || !f.path || f.path.includes('..') || f.path.startsWith('/')) {
         return respond(400, { error: 'BAD_PATH', path: f?.path });
+      }
+      /* Checked for every file before anything is written, so a single disallowed path
+       * rejects the whole commit rather than writing the rest. */
+      if (!commitPathAllowed(f.path, proj.writable)) {
+        return respond(403, { error: 'PATH_NOT_WRITABLE', path: f.path,
+          message: 'That file cannot be changed through saving. It is outside what this application is allowed to write.' });
       }
       if (typeof f?.content !== 'string') return respond(400, { error: 'BAD_FILE', path: f.path });
     }

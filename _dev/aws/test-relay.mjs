@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 process.env.GITHUB_TOKEN='ghp_test';
 process.env.PROJECTS=JSON.stringify({
-  hub:      {repo:'Org/Repo',      branch:'main', origin:'https://org.github.io'},
-  glossary: {repo:'Org/Glossary',  branch:'main', origin:'https://glossary.example'}
+  hub:      {repo:'Org/Repo',      branch:'main', origin:'https://org.github.io',   writable:['data/']},
+  glossary: {repo:'Org/Glossary',  branch:'main', origin:'https://glossary.example', writable:['data/', '.console/']}
 });
 const h = s => createHash('sha256').update(s).digest('hex');
 
@@ -171,7 +171,7 @@ const raw = (method, path, key, body, origin) => ({ rawPath:path, requestContext
   headers:{...(origin?{origin}:{}) , ...(key?{'x-facilitator-key':key}:{})}, body: body?JSON.stringify(body):undefined });
 
 // Glossary has its OWN facilitators.json in its OWN repo — different person entirely.
-const glossaryFac = { admin:{name:'Glossary Admin', hash:h('gloss-admin')}, facilitators:[{name:'Gloss Editor', hash:h('gloss-pass')}] };
+let glossaryFac = { admin:{name:'Glossary Admin', hash:h('gloss-admin')}, facilitators:[{name:'Gloss Editor', hash:h('gloss-pass')}] };
 let hubFac        = { admin:{name:'Paul Admin', hash:h('adminpass-XYZ')}, facilitators:[{name:'Jane Facilitator', hash:h('k7Qm-2vXp')}] };
 let reqRepos = [];
 const beforeIso = globalThis.fetch;
@@ -215,7 +215,7 @@ ok('commit attributed to the editor', J(r).savedBy==='Gloss Editor');
 ok('glossary request touched ONLY the glossary repo', reqRepos.every(u=>!u.includes('/Org/Repo/')) && reqRepos.some(u=>u.includes('/Org/Glossary/')));
 
 r = await handler(raw('POST','/glossary/commit','Gloss Editor:gloss-pass',
-  {files:[{path:'x.json',content:'{}'}], parentSha:'9'.repeat(40)}, 'https://glossary.example'));
+  {files:[{path:'data/x.json',content:'{}'}], parentSha:'9'.repeat(40)}, 'https://glossary.example'));
 ok('stale parentSha -> CONFLICT (someone else committed)', r.statusCode===409 && J(r).error==='CONFLICT');
 
 r = await handler(raw('POST','/glossary/commit','Gloss Editor:gloss-pass',
@@ -230,9 +230,9 @@ ok('preflight echoes the project origin', r.statusCode===204 && r.headers['Acces
    tests keep exercising the environment-variable path. */
 
 let projectsFile = {
-  hub:      { repo:'Org/Repo',     branch:'main', origin:'https://org.github.io' },
-  glossary: { repo:'Org/Glossary', branch:'main', origin:'https://glossary.example' },
-  press:    { repo:'Org/Press',    branch:'main', origin:'https://org.github.io' }
+  hub:      { repo:'Org/Repo',     branch:'main', origin:'https://org.github.io',    writable:['data/'] },
+  glossary: { repo:'Org/Glossary', branch:'main', origin:'https://glossary.example', writable:['data/', '.console/'] },
+  press:    { repo:'Org/Press',    branch:'main', origin:'https://org.github.io' }   // declares nothing
 };
 let projectsStatus = 200;
 const realFetch = globalThis.fetch;
@@ -284,7 +284,7 @@ ok('cold start + unreadable list -> 503, not a wrong-repo write', r.statusCode==
 const writesDuringOutage = calls.filter(c=>c.method==='PUT'||c.method==='POST').length;
 r = await handler({ rawPath:'/hub/commit', requestContext:{http:{method:'POST'}},
   headers:{origin:'https://org.github.io','x-facilitator-key':'Jane Facilitator:k7Qm-2vXp'},
-  body: JSON.stringify({files:[{path:'a.json',content:'{}'}], message:'x'}) });
+  body: JSON.stringify({files:[{path:'data/a.json',content:'{}'}], message:'x'}) });
 ok('no write attempted while the list is unreadable', r.statusCode===503 &&
    calls.filter(c=>c.method==='PUT'||c.method==='POST').length===writesDuringOutage);
 
@@ -586,4 +586,66 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
      within 3x either way means both paths ran a full PBKDF2. */
   const ratio = known / unknown;
   ok(`an unknown email costs the same as a known one (ratio ${ratio.toFixed(2)})`, ratio > 0.33 && ratio < 3);
+}
+
+/* ---------- /commit may only write where the project says ---------- */
+{
+  facCacheBust();
+  /* The glossary has its own account list; the same staff member needs an entry there
+     too, or the glossary refuses them as unknown before the path check is reached. */
+  glossaryFac = { admin:{ name:'Glossary Admin', hash:h('gloss-admin') },
+                  facilitators:[ { name:'Commit Staff', email:'staff@mismo.org', hash: mkHash('staff-pw') } ] };
+  hubFac = facFile = {
+    admins: [ { name:'Commit Admin', email:'admin@mismo.org', hash: mkHash('admin-pw') } ],
+    facilitators: [ { name:'Commit Staff', email:'staff@mismo.org', hash: mkHash('staff-pw') } ]
+  };
+  const commitAs = (key, files, proj='glossary', origin='https://glossary.example') => handler({
+    rawPath:'/'+proj+'/commit', requestContext:{http:{method:'POST'}},
+    headers:{ origin, 'x-facilitator-key':key, 'content-type':'application/json' },
+    body: JSON.stringify({ files, message:'test' }) });
+
+  // The glossary's own files — all three things it legitimately writes.
+  r = await commitAs('staff@mismo.org:staff-pw', [
+    {path:'data/glossary.json',content:'{}'}, {path:'data/reference.json',content:'{}'},
+    {path:'.console/draft.json',content:'{}'} ]);
+  ok('the glossary can still write its own three files', r.statusCode!==403);
+
+  // The two attacks this closes.
+  r = await commitAs('staff@mismo.org:staff-pw', [{path:'_internal/facilitators.json',content:'{"admins":[]}'}], 'hub', 'https://org.github.io');
+  ok('a staff account CANNOT rewrite the account file', r.statusCode===403 && J(r).error==='PATH_NOT_WRITABLE');
+
+  r = await commitAs('staff@mismo.org:staff-pw', [{path:'.github/workflows/deploy.yml',content:'on: push'}]);
+  ok('a staff account CANNOT rewrite a CI workflow', r.statusCode===403 && J(r).error==='PATH_NOT_WRITABLE');
+
+  // Refused even for an admin: these locations are never writable through saving.
+  r = await commitAs('admin@mismo.org:admin-pw', [{path:'_internal/facilitators.json',content:'{}'}], 'hub', 'https://org.github.io');
+  ok('not even an admin can write _internal/ through /commit', r.statusCode===403);
+
+  // Page code is outside every declared area.
+  r = await commitAs('staff@mismo.org:staff-pw', [{path:'index.html',content:'<script>x</script>'}]);
+  ok('page code cannot be overwritten through saving', r.statusCode===403);
+  r = await commitAs('staff@mismo.org:staff-pw', [{path:'console/index.html',content:'x'}]);
+  ok('nor can the console itself', r.statusCode===403);
+
+  // One bad file rejects the whole commit, rather than writing the rest.
+  r = await commitAs('staff@mismo.org:staff-pw', [
+    {path:'data/glossary.json',content:'{}'}, {path:'.github/workflows/x.yml',content:'x'} ]);
+  ok('one disallowed file rejects the entire commit', r.statusCode===403);
+
+  // A prefix match must be a real directory boundary.
+  r = await commitAs('staff@mismo.org:staff-pw', [{path:'data-evil/x.json',content:'{}'}]);
+  ok('"data-evil/" is not mistaken for "data/"', r.statusCode===403);
+
+  // Hub declares only data/, so .console/ is not writable there.
+  r = await commitAs('staff@mismo.org:staff-pw', [{path:'.console/draft.json',content:'{}'}], 'hub', 'https://org.github.io');
+  ok("one project's declared paths do not leak to another", r.statusCode===403);
+}
+
+/* a project that declares nothing may not /commit at all — fail closed */
+{
+  projectsCacheBust();
+  const pr = await handler({ rawPath:'/press/commit', requestContext:{http:{method:'POST'}},
+    headers:{ origin:'https://org.github.io', 'x-facilitator-key':'Jane Facilitator:k7Qm-2vXp', 'content-type':'application/json' },
+    body: JSON.stringify({ files:[{path:'data/x.json',content:'{}'}], message:'x' }) });
+  ok('a project that declares no writable paths cannot /commit anything', pr.statusCode===403 || pr.statusCode===401);
 }

@@ -239,6 +239,26 @@ comments, and it's the same tradeoff already live on all four real dashboards
   since the browser default (`middle`) looks fine on short rows but visibly
   misaligns content whenever a row's first cell wraps to two lines.
 
+## What /commit may write
+
+`/commit` writes through the Git Data API and would accept any path in the repository if
+left alone. It is reachable by every account, not just admins, so unrestricted it let a
+staff account rewrite `_internal/facilitators.json` (make itself admin, or lock everyone
+out) or rewrite a CI workflow and run code in the build.
+
+It is now limited twice over:
+
+- **The path must be under a prefix the project declares** as `writable` in
+  `_internal/projects.json`. A project that declares nothing cannot use `/commit` at all.
+- **`_internal/`, `.github/` and `.git/` are refused regardless**, so a mistaken
+  projects.json entry cannot reopen them.
+
+One disallowed file rejects the whole commit rather than writing the rest.
+
+Worth knowing: earlier documents — PLATFORM-BRIEF and a conversation summary — said the
+relay "cannot commit HTML, JavaScript or configuration". That was true of the /data and
+/potential routes and false of /commit until this fix. Both documents are corrected.
+
 ## The relay does not deploy itself
 
 **Pushing `_dev/aws/index.mjs` changes nothing in production.** The code running in AWS is
