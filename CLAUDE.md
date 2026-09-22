@@ -239,19 +239,27 @@ comments, and it's the same tradeoff already live on all four real dashboards
   since the browser default (`middle`) looks fine on short rows but visibly
   misaligns content whenever a row's first cell wraps to two lines.
 
-## Waiting on the relay redeploy
+## Relay redeploy — done, Sept 2026
 
-Three things are ready and deliberately held back until IT deploys the current relay.
-Check with `GET /version` on the relay — it must match `sha256sum _dev/aws/index.mjs`.
+IT deployed the relay at commit 88bfaa2: both security fixes (/commit restricted to
+declared folders; the account-existence timing leak), four-hour sessions, multi-admin
+support, and GET /version. Also set: memory 512MB, timeout 15s, AUTH_SECRET, reserved
+concurrency and 90-day log retention (reported by IT; not verifiable from here).
 
-1. **Merge the Glossary's `relay-migration` branch.** The console is moved onto the relay
-   and tested; merging before the fix would let Glossary accounts rewrite the build
-   workflow through /commit.
-2. **Move Jonna Critchley back to admin.** facilitators.json was put back into the
-   single-`admin` shape because the running relay cannot read `admins`. Switch both
-   repos back to the `admins` array once the new code is live.
-3. **Only then add staff accounts** through the admin panel. Until the fix is deployed,
-   a staff account could promote itself through /commit.
+Followed through: the Glossary's relay-migration branch is merged, and Jonna Critchley
+is an admin again in both repos via the `admins` array. Staff accounts may now be added
+through the admin panel.
+
+**The /version fingerprint will not match `sha256sum` directly.** The deployed file was
+pasted through the Lambda console on Windows, which converts line endings to CRLF and
+drops the trailing newline. The code is identical; only the bytes differ. To compare:
+
+    python3 -c "import hashlib; d=open('_dev/aws/index.mjs','rb').read(); \
+      print(hashlib.sha256(d.replace(b'\n', b'\r\n').rstrip(b'\r\n')).hexdigest())"
+
+Pending, fold into the next relay deploy: make /version normalise line endings before
+hashing, so a faithful copy always matches without this workaround. Not changed now,
+because any edit to index.mjs puts the repository ahead of production again.
 
 ## What /commit may write
 
