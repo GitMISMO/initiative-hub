@@ -54,6 +54,20 @@
  */
 
 import { createHash, createHmac, timingSafeEqual, pbkdf2Sync } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/* The fingerprint of the code actually running.
+ *
+ * Code changes only reach AWS when someone uploads them; nothing redeploys on push. That
+ * once broke every sign-in: the account file changed to a format only newer code could
+ * read, while older code was still running, and nothing said so. GET /version returns a
+ * SHA-256 of this very file, so "is the deployed relay current?" is answered by comparing
+ * it with the same hash of index.mjs in the repository — no version number to remember
+ * to bump, because the file fingerprints itself. */
+let SOURCE_SHA256 = 'unknown';
+try { SOURCE_SHA256 = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex'); }
+catch (e) { /* unreadable in some test harnesses; the route then reports 'unknown' */ }
 
 const GITHUB_API = 'https://api.github.com';
 /* Under _internal/ so GitHub Pages does not serve it. Jekyll skips underscore-prefixed
@@ -649,6 +663,13 @@ export async function handler(event) {
   const subPath = projMatch ? (projMatch[2] || '/') : '/';
   currentProjectKey = proj ? proj.key : null;
   if (proj) responseOrigin = proj.origin;
+
+  /* GET /version — no project, no credentials, reveals nothing that is not already in the
+   * public repository. See SOURCE_SHA256 above. */
+  if (method === 'GET' && (event.rawPath === '/version' || event.rawPath === '/version/')) {
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+             body: JSON.stringify({ sha256: SOURCE_SHA256 }) };
+  }
 
   if (method === 'OPTIONS') return { statusCode: 204, headers: corsHeaders(responseOrigin), body: '' };
 

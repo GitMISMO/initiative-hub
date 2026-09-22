@@ -556,3 +556,14 @@ r = await handler({
   body: JSON.stringify({ facilitators: [] })
 });
 ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.statusCode===401);
+
+/* ---------- the relay can report which code is running ---------- */
+{
+  const { readFileSync } = await import('node:fs');
+  const { createHash: ch } = await import('node:crypto');
+  const expected = ch('sha256').update(readFileSync(new URL('./index.mjs', import.meta.url))).digest('hex');
+  const v = await handler({ rawPath:'/version', requestContext:{http:{method:'GET'}}, headers:{} });
+  ok('/version answers without credentials or a project', v.statusCode===200);
+  ok('/version is the SHA-256 of the running source', J(v).sha256===expected);
+  ok('/version reveals nothing but the hash', Object.keys(J(v)).join()==='sha256');
+}

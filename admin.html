@@ -89,10 +89,10 @@
   <!-- ===== sign in ===== -->
   <section class="card" id="signin">
     <h2>Sign in with your admin key</h2>
-    <p class="hint">The same display name and passcode you'd use to save a dashboard. It stays in this browser only.</p>
+    <p class="hint">The same email and password you use to save a dashboard. It stays in this browser only.</p>
     <div class="row">
-      <div><label for="siName">Display name</label><input type="text" id="siName" autocomplete="username"></div>
-      <div><label for="siPass">Passcode</label><input type="password" id="siPass" autocomplete="current-password"></div>
+      <div><label for="siName">Email</label><input type="email" id="siName" autocomplete="username" placeholder="you@mismo.org"></div>
+      <div><label for="siPass">Password</label><input type="password" id="siPass" autocomplete="current-password"></div>
       <button id="siBtn">Sign in</button>
     </div>
     <div class="note err hidden" id="siErr"></div>
@@ -168,7 +168,7 @@
 <!-- passcode reveal -->
 <div class="overlay" id="reveal">
   <div class="modal">
-    <h3 id="revealTitle">Passcode for Jane Facilitator</h3>
+    <h3 id="revealTitle">Password for Jane Facilitator</h3>
     <p class="hint">Give this to them now. It is not stored anywhere and cannot be shown again. Nothing is live until you click Save facilitators.</p>
     <pre id="revealCode"></pre>
     <div class="row" style="justify-content:flex-end"><div></div><button class="secondary" id="revealCopy">Copy</button><button id="revealClose">Done</button></div>
@@ -228,7 +228,7 @@
   }
   function showErr(id, msg){ const el = $(id); if (!msg){ el.classList.add('hidden'); return; } el.textContent = msg; el.classList.remove('hidden'); }
   function reveal(name, code){
-    $('revealTitle').textContent = `Passcode for ${name}`;
+    $('revealTitle').textContent = `Password for ${name}`;
     $('revealCode').textContent = code;
     $('reveal').classList.add('open');
   }

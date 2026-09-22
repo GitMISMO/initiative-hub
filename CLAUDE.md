@@ -239,6 +239,26 @@ comments, and it's the same tradeoff already live on all four real dashboards
   since the browser default (`middle`) looks fine on short rows but visibly
   misaligns content whenever a row's first cell wraps to two lines.
 
+## The relay does not deploy itself
+
+**Pushing `_dev/aws/index.mjs` changes nothing in production.** The code running in AWS is
+whatever was last pasted into the Lambda console. Nothing redeploys on push.
+
+This broke every sign-in once. A change moved facilitators.json from a single `admin` to
+an `admins` array and updated the relay to read it — but only the repository copy. The
+running code still read a single admin, found none, and rejected every credential. The
+file was put back in the old shape until the new code could be deployed.
+
+Two rules follow:
+
+- **A file-format change and the code that reads it ship together.** If the running relay
+  cannot read the new format, the format change waits for the redeploy, not the other way
+  round.
+- **Check which code is running before assuming.** `GET /version` returns the SHA-256 of the
+  deployed index.mjs. Compare it with `sha256sum _dev/aws/index.mjs` in the repository. If
+  they differ, the relay is behind. The file fingerprints itself, so there is no version
+  number anyone has to remember to update.
+
 ## Reviewing designs
 
 **Always show a design in BOTH themes, side by side, in the same file.** Not a toggle —
