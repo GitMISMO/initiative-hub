@@ -3,11 +3,10 @@
   "name": "Consumer Facing AI Disclosure Language",
   "domain": "Artificial Intelligence",
   "stage": "in-progress",
-  "broughtBy": "Rick Hill, VP of Technology, Mortgage Bankers Association \u2014 August 2026",
-  "facilitator": "Erin Bittenbender",
-  "dateLogged": "2026-09-16",
   "summary": "Standardized disclosure templates to help organizations satisfy the growing set of regulatory requirements for consumer-facing AI tools.",
   "whyRaised": "Regulators are adding disclosure requirements related to consumer-facing AI, and several industry organizations have encouraged MBA to develop standardized templates rather than have each firm draft its own. Rick Hill notes there is significant legal nuance to an effort like this from a MISMO perspective, and is first convening compliance and risk professionals to decide whether MISMO should pursue it and what the scope would be. Work was not expected to begin before September 2026, after MBA's summit.",
+  "broughtBy": "Rick Hill, VP of Technology, Mortgage Bankers Association — August 2026",
+  "dateLogged": "2026-09-16",
   "potentialSolutions": [
     "General \"AI in use\" disclosure",
     "Customer interaction disclosure (e.g., chatbots / GenAI)",
@@ -185,5 +184,13 @@
       "notes": ""
     }
   ],
-  "updates": []
+  "updates": [
+    {
+      "text": "Something",
+      "by": "pwilliams@mba.org",
+      "at": "2026-09-22T18:55:43.725Z"
+    }
+  ],
+  "savedBy": "Perry Williams",
+  "savedAt": "2026-09-22T18:55:48.442Z"
 }
