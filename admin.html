@@ -34,6 +34,41 @@
   label { display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:10px 0 4px; }
   input[type=text], input[type=password], input[type=date] { width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; }
   input.inline { padding:5px 8px; }
+
+  /* The approved design: a role reads as a tinted pill rather than a plain dropdown, so a
+     column can be scanned without reading every row. The colour is carried by the select
+     itself, so it stays a real control. */
+  select.role { font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--paper); color: var(--ink); appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
+    background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; padding-right: 26px; }
+  select.role.is-admin { background-color:#E3EBFF; color:#1B34B8; border-color:#C9D8FB; }
+  select.role.is-staff { background-color:#E7EAF1; color:#4C5468; border-color:#D3D8E3; }
+  select.role.is-none  { background-color:transparent; color:var(--muted); font-weight:500; }
+  html[data-theme="dark"] select.role.is-admin { background-color:#1A2745; color:#9AB8FF; border-color:#2A3150; }
+  html[data-theme="dark"] select.role.is-staff { background-color:#202536; color:#A0A8C0; border-color:#2A3150; }
+
+  /* A dot per tool in the header, so the columns are told apart at a glance. */
+  .colhead { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .colhead .dot { width:7px; height:7px; border-radius:50%; background:var(--c); flex:0 0 auto; }
+
+  /* Expiry says how long is left, not just a date. A row close to expiring is tinted, which
+     is the only reason to give the column space at all. */
+  .exp-wrap { display:flex; flex-direction:column; gap:3px; }
+  .exp-note { font-size:11px; color:var(--muted); }
+  .exp-note.soon { color:#8A5F1E; font-weight:600; }
+  tr.expiring td { background:#FFF8E6; }
+  html[data-theme="dark"] tr.expiring td { background:#2A2413; }
+
+  /* Adding someone is its own card, as approved, rather than a row under the table. */
+  .addcard { border:1px solid var(--line); border-radius:12px; background:var(--card); margin-top:22px; }
+  .addcard .hd { padding:13px 16px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:10px; }
+  .addcard .hd h3 { margin:0; font-size:15px; }
+  .addcard .hd .sub { font-size:12px; color:var(--muted); }
+  .addcard .bd { padding:14px 16px; }
   input[readonly] { background:#fafafa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
   .row > div { flex:1; min-width:160px; }
@@ -121,18 +156,23 @@
       </div>
       <div id="accReady" class="hidden">
         <table id="accTable">
-          <thead><tr><th>Person</th><th>Initiative Hub</th><th>Business Glossary</th><th>Files</th><th>Expires</th><th></th></tr></thead>
+          <thead><tr><th>Person</th><th id="thHub"></th><th id="thGlossary"></th><th id="thFiles"></th><th>Expires</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
 
-        <h2 style="margin-top:26px">Add a person</h2>
-        <p class="hint">A password is generated here and shown once. Only its scrambled form is stored,
-          so it cannot be looked up later — if it is lost, reset it and send a new one.</p>
-        <div class="row">
-          <div><label for="accName">Full name</label><input type="text" id="accName" placeholder="Meghan Tidgewell"></div>
-          <div><label for="accEmail">MISMO email — used to sign in</label><input type="email" id="accEmail" placeholder="meghan@mismo.org"></div>
-          <div><label for="accExp">Access expires (optional)</label><input type="date" id="accExp"></div>
-          <button id="accAdd">Create account</button>
+        <div class="addcard">
+          <div class="hd"><h3>Add a person</h3>
+            <span class="sub">A password is generated here and shown once</span></div>
+          <div class="bd">
+            <p class="hint" style="margin-top:0">Only the scrambled form of the password is stored, so it
+              cannot be looked up later. If it is lost, reset it and send a new one.</p>
+            <div class="row">
+              <div><label for="accName">Full name</label><input type="text" id="accName" placeholder="Meghan Tidgewell"></div>
+              <div><label for="accEmail">MISMO email — used to sign in</label><input type="email" id="accEmail" placeholder="meghan@mismo.org"></div>
+              <div><label for="accExp">Access expires (optional)</label><input type="date" id="accExp"></div>
+              <button id="accAdd">Create account</button>
+            </div>
+          </div>
         </div>
 
         <div class="bar">
@@ -300,10 +340,13 @@
      than left blank, so the row says what is true rather than what is missing. Admin
      cannot be granted here for a tool: that is a deliberate limit in the relay, so a
      single compromised session cannot mint more admins. */
+  /* The header cell id is named here rather than derived from the key: deriving it turned
+     'hub-files' into 'thHubFiles' while the markup says 'thFiles', and the column simply
+     lost its heading with nothing to explain why. */
   const TOOLS = [
-    { key:'hub',       label:'Initiative Hub' },
-    { key:'glossary',  label:'Business Glossary' },
-    { key:'hub-files', label:'Files' }
+    { key:'hub',       th:'thHub',      label:'Initiative Hub',    colour:'var(--brand, #2A4DFF)' },
+    { key:'glossary',  th:'thGlossary', label:'Business Glossary', colour:'#0F9D77' },
+    { key:'hub-files', th:'thFiles',    label:'Files',             colour:'#7F5AF0' }
   ];
   let acc = null;   // { people, sha, dirty }
 
@@ -331,18 +374,36 @@
 
   function roleSelect(email, tool, role){
     const opt = (v, t) => `<option value="${v}"${role===v?' selected':''}>${t}</option>`;
+    const cls = role === 'admin' ? 'is-admin' : role === 'staff' ? 'is-staff' : 'is-none';
     /* Admin is offered only where it is already set, so an existing admin is not silently
        demoted by saving, but a new one cannot be created here. */
-    return `<select data-acc-role="${esc(email)}" data-tool="${tool}">` +
+    return `<select class="role ${cls}" data-acc-role="${esc(email)}" data-tool="${tool}">` +
       opt('', 'No access') + opt('staff', 'Staff') + (role === 'admin' ? opt('admin', 'Admin') : '') +
       '</select>';
+  }
+
+  /* "in 6 weeks", "in 4 days", "expired" — the reason the column exists. */
+  function expiryNote(date){
+    if (!date) return { text:'', soon:false };
+    const days = Math.round((Date.parse(date + 'T00:00:00') - Date.now()) / 86400000);
+    if (isNaN(days)) return { text:'', soon:false };
+    if (days < 0)  return { text:'expired', soon:true };
+    if (days === 0) return { text:'today', soon:true };
+    if (days < 14) return { text:`in ${days} ${days===1?'day':'days'}`, soon:true };
+    if (days < 70) return { text:`in ${Math.round(days/7)} weeks`, soon:days < 42 };
+    return { text:`in ${Math.round(days/30)} months`, soon:false };
   }
 
   function renderAccess(){
     const tb = $('accTable').querySelector('tbody');
     const rows = Object.entries(acc.people).sort((a,b) => a[1].name.localeCompare(b[1].name));
+    /* Filled here rather than in the markup so the colours come from one list. */
+    TOOLS.forEach(t => {
+      const th = $(t.th);
+      if (th) th.innerHTML = `<span class="colhead" style="--c:${t.colour}"><span class="dot"></span>${esc(t.label)}</span>`;
+    });
     tb.innerHTML = rows.map(([email, p]) => `
-      <tr>
+      <tr class="${expiryNote(p.expires).soon ? 'expiring' : ''}">
         <td>
           <span class="who">
             <span class="av">${esc(MismoStore.initials(p.name))}</span>
@@ -351,7 +412,8 @@
           </span>
         </td>
         ${TOOLS.map(t => `<td>${roleSelect(email, t.key, (p.access||{})[t.key] || '')}</td>`).join('')}
-        <td><input type="date" class="inline" data-acc-exp="${esc(email)}" value="${esc(p.expires || '')}"></td>
+        <td><span class="exp-wrap"><input type="date" class="inline" data-acc-exp="${esc(email)}" value="${esc(p.expires || '')}">
+          ${p.expires ? `<span class="exp-note ${expiryNote(p.expires).soon ? 'soon' : ''}">${esc(expiryNote(p.expires).text)}</span>` : ''}</span></td>
         <td class="actions">
           <button class="secondary small" data-acc-reset="${esc(email)}">Reset password</button>
           <button class="danger small" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Platform administrators are removed in the repository"' : ''}>Remove</button>
@@ -368,7 +430,7 @@
       const p = acc.people[sel.dataset.accRole];
       p.access = p.access || {};
       if (sel.value) p.access[sel.dataset.tool] = sel.value; else delete p.access[sel.dataset.tool];
-      markAcc(); return;
+      markAcc(); return;   // re-render carries the new colour
     }
     const exp = e.target.closest('[data-acc-exp]');
     if (exp) {
