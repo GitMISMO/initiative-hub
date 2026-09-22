@@ -581,6 +581,28 @@ Queued, roughly in order:
    (own, or all for finance), budget (leadership). Authorization cannot sit at the
    endpoint — every query must be scoped by identity.
 
+   **On hold, Sept 2026.** Discussed view-gating in full and deferred it. The
+   constraint that decides it: **IT will not provide a Smartsheet API**, so the
+   recommended route — the relay reading Smartsheet with per-person filtering — is not
+   available. The remaining routes, a database or private file storage in AWS, are new
+   infrastructure and an IT ticket each. Worked around for now by keeping financial data
+   out of the tools.
+
+   **The principle to keep when this comes back: gate the data, not the page.** GitHub
+   Pages serves every file to anyone, and that cannot be changed. So view-gating never
+   means locking a page — it means the page is an empty shell that fetches sensitive data
+   after sign-in, from somewhere that checks who is asking first. The demonstration:
+   `resources.mismo.org/initiative-hub/data/mcd.json` opens without signing in, even
+   though the relay asks for a password before reading the same file. Anything in git is
+   public, whatever the relay does.
+
+   Three hazards that apply only once confidential data exists: browsers cache what they
+   load (the relay must send no-store); the planned local autosave must never hold
+   confidential data; and a database has no audit trail unless one is built.
+
+   Phase 2 sign-in is a hard prerequisite. The passcode system never expires and lives in
+   the browser indefinitely — acceptable for editing public data, not for confidential.
+
    **Keeping it in Smartsheet is a serious option and probably the better one.** It
    already does per-row and per-column permissions and has an audit trail, and its
    access is presumably already governed by whatever agreement covers parent-company
