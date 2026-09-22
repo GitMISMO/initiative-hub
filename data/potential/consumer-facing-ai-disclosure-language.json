@@ -17,9 +17,9 @@
   ],
   "leadership": [],
   "stakeholderTypes": [
-    "Mortgage Originator",
     "Document Provider",
     "Law Firm",
+    "Mortgage Originator",
     "Trade Association"
   ],
   "organizations": [
@@ -184,13 +184,7 @@
       "notes": ""
     }
   ],
-  "updates": [
-    {
-      "text": "Something",
-      "by": "pwilliams@mba.org",
-      "at": "2026-09-22T18:55:43.725Z"
-    }
-  ],
+  "updates": [],
   "savedBy": "Perry Williams",
-  "savedAt": "2026-09-22T18:55:48.442Z"
+  "savedAt": "2026-09-22T20:35:25.504Z"
 }
