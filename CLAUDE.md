@@ -499,7 +499,23 @@ Queued, roughly in order:
    chartered group with named leadership is exactly what separates the two: an
    initiative without them cannot have a release announcement written at all,
    which is the guard the drafting tool should apply.
-5. **Single sign-on — PHASE 2, deliberately not started until Phase 1 is live.**
+5. **Single sign-on — PHASE 2, in progress Sept 2026.**
+
+   **Step 1 done:** `assets/session.js` in the org site repo is the shared sign-in every
+   tool loads — sign-in screen, Option A indicator, access menu. Live on the home page.
+   `_internal/access.json` holds Perry Williams and Jonna Critchley as admin on hub and
+   glossary. **Step 2:** the Hub (dashboards, admin panel) switches to the session token.
+   **Step 3:** the Glossary. Passcodes keep working alongside throughout.
+
+   **Decision changed from the original plan:** the token lives in localStorage, not
+   sessionStorage. sessionStorage is private to one tab, so a sign-in would not follow
+   someone into a new tab. Bounded by the four-hour expiry; sign-out clears every tab.
+
+   **Still needs a relay deploy:** a route for the admin panel to write access.json. The
+   relay reads it but deliberately cannot write it. Until then, access changes are a
+   direct edit to that file.
+
+   (Original notes follow.)
 
    **Sequencing, decided Sept 2026: DNS and the Lambda first, this second.** Nothing
    here is deployed and nothing here should be deployed until the relay is running
