@@ -573,8 +573,15 @@
        visitor gets nothing and is shown nothing. */
     files: {
       project: FILES_PROJECT,
+      /* Signed in at all — not "signed in with files access".
+         The access map in the browser is captured at sign-in and goes stale the moment
+         someone is granted a new tool, so using it to HIDE a feature gets it backwards:
+         it withholds something the person can do until they happen to sign in again. The
+         relay is the authority, so the page asks it and hides the section only if the
+         answer is no. Elsewhere the map is fine, because there it can only offer a
+         control the relay then refuses. */
       canUse: function () {
-        return !!(window.ResourcesSession && window.ResourcesSession.role(FILES_PROJECT));
+        return !!(window.ResourcesSession && window.ResourcesSession.current());
       },
       indexPath: function (id) { return 'files/potential/' + id + '/index.json'; },
 

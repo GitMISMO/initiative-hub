@@ -22,7 +22,7 @@
   try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=b709146391"></script>
+<script src="dashboard-data.js?v=ca9c202c98"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
@@ -203,8 +203,9 @@
   /* Absent entirely for a signed-out visitor, rather than shown empty or locked: the files
      are private, and so is the fact that there are any. */
   function filesBlock(){
-    if (!S.files.canUse()) return '';
+    if (!S.files.canUse() || files === 'denied') return '';   // signed out, or no access to files
     if (files === null) return `<div class="files"><div class="lbl2">Files on this initiative</div><div class="muted">Loading…</div></div>`;
+    if (!Array.isArray(files)) return '';
     const chips = files.map(f => `<span class="chip" data-open="${esc(f.path)}" title="${esc(f.name)} · added by ${esc(f.by || 'someone')}">
         <span class="dot" style="background:${kindColour(f.name)}"></span>
         <span class="nm">${esc(f.name)}</span><span class="sz">${esc(niceSize(f.size || 0))}</span>
@@ -221,7 +222,12 @@
   async function loadFiles(){
     if (!S.files.canUse()) { files = []; return; }
     try { files = await S.files.list(rec.id); }
-    catch (e) { files = []; filesErr = e.message || 'Could not load files.'; }
+    catch (e) {
+      /* No access to the files repository: show nothing at all rather than an empty
+         section or an error, since the existence of files is itself private. */
+      if (e.status === 403 || e.code === 'NO_ACCESS' || e.code === 'NOT_PLATFORM_ADMIN') files = 'denied';
+      else { files = []; filesErr = e.message || 'Could not load files.'; }
+    }
     render();
   }
 
