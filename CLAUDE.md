@@ -595,6 +595,33 @@ Queued, roughly in order:
    (own, or all for finance), budget (leadership). Authorization cannot sit at the
    endpoint — every query must be scoped by identity.
 
+   **Route chosen, Sept 2026: a private GitHub repository per kind of data.** This
+   supersedes the database and private-storage options below, and needs no new
+   infrastructure. The data lives in a private repository that is never served as a
+   website; the pages stay public and empty; the relay reads the private repository on
+   the server and returns only what the signed-in person may see. Row-level filtering
+   works because the filtering happens in the relay — the browser never receives the
+   rest. Git keeps the full audit trail a database would not.
+
+   The same pattern is planned for the sponsorship application (see
+   Sponsorship-Application-Concept.docx) and applies to financial data.
+
+   Rules that go with it:
+   - **One private repository per kind of data.** GitHub access is per repository and
+     all-or-nothing, so sponsorship and finance must not share one.
+   - **Relay filtering protects the app only.** Direct GitHub access to a private
+     repository shows everything in it. Give it only to people entitled to all of it.
+   - **Turn off forking of private repositories** at the organisation level.
+   - **Git history is permanent.** Good for audit; a problem for personal data subject to
+     deletion requests. Check retention expectations before storing personal data.
+
+   **The trust assumption this rests on, confirmed by Perry Williams:** everyone with
+   GitHub or AWS access is either IT or staff entitled to view this information. Three
+   doors lead to the data — the app, GitHub directly, and AWS, where the relay's token
+   (which opens every private repository) is stored. The app filters; the other two do
+   not. **If a contractor, vendor or outside developer is ever given GitHub organisation
+   or AWS access, this assumption breaks and the design needs revisiting.**
+
    **On hold, Sept 2026.** Discussed view-gating in full and deferred it. The
    constraint that decides it: **IT will not provide a Smartsheet API**, so the
    recommended route — the relay reading Smartsheet with per-person filtering — is not
