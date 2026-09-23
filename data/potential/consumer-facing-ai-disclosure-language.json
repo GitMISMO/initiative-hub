@@ -184,7 +184,13 @@
       "notes": ""
     }
   ],
-  "updates": [],
+  "updates": [
+    {
+      "text": "Hosted meeting to discuss whether MISMO should pursue development of standardized AI disclosure language for the mortgage industry.  Agreed to initially focus on Colorado’s AI requirements, including pre-use notice requirements.  Gabe agreed to draft strawman for discussion on 10/7 at 12pm ET.  Attendees: Carol Botelho, Suzanne Garwood, Rick Hill, Gabe, Acosta, Perry Williams, Melissa Koupal, Erin Bittenbender.  Minutes uploaded.",
+      "by": "Erin Bittenbender",
+      "at": "2026-09-23T19:55:58.226Z"
+    }
+  ],
   "savedBy": "Erin Bittenbender",
-  "savedAt": "2026-09-22T20:39:58.563Z"
+  "savedAt": "2026-09-23T19:57:24.483Z"
 }
