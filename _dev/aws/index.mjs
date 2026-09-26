@@ -271,10 +271,24 @@ async function projectConfig(key) {
   /* 'writable' lists the path prefixes /commit may touch for this project. Absent or
    * empty means /commit refuses everything for it — a project has to declare what it
    * writes, rather than getting the whole repository by default. */
-  const writable = Array.isArray(p.writable)
-    ? p.writable.filter(w => typeof w === 'string' && w && !w.startsWith('/') && !w.includes('..'))
+  const cleanPrefixes = list => Array.isArray(list)
+    ? list.filter(w => typeof w === 'string' && w && !w.startsWith('/') && !w.includes('..'))
     : [];
-  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable };
+  const writable = cleanPrefixes(p.writable);
+  /* 'readable' lists prefixes this project may READ but not write. It is ADDITIVE: every
+   * writable prefix stays readable, so a project that does not mention 'readable' behaves
+   * exactly as it did before this existed. That is deliberate — the three tools live when
+   * this was added (hub, glossary, hub-files) declare only 'writable', and none of them
+   * changes by one byte.
+   *
+   * Why it exists: 'writable' governed reads as well, so anyone who could see a file could
+   * also overwrite it. A contracting company reading its own service order could rewrite
+   * its own rate. Two lists make read-only expressible.
+   *
+   * It deliberately cannot make a path writable-but-not-readable: nothing wants that, and
+   * it would let a caller write a file it cannot read back to check. */
+  const readable = Array.from(new Set([...writable, ...cleanPrefixes(p.readable)]));
+  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable };
 }
 
 /* ---------- what /commit may write ----------
@@ -293,12 +307,17 @@ async function projectConfig(key) {
  *      able to reopen them. */
 const NEVER_WRITABLE = ['_internal/', '.github/', '.git/'];
 
-function commitPathAllowed(path, writable) {
+function pathAllowed(path, prefixes) {
   const p = String(path).replace(/^\.\//, '');
   if (NEVER_WRITABLE.some(n => p === n.slice(0, -1) || p.startsWith(n))) return false;
-  if (!writable || !writable.length) return false;
-  return writable.some(prefix => p.startsWith(prefix));
+  if (!prefixes || !prefixes.length) return false;
+  return prefixes.some(prefix => p.startsWith(prefix));
 }
+
+/* The write side keeps its own name. NEVER_WRITABLE applies to BOTH lists, so the account
+ * list, the CI workflows and git internals stay unreadable as well as unwritable, whatever
+ * either list declares. */
+function commitPathAllowed(path, writable) { return pathAllowed(path, writable); }
 
 /* ---------- GitHub ---------- */
 
@@ -926,7 +945,7 @@ export async function handler(event) {
   if (fileMatch && method === 'GET') {
     const wanted = decodeURIComponent(fileMatch[1]);
     if (wanted.includes('..') || wanted.startsWith('/')) return respond(400, { error: 'BAD_PATH' });
-    if (!commitPathAllowed(wanted, proj.writable)) {
+    if (!pathAllowed(wanted, proj.readable)) {
       return respond(403, { error: 'PATH_NOT_READABLE', path: wanted,
         message: 'That file is outside what this application holds.' });
     }
