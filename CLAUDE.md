@@ -257,6 +257,10 @@ drops the trailing newline. The code is identical; only the bytes differ. To com
     python3 -c "import hashlib; d=open('_dev/aws/index.mjs','rb').read(); \
       print(hashlib.sha256(d.replace(b'\n', b'\r\n').rstrip(b'\r\n')).hexdigest())"
 
+**Any IT request must give THIS value as the Windows one**, not a plain CRLF conversion.
+Sept 2026: a request listed CRLF-with-newline (`9e1cb333…`), IT deployed correctly, got
+`4d22b63b…`, and a correct deploy looked like a failed one for twenty minutes.
+
 Pending, fold into the next relay deploy: make /version normalise line endings before
 hashing, so a faithful copy always matches without this workaround. Not changed now,
 because any edit to index.mjs puts the repository ahead of production again.
