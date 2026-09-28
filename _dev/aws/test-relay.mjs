@@ -934,3 +934,32 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
   delete process.env.PROJECTS_REPO;
   projectsCacheBust();
 }
+
+/* ---------- the access check session.js relies on ----------
+   The shared sign-in asks "may this person use this tool?" before showing the refusal
+   screen, because the access list saved in the browser goes stale when someone is
+   granted a tool after signing in. It asks with GET /{tool}/data/facilitators: the
+   name is reserved, so a person with access gets 400 BAD_ID and one without gets 403
+   NO_ACCESS, both decided before anything is read. If a relay change ever moves the
+   reserved-name check before sign-in, or starts reading GitHub on this path, these fail
+   and session.js needs a proper route instead. */
+{
+  facCacheBust(); accessBust(); projectsCacheBust();
+  process.env.PROJECTS_REPO = 'Org/SiteConfig';
+  accessStatus = 200;
+  accessFile = { people: {
+    'has@mismo.org':  { name:'Has Access', hash: mkHash('x'), access:{ hub:'view' } },
+    'none@mismo.org': { name:'No Access',  hash: mkHash('y'), access:{ glossary:'staff' } }
+  }};
+  const tok = e => mint({ sub:e, name:e, iat:Math.floor(Date.now()/1000), exp:Math.floor(Date.now()/1000)+3600 });
+  const before = calls.length;
+  const probe = e => handler({ rawPath:'/hub/data/facilitators', requestContext:{http:{method:'GET'}},
+    headers:{ origin:'https://org.github.io', authorization:'Bearer '+tok(e) } });
+  r = await probe('has@mismo.org');
+  ok('access check: someone with access gets BAD_ID', r.statusCode===400 && J(r).error==='BAD_ID');
+  r = await probe('none@mismo.org');
+  ok('access check: someone without gets NO_ACCESS', r.statusCode===403 && J(r).error==='NO_ACCESS');
+  ok('access check reads nothing from the tool repository',
+     !calls.slice(before).some(c => c.url.includes('/Org/Repo/')));
+  accessBust();
+}
