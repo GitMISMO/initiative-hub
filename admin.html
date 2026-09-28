@@ -177,10 +177,11 @@
 </head>
 <body>
 <header>
-  <div style="display:flex; justify-content:flex-end; margin-bottom:10px"><div id="rs-account"></div></div>
   <h1>MISMO Initiative Hub — Admin</h1>
   <div class="hdr-right">
-  <div class="who" id="who"></div>
+  <!-- The shared account bubble, the same one every tool shows. It carries sign-out; this
+       page had its own "Signed in as / Sign out" that only cleared the old passcode. -->
+  <div id="rs-account"></div>
   <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
       <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
     <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
@@ -190,14 +191,10 @@
 <main>
 
   <!-- ===== sign in ===== -->
+  <!-- Signing in and being refused use the shared screens from session.js, as every tool
+       does. This card only says the panel is opening, or why it could not. -->
   <section class="card" id="signin">
-    <h2>Sign in with your admin key</h2>
-    <p class="hint">The same email and password you use to save a dashboard. It stays in this browser only.</p>
-    <div class="row">
-      <div><label for="siName">Email</label><input type="email" id="siName" autocomplete="username" placeholder="you@mismo.org"></div>
-      <div><label for="siPass">Password</label><input type="password" id="siPass" autocomplete="current-password"></div>
-      <button id="siBtn">Sign in</button>
-    </div>
+    <h2 id="siState">Opening the admin panel…</h2>
     <div class="note err hidden" id="siErr"></div>
   </section>
 
@@ -216,8 +213,8 @@
         password, set here once. Changes take effect within about a minute; nobody is signed out.</p>
       <p class="hint" style="margin-top:-6px">Each tool is set to one of three levels.
         <span class="pill p-edit">Edit</span> opens it and saves changes.
-        <span class="pill p-view">View</span> opens it and reads everything, but cannot save — the relay
-        refuses the save, so this holds even if a page offers the button.
+        <span class="pill p-view">View</span> opens it and reads everything, but cannot save. The relay
+        refuses the save itself, so this holds even if a page offers the button.
         <span class="pill p-none">No access</span> means the tool is not theirs at all.
         <span class="adm" style="margin-left:0">Admin</span> is a badge on the person, not a fourth level:
         it is who can change this list, and it is set in the repository rather than here.</p>
@@ -338,18 +335,19 @@
 
   /* ---------- sign in ---------- */
   function showSignedIn(){
-    $('who').innerHTML = `Signed in as <strong>${esc(S.keyName())}</strong><button class="secondary small" id="signout">Sign out</button>`;
-    $('signout').addEventListener('click', () => { S.setKey(''); location.reload(); });
     $('signin').classList.add('hidden'); $('panel').classList.remove('hidden');
   }
+  /* Returns true, or the reason it could not open. ADMIN_ONLY comes from the relay, which
+     reads access fresh, so the decision never rests on the browser's saved copy. */
   async function trySignIn(){
     $('siErr').classList.add('hidden');
     const r = await S.facilitators.get();
     if (!r.ok) {
-      const msg = r.reason === 'ADMIN_ONLY' ? 'That key works for saving dashboards but is not the admin key.' : S.explain(r.reason);
-      $('siErr').textContent = msg; $('siErr').classList.remove('hidden');
-      if (r.reason !== 'NO_RELAY') S.setKey('');
-      return false;
+      if (r.reason !== 'ADMIN_ONLY') {
+        $('siState').textContent = 'The admin panel could not open';
+        $('siErr').textContent = S.explain(r.reason); $('siErr').classList.remove('hidden');
+      }
+      return r.reason || 'FAILED';
     }
     showSignedIn();
     applyFac(r); renderFac();
@@ -360,30 +358,30 @@
     loadAccess();
     return true;
   }
-  $('siBtn').addEventListener('click', async () => {
-    const n = $('siName').value.trim(), p = $('siPass').value.trim();
-    if (!n || !p) return;
-    S.setKey(n + ':' + p);
-    $('siPass').value = '';
-    await trySignIn();
-  });
-  $('siPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('siBtn').click(); });
-
-  /* Someone who has signed in through the shared sign-in should not be asked for a
-     passcode as well. The store sends their session automatically, so the panel simply
-     tries to open. The passcode form stays for anyone who has not signed in yet, and
-     goes away when passcodes do. */
-  (async function () {
-    if (window.ResourcesSession && window.ResourcesSession.current()) {
-      const ok = await trySignIn();
-      if (!ok) {
-        /* Signed in, but not an admin here. Say so rather than showing a passcode box
-           they would have no reason to fill in. */
-        const s = window.ResourcesSession.current();
-        showErr('siErr', `Signed in as ${s.email}, but that account is not an administrator of the Initiative Hub.`);
-      }
+  /* The shared sign-in decides who gets in, the same as every other tool: the sign-in
+     window if nobody is signed in, the refusal screen if the relay says this account is
+     not an administrator here. The passcode form this page used to have is gone; the
+     relay still accepts passcodes from the dashboards until they are retired. */
+  const RS = window.ResourcesSession;
+  const PANEL = 'the Initiative Hub admin panel';
+  async function open(){
+    if (!RS) { $('siState').textContent = 'The sign-in could not load. Reload the page.'; return; }
+    try { await RS.requireAccess('hub', { toolName: PANEL }); }
+    catch (e) {
+      if (e && e.code === 'OFFLINE') $('siState').textContent = 'The admin panel could not reach the sign-in service. Check your connection, then reload.';
+      return;
     }
-  })();
+    const r = await trySignIn();
+    if (r === 'ADMIN_ONLY') {
+      $('siState').textContent = 'This account is not an administrator of the Initiative Hub.';
+      RS.signIn({ reason: 'no-access', toolName: PANEL, gated: true }).catch(() => {});
+    }
+  }
+  if (RS) {
+    RS.mount($('rs-account'));
+    /* Signing out anywhere drops what is on screen; signing in again re-checks access. */
+    RS.onChange(s => { if (!s) location.reload(); });
+  }
 
   /* ---------- tabs ---------- */
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
@@ -783,7 +781,7 @@
   });
 
   /* ---------- boot ---------- */
-  if (S.hasKey()) trySignIn();
+  open();
 })();
 </script>
 </body>
