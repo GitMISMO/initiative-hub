@@ -63,7 +63,27 @@
    * Session first also means someone who signs in stops using their passcode without
    * being asked to do anything. */
   function session() {
-    return (window.ResourcesSession && window.ResourcesSession.current()) || null;
+    var s = (window.ResourcesSession && window.ResourcesSession.current()) || null;
+    if (s) everSignedIn = true;
+    return s;
+  }
+  /* Whether this page has seen a session at all. A save attempted with none, after one
+   * existed, means it expired while the person was working, and the sign-in says so; for
+   * someone who was never signed in, that message would be wrong. */
+  var everSignedIn = !!(window.ResourcesSession && window.ResourcesSession.current());
+
+  /* The one way a page asks someone to sign in before saving: the shared sign-in window
+   * every resources.mismo.org tool uses. Resolves true once there is something the relay
+   * will accept, false if they cancel. It replaces two browser prompt() boxes asking for a
+   * "facilitator key", which were what anyone whose four-hour session ran out mid-edit
+   * saw on pressing Save (Sept 28, 2026). If session.js did not load, it does not fall
+   * back to those prompts: one sign-in design everywhere. */
+  async function signInToSave() {
+    if (hasKey()) return true;
+    if (!window.ResourcesSession) return false;
+    try { await window.ResourcesSession.signIn(everSignedIn ? { reason: 'expired' } : {}); }
+    catch (e) { return false; }
+    return hasKey();
   }
   function getKey() {
     try { return localStorage.getItem(KEY_KEY) || ''; } catch (e) { return ''; }
@@ -242,7 +262,7 @@
   function explain(reason) {
     switch (reason) {
       case 'NO_TOKEN':    // older name used by the dashboards' Save handler
-      case 'NO_KEY':      return 'Add your facilitator key to save. Your edits stay on this page until you do.';
+      case 'NO_KEY':      return 'Sign in to save. Your edits stay on this page until you do.';
       case 'KEY_BAD':     return 'That facilitator key was not recognised. Check the name and passcode, or ask the site owner for a new one.';
       case 'KEY_EXPIRED': return 'Your facilitator key has expired. Ask the site owner for a new one. Your edits are kept on this page.';
       case 'ADMIN_ONLY':  return 'Only the admin key can manage facilitators.';
@@ -724,6 +744,7 @@
     hasKey: hasKey,
     keyName: keyName,
     promptForKey: promptForKey,
+    signInToSave: signInToSave,
     sanitizeHtml: sanitizeHtml,
     // Older names, kept so the four dashboards and the template need no edits for this.
     hasToken: hasKey,

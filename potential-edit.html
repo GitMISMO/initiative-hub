@@ -21,7 +21,7 @@
   try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=371e9c4498"></script>
+<script src="dashboard-data.js?v=c2b3c63251"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@700;800&display=swap" rel="stylesheet">
 <style>
   html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
@@ -263,7 +263,7 @@
     const v = P.validate(rec, typeKeys);
     showProblems(v.problems);
     if (v.problems.length) { $('saveStatus').textContent = 'Fix the items above first'; return; }
-    if (!S.hasKey() && !(S.promptForKey() && S.hasKey())) { $('saveErr').textContent = S.explain('NO_KEY'); $('saveErr').classList.remove('hidden'); return; }
+    if (!(await S.signInToSave())) { $('saveErr').textContent = S.explain('NO_KEY'); $('saveErr').classList.remove('hidden'); return; }   // shared sign-in, not prompt() boxes
     const id = currentId();
     $('save').disabled = true; $('saveStatus').textContent = 'Saving…';
     const r = await P.put(id, v.content, sha);

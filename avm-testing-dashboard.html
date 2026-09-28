@@ -910,7 +910,7 @@
   }
 </style>
   <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=371e9c4498"></script>
+<script src="dashboard-data.js?v=c2b3c63251"></script>
 </head>
 <body>
 
@@ -2161,7 +2161,7 @@
       // this browser. Without a token the page is still fully editable — the work is
       // just held locally until one is added.
       if (!MismoStore.hasToken()) {
-        if (!MismoStore.promptForToken() || !MismoStore.hasToken()) {
+        if (!(await MismoStore.signInToSave())) {   // the shared sign-in window, not prompt() boxes
           label.textContent = 'Not saved';
           try { localStorage.setItem('resources:hub:avm-testing:draft', JSON.stringify(snapshot)); } catch (e2) {}
           alert(MismoStore.explain('NO_TOKEN'));
