@@ -531,7 +531,28 @@ Queued, roughly in order:
    - `facilitators.json` moved to `_internal/` so Pages stops serving it.
    - Sign-in is GLOBAL. One token works on every tool the person has access to.
      Permissions live in `_internal/access.json` in the org site repo, per person,
-     per project, with roles `admin` or `staff`.
+     per project.
+   - **Three levels per tool (Sept 2026): `admin`, `staff`, `view`.** The panel shows
+     them as Edit / View / No access; `admin` and `staff` both read as Edit, and
+     `admin` additionally unlocks that tool's own settings (`/facilitators`,
+     `/config`). No access is the ABSENCE of an entry, never a stored value. Any
+     unrecognised role is treated as no access everywhere (relay, login response,
+     browser), so a typo locks someone out rather than granting anything.
+   - **View is enforced by one guard in the relay**, directly after authentication:
+     any method other than GET from a `view` role gets 403 `VIEW_ONLY`. It sits in
+     front of every route on purpose, so a write route added later is covered
+     without anyone remembering to add a check. `/access` is excluded because it
+     turns on `platformAdmin`, not on the caller's level in this tool.
+   - **Platform administrator is a flag on the person, not a level.** It is who can
+     edit `access.json` through the panel, shown as an Admin badge beside the name.
+     Set by hand in the repository; the panel cannot grant it.
+   - Pages ask `canEdit()` (dashboard-data.js / session.js), never compare role
+     strings. A signed-in viewer sees "View only" where a signed-out visitor sees
+     "Sign in to edit" — telling a viewer to sign in sends them round a loop.
+   - **The admin panel's TOOLS list must only contain keys registered in
+     projects.json.** A tool listed before it is registered renders a control that
+     saves to access.json and governs nothing. Sponsorship was removed for this
+     reason and goes back when it is registered.
    - **The token proves WHO; permissions are read on every request.** A token
      carrying its own role would keep working until it expired, so removing someone
      would take up to 8 hours. Read per request against a 30-second cache, a change
