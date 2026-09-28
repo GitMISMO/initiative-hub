@@ -550,6 +550,18 @@ Queued, roughly in order:
    - **Platform administrator is a flag on the person, not a level.** It is who can
      edit `access.json` through the panel, shown as an Admin badge beside the name.
      Set by hand in the repository; the panel cannot grant it.
+   - **One sign-in and one refusal, everywhere (decided Sept 28, 2026).** Every tool uses
+     the screens in `session.js`: no page has its own sign-in form, password field,
+     `prompt()` for a key, or "no access" banner. Gated pages call `requireAccess`;
+     saves with no session call `MismoStore.signInToSave()` (the "Sign in to finish
+     saving" window) and then save. The Hub's pages, the admin panel, Summit HQ, the
+     Sponsorship Portal and the Glossary console were all brought into line that day.
+     Service Orders was left alone pending a decision: its users are contractors.
+   - **Never refuse from the browser's copy of someone's access.** It is taken at sign-in
+     and goes stale when a tool is granted later. `requireAccess` asks the relay first,
+     with a save to the reserved name `facilitators`, which the relay turns away before
+     reading or writing: `NO_ACCESS`, `VIEW_ONLY`, or `BAD_ID` for Edit. The relay tests
+     "the access check session.js relies on" pin this; if they fail, add a real route.
    - Pages ask `canEdit()` (dashboard-data.js / session.js), never compare role
      strings. A signed-in viewer sees "View only" where a signed-out visitor sees
      "Sign in to edit" — telling a viewer to sign in sends them round a loop.
