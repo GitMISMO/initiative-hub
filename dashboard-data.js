@@ -621,6 +621,45 @@
     return names;
   }
 
+  /* ── Architects: the Hub's architect list (Admin Panel > Architects) ───────────────────
+   * Name and email per person, plus an optional expiry. No passcodes: an architect is not
+   * a sign-in; access is People & Access. It lives in data/architects.json because the
+   * relay can write data/ and nothing else without a relay change, which means it is
+   * published with the site. MISMO staff addresses follow a known pattern, so that
+   * publishes nothing that could not be guessed; keep it to staff for that reason.
+   * Read through the relay so a save shows at once, not after the next deploy. */
+  var ARCH_PATH = 'data/architects.json';
+  async function architectsGet() {
+    var res = await relay('/file/' + ARCH_PATH, { method: 'GET' });
+    if (res.status === 404) return { list: [], sha: null };
+    var body = null; try { body = await res.json(); } catch (e) {}
+    if (!res.ok) throw accessError(res, body);
+    var d = null;
+    try { d = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(body.content), function (c) { return c.charCodeAt(0); }))); } catch (e) {}
+    var list = (d && Array.isArray(d.architects) ? d.architects : []).filter(function (a) { return a && a.name; })
+      .map(function (a) { var o = { name: String(a.name) }; if (a.email) o.email = String(a.email); if (a.expires) o.expires = String(a.expires); return o; });
+    return { list: list, sha: body.sha || null };
+  }
+  /* sha: what architectsGet returned. Checked again just before writing, so two admins
+     saving at once get "someone else changed this" rather than one overwriting the other. */
+  async function architectsPut(list, sha) {
+    var now = await architectsGet();
+    if ((now.sha || null) !== (sha || null)) { var c = new Error('Someone else changed this while you were editing. Discard changes and try again.'); c.code = 'CONFLICT'; throw c; }
+    var clean = (list || []).map(function (a) {
+      var o = { name: String(a.name).trim() };
+      if (a.email) o.email = String(a.email).trim().toLowerCase();
+      if (a.expires) o.expires = a.expires;
+      return o;
+    });
+    var res = await relay('/commit', { method: 'POST', body: {
+      message: 'Update the architect list',
+      files: [{ path: ARCH_PATH, content: JSON.stringify({ architects: clean }, null, 2) + '\n' }]
+    }});
+    var body = null; try { body = await res.json(); } catch (e) {}
+    if (!res.ok) throw accessError(res, body);
+    return architectsGet();
+  }
+
   /* ── The facilitator chip on a dashboard: a drop-down, not typing ───────────────────
    * The name stays where it has always been saved: the chip's .name span, which the
    * dashboard's generic save captures by position. The drop-down sits beside it and
@@ -683,6 +722,7 @@
   window.MismoStore = {
     facilitators: { get: facilitatorsGet, put: facilitatorsPut, generatePasscode: generatePasscode, sha256Hex: sha256Hex, pbkdf2Hash: pbkdf2Hash },
     roster: { load: rosterLoad, publish: rosterPublish, path: ROSTER_PATH },
+    architects: { get: architectsGet, put: architectsPut, path: ARCH_PATH },
     /* The central access list: everyone, once, with a role per tool. Only a platform
        administrator may read or change it, and only through a signed-in session — the
        relay refuses it otherwise. */

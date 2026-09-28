@@ -16,6 +16,26 @@
       "name": "Erin Bittenbender",
       "email": "ebittenbender@mismo.org",
       "hash": "pbkdf2$210000$5cd66ea150e8aef324ee0acbedea3fa4$b1928fd9b5d8e812f2e46e07b175b4924c40e830bd81675d5e6b81cdc2b85438"
+    },
+    {
+      "name": "Kathryn Williams",
+      "email": "kwilliams@mismo.org",
+      "hash": "pbkdf2$210000$ffd32f6c59f817168396d7554e4c4d57$1d30cb030fc2b0c19df0673c017db6ae49160e69688db3c09a3f8a2abae263f2"
+    },
+    {
+      "name": "Kellie Stoll",
+      "email": "kstoll@mismo.org",
+      "hash": "pbkdf2$210000$ee8933cfaffa58db35356225413063b6$44f2e2d42c8d9c0d3d5cf449ff320462285f517ad5d7ae7ecf520dd8be9dac98"
+    },
+    {
+      "name": "Leeann Walker",
+      "email": "lwalker@mismo.org",
+      "hash": "pbkdf2$210000$dc2b2d6741f14fbb6cb84f39d09f07c2$090ca66059b50e8be25acead0c828689e10d1ca4d11b3437e1b5cfdf33c4c9d2"
+    },
+    {
+      "name": "Meghan Tidgewell",
+      "email": "mtidgewell@mismo.org",
+      "hash": "pbkdf2$210000$057ada12e103e5b1a662d0c97c673dad$b624763b53e66febd8199e3da99ef259663c7eb869f77c5a3c2e138c4167d9ac"
     }
   ]
 }

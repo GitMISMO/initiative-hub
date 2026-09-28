@@ -270,6 +270,17 @@ that drop down list." So a facilitator is never typed where it can be chosen.
   added to the shared list, and never auto-assigned. "Kelly R." was already in the pool
   and stays assignable so the current schedule does not reshuffle.
 
+## Architects list (Sept 2026)
+
+Admin Panel > Architects, below Facilitators: name, email, optional expiry, no passcode
+(an architect is not a sign-in; access is People & Access). Stored in
+`data/architects.json` via `/commit` (`MismoStore.architects.get/put`, read through the
+relay's `/file/` route so a save shows at once). It is in `data/` only because that is
+all the relay can write without a relay change, which means it is published with the
+site: staff addresses only, which follow the guessable first-initial-surname pattern.
+If a later relay deploy adds a private config file, move it there. Nothing reads the list
+yet; Perry asked for the section, not for architect fields on the dashboards.
+
 ## Relay redeploy — done, Sept 2026
 
 IT deployed the relay at commit 88bfaa2: both security fixes (/commit restricted to

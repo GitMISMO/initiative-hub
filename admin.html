@@ -16,6 +16,10 @@
                        older Hub passcodes. Saving it also publishes the names-only copy
                        the drop-downs read (data/facilitator-roster.json).
 
+    Architects         the Hub's architects: name, email, optional expiry. No passcodes.
+                       Kept in data/architects.json (published with the site, so staff
+                       addresses only), because the relay can only write data/ today.
+
   Everything saves through the relay, signed in. Nothing here can change the admin entry
   itself or make someone a platform administrator; that is deliberate (see the relay).
 
@@ -33,7 +37,7 @@
   })();
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=e441bfe43c"></script>
+<script src="dashboard-data.js?v=cfca585774"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -361,6 +365,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <button type="button" data-view="fac" title="Facilitators">
         <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/></svg>
         <span>Facilitators</span><b class="count" id="nFac"></b></button>
+      <button type="button" data-view="arch" title="Architects">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 6l-6.5 14M12 6l6.5 14"/><circle cx="12" cy="7.5" r="1.8"/><path d="M7.5 15.5h9"/></svg>
+        <span>Architects</span><b class="count" id="nArch"></b></button>
     </nav>
   </div>
   <div class="foot">
@@ -468,6 +475,35 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <button class="btn p" type="button" id="facSave" disabled>Save Facilitators</button></div>
   </section>
 
+  <!-- ===== Architects ===== -->
+  <section class="view" id="view-arch" hidden>
+    <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Architects</h1>
+      <div class="sub" id="archSub"></div></div>
+      <button class="btn p" type="button" id="archAddOpen">+ Add an Architect</button></header>
+
+    <div class="addcard" id="archAddCard" hidden>
+      <div class="hd"><h2>Add an architect</h2><small>Name and email; no password</small></div>
+      <div class="bd">
+        <div class="fields">
+          <div><label for="archName">Full name</label><input type="text" id="archName" placeholder="Mark Kleingers" autocomplete="off"></div>
+          <div><label for="archEmail">Email</label><input type="email" id="archEmail" placeholder="name@mismo.org" autocomplete="off"></div>
+          <div><label for="archExp">Expires (optional)</label><input type="date" id="archExp"></div>
+        </div>
+        <div class="note err" id="archAddErr" hidden></div>
+        <div class="formacts"><button class="btn" type="button" id="archAddCancel">Cancel</button><button class="btn p" type="button" id="archAdd">Add architect</button></div>
+      </div>
+    </div>
+
+    <div class="note info" id="archUnavailable" hidden></div>
+    <div class="list" id="archList"></div>
+    <div class="note info">The Initiative Hub's architects. Signing in and what each person can open is set in People &amp; Access, not here.
+      This list is published with the site, so keep it to MISMO staff addresses.</div>
+    <div class="note err" id="archErr" hidden></div>
+    <div class="savebar"><span class="st" id="archStatus">No changes</span>
+      <button class="btn" type="button" id="archReload">Discard</button>
+      <button class="btn p" type="button" id="archSave" disabled>Save Architects</button></div>
+  </section>
+
   <div class="note err" id="globalErr" hidden></div>
 </main>
 
@@ -500,12 +536,13 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   let typeFilter = 'all';
   let openDrawer = null;     // whose drawer is open, by email; one at a time
   let freshRow = null;       // the row just added, marked so it can be found
+  let arch = null;           // { list, sha, dirty } once loaded
   let publishPending = false; // the list saved but its names have not reached the drop-downs
 
   /* ---------- sections ---------- */
-  const VIEWS = { people:'view-people', types:'view-types', fac:'view-fac' };
-  const HASH = { people:'people', types:'types', fac:'facilitators' };
-  const SEARCH = { people:'Search people', types:'Search types', fac:'Search facilitators' };
+  const VIEWS = { people:'view-people', types:'view-types', fac:'view-fac', arch:'view-arch' };
+  const HASH = { people:'people', types:'types', fac:'facilitators', arch:'architects' };
+  const SEARCH = { people:'Search people', types:'Search types', fac:'Search facilitators', arch:'Search architects' };
   function show(v, opts){
     if (!VIEWS[v]) v = 'people';
     view = v;
@@ -519,7 +556,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     renderCurrent();
     if (!(opts && opts.quiet)) window.scrollTo(0, 0);
   }
-  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'types') renderTypes(); else renderFac(); }
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else renderFac(); }
   function viewFromHash(){ const h = location.hash.slice(1); return Object.keys(HASH).find(k => HASH[k] === h) || 'people'; }
   document.querySelectorAll('.rail [data-view]').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
   $('railQ').addEventListener('input', () => { query = $('railQ').value.trim().toLowerCase(); renderCurrent(); });
@@ -547,6 +584,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     await loadTypes();
     showSignedIn();
     loadRoster();
+    loadArch();
     /* The central list is separate and may be unavailable: an older relay, or an account
        that is not a platform administrator. Neither should stop the rest of the panel. */
     loadAccess();
@@ -598,7 +636,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     setTimeout(() => { b.textContent = 'Copy'; }, 1400);
   });
   window.addEventListener('beforeunload', e => {
-    if (fac.dirty || types.dirty || (acc && acc.dirty)) { e.preventDefault(); e.returnValue = ''; }
+    if (fac.dirty || types.dirty || (acc && acc.dirty) || (arch && arch.dirty)) { e.preventDefault(); e.returnValue = ''; }
   });
   /* "in 6 weeks", "in 4 days", "expired": the reason the column exists. */
   function expiryNote(date){
@@ -1029,6 +1067,82 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const ok = await publishRoster();
     const n = rosterNamesFor(fac.list).length;
     setStatus('facStatus', ok ? 'ok' : 'dirty', ok ? `Saved. The drop-downs list ${n} ${n === 1 ? 'facilitator' : 'facilitators'} in about a minute.` : 'Saved, but the drop-downs were not updated.');
+  });
+
+  /* ================= Architects ================= */
+  async function loadArch(){
+    showErr('archErr');
+    try {
+      const r = await S.architects.get();
+      arch = { list: r.list, sha: r.sha, dirty:false };
+      $('archUnavailable').hidden = true; $('archAddOpen').hidden = false;
+      setStatus('archStatus');
+    } catch (e) {
+      arch = null;
+      $('archAddOpen').hidden = true;
+      $('archUnavailable').hidden = false;
+      $('archUnavailable').innerHTML = `<span><strong>Not available.</strong> ${esc((e && e.message) || 'The architect list could not be loaded.')}</span>`;
+    }
+    renderArch();
+  }
+  function renderArch(){
+    if (!arch) { $('nArch').textContent = ''; $('archList').innerHTML = ''; $('archSub').textContent = ''; $('archSave').disabled = true; return; }
+    $('nArch').textContent = arch.list.length;
+    $('archSub').textContent = `${arch.list.length} ${arch.list.length === 1 ? 'architect' : 'architects'}.`;
+    const rows = arch.list.map((a, i) => ({ a, i })).filter(({ a }) => matches(a.name, a.email));
+    $('archList').innerHTML = '<div class="lh frow"><span>Architect</span><span>Expires</span><span></span></div>' +
+      (rows.length ? rows.map(({ a, i }) => {
+        const cls = ['row frow', expiryNote(a.expires).soon ? 'soon' : '', freshRow === 'arch:' + a.name ? 'fresh' : ''].filter(Boolean).join(' ');
+        return `<div class="${cls}"><div class="who"><span class="av">${esc(initials(a.name))}</span><div style="min-width:0">` +
+            `<div class="nm">${esc(a.name)}</div><div class="em">${a.email ? esc(a.email) : 'No email on file'}</div></div></div>` +
+          expCell('data-arch-exp', i, a.expires, `${a.name} expires`) +
+          `<div class="acts"><button class="btn sm danger" type="button" data-arch-remove="${i}">Remove</button></div></div>`;
+      }).join('') : `<div class="empty">${query ? 'Nobody matches that search.' : 'No architects yet. Add the first one with the button above.'}</div>`);
+    $('archSave').disabled = !arch.dirty;
+  }
+  function markArch(){ arch.dirty = true; setStatus('archStatus', 'dirty'); showErr('archErr'); renderArch(); }
+  $('archList').addEventListener('click', e => {
+    const rm = e.target.closest('[data-arch-remove]'); if (!rm || !arch) return;
+    const a = arch.list[+rm.dataset.archRemove];
+    if (confirm(`Remove ${a.name} from the architects?`)) { arch.list.splice(+rm.dataset.archRemove, 1); markArch(); }
+  });
+  $('archList').addEventListener('change', e => {
+    const inp = e.target.closest('[data-arch-exp]'); if (!inp || !arch) return;
+    const a = arch.list[+inp.dataset.archExp];
+    if (inp.value) a.expires = inp.value; else delete a.expires;
+    markArch();
+  });
+  addPanel('archAddOpen', 'archAddCard', 'archAddCancel', 'archName');
+  $('archAdd').addEventListener('click', () => {
+    showErr('archAddErr');
+    const name = $('archName').value.trim();
+    const email = $('archEmail').value.trim().toLowerCase();
+    if (!name) return showErr('archAddErr', 'A full name is needed.');
+    if (!email || !email.includes('@')) return showErr('archAddErr', 'An email is needed.');
+    if (arch.list.some(a => a.name.toLowerCase() === name.toLowerCase())) return showErr('archAddErr', 'There is already an architect with that name.');
+    if (arch.list.some(a => (a.email || '').toLowerCase() === email)) return showErr('archAddErr', 'There is already an architect with that email.');
+    const entry = { name, email };
+    if ($('archExp').value) entry.expires = $('archExp').value;
+    arch.list.push(entry);
+    arch.list.sort((a, b) => a.name.localeCompare(b.name, 'en'));
+    $('archName').value = ''; $('archEmail').value = ''; $('archExp').value = '';
+    $('archAddCard').hidden = true; freshRow = 'arch:' + name;
+    markArch();
+  });
+  $('archReload').addEventListener('click', async () => {
+    if (arch && arch.dirty && !confirm('Discard unsaved architect changes?')) return;
+    freshRow = null; await loadArch();
+  });
+  $('archSave').addEventListener('click', async () => {
+    showErr('archErr'); setStatus('archStatus', 'dirty', 'Saving…'); $('archSave').disabled = true;
+    try {
+      const r = await S.architects.put(arch.list, arch.sha);
+      arch = { list: r.list, sha: r.sha, dirty:false }; freshRow = null;
+      renderArch(); setStatus('archStatus', 'ok', 'Saved.');
+    } catch (e) {
+      $('archSave').disabled = false; setStatus('archStatus', 'dirty');
+      showErr('archErr', (e && e.message) || 'Could not save.');
+    }
   });
 
   /* ---------- the sections: narrowing, and the theme ---------- */
