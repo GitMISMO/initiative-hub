@@ -22,7 +22,7 @@
   try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=ca9c202c98"></script>
+<script src="dashboard-data.js?v=371e9c4498"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
@@ -206,16 +206,21 @@
     if (!S.files.canUse() || files === 'denied') return '';   // signed out, or no access to files
     if (files === null) return `<div class="files"><div class="lbl2">Files on this initiative</div><div class="muted">Loading…</div></div>`;
     if (!Array.isArray(files)) return '';
+    /* View access opens and reads; it does not add or remove. The relay refuses the
+       write either way, so this only decides whether the control is offered. */
+    const mayChange = S.canEdit();
     const chips = files.map(f => `<span class="chip" data-open="${esc(f.path)}" title="${esc(f.name)} · added by ${esc(f.by || 'someone')}">
         <span class="dot" style="background:${kindColour(f.name)}"></span>
         <span class="nm">${esc(f.name)}</span><span class="sz">${esc(niceSize(f.size || 0))}</span>
-        <button class="x" data-remove-file="${esc(f.path)}" title="Remove">×</button></span>`).join('');
+        ${mayChange ? `<button class="x" data-remove-file="${esc(f.path)}" title="Remove">×</button>` : ''}</span>`).join('');
+    const empty = !files.length && !mayChange
+      ? '<span class="muted">No files yet.</span>' : '';
     return `<div class="files">
       <div class="lbl2">Files on this initiative</div>
-      <div class="chips">${chips}<span class="chip add" id="fileAdd">+ Add a file</span></div>
+      <div class="chips">${chips}${empty}${mayChange ? '<span class="chip add" id="fileAdd">+ Add a file</span>' : ''}</div>
       <input type="file" id="fileInput" style="display:none">
       ${filesErr ? `<div class="note" style="color:#C0392B">${esc(filesErr)}</div>`
-                 : `<div class="note">Only people signed in with access can see or open these. Up to 4 MB each.</div>`}
+                 : `<div class="note">Only people signed in with access can see or open these.${mayChange ? ' Up to 4 MB each.' : ''}</div>`}
     </div>`;
   }
 

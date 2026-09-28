@@ -670,14 +670,36 @@
        * display in CSS, which beats [hidden] and leaves them on screen. Setting display
        * directly cannot be overridden by a stylesheet. */
       function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+      var prompt = document.querySelector(opts.signInPrompt || '#signInToEdit');
+      /* Kept so the button can be put back to what the markup said. Read once, before
+       * anything rewrites it. */
+      var promptLabel = prompt ? prompt.querySelector('span') : null;
+      var promptText = promptLabel ? promptLabel.textContent : '';
+      var promptTitle = prompt ? prompt.getAttribute('title') || '' : '';
+
       function apply() {
         var editable = canEdit();
         (opts.editControls || []).forEach(function (sel) { show(document.querySelector(sel), editable); });
-        show(document.querySelector(opts.signInPrompt || '#signInToEdit'), !editable);
+        show(prompt, !editable);
+        if (!prompt || editable) return;
+        /* Three states, not two. Someone signed in with view access is not signed out,
+         * and telling them to sign in sends them round a loop that ends where it began:
+         * signing in again changes nothing, because the account is the limit. */
+        var viewing = role() === 'view';
+        if (promptLabel) promptLabel.textContent = viewing ? 'View only' : promptText;
+        prompt.setAttribute('title', viewing
+          ? 'Your account can read this dashboard but not change it'
+          : promptTitle);
+        prompt.classList.toggle('is-viewonly', viewing);
+        /* Set here rather than in each dashboard's stylesheet: there are five of them
+         * plus the template, and a state that exists in one place should be styled in
+         * one place. It is a label in this state, not a button. */
+        prompt.style.cursor = viewing ? 'default' : '';
       }
-      var prompt = document.querySelector(opts.signInPrompt || '#signInToEdit');
       if (prompt && window.ResourcesSession) {
         prompt.addEventListener('click', function () {
+          /* A viewer clicking it would open a sign-in screen that cannot help them. */
+          if (role() === 'view') return;
           window.ResourcesSession.signIn({}).catch(function () {});
         });
       }

@@ -17,39 +17,98 @@
 
   Renames reach the dashboards when the site next deploys, about a minute after saving.
 -->
+<script>
+  /* Set the theme before any CSS paints, so someone in dark mode does not see a flash of
+     the light panel first. Deliberately tiny and synchronous — one read, one attribute. */
+  (function(){
+    try { if (localStorage.getItem('resources:hub:admin:theme') === 'dark')
+            document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+  })();
+</script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=ca9c202c98"></script>
+<script src="dashboard-data.js?v=371e9c4498"></script>
 <style>
-  :root { --navy:#0b1a33; --brand:#1d4ed8; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --ok:#166534; --okbg:#dcfce7; --warn:#7c2d12; --warnbg:#fff7ed; --warnline:#fed7aa; --err:#991b1b; --errbg:#fee2e2; }
+  /* Every colour on the page comes from here, so dark mode is a second block rather
+     than a hunt through the rules. --card and --paper were previously referenced in a
+     few places without ever being defined, which is why those surfaces were transparent. */
+  :root { --navy:#0b1a33; --brand:#1d4ed8; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --ok:#166534; --okbg:#dcfce7; --warn:#7c2d12; --warnbg:#fff7ed; --warnline:#fed7aa; --err:#991b1b; --errbg:#fee2e2;
+           --card:#fff; --paper:#f1f3f9; --headbg:var(--navy); --btn-face:#fff;
+           --edit-bg:#DCEBE2; --edit-fg:#14663F; --edit-bd:#BBD9C8;
+           --view-bg:#E5EAF2; --view-fg:#40506B; --view-bd:#CBD5E4;
+           --none-fg:#8B94A7; --adm-bg:#F0E9FB; --adm-fg:#7A4FBF; --adm-bd:#DFCFF5;
+           color-scheme:light; }
+  html[data-theme="dark"] { --navy:#0b1a33; --brand:#5B85FF; --ink:#E8EAF0; --muted:#A0A8C0; --line:#2A3150; --bg:#0B0F1C;
+           --ok:#7FD4A3; --okbg:#12311F; --warn:#E2B857; --warnbg:#2A2413; --warnline:#4A3E1C; --err:#FCA5A5; --errbg:#3A1A1A;
+           --card:#161C30; --paper:#0F1424; --headbg:#0B1226; --btn-face:#1E2436;
+           --edit-bg:#12311F; --edit-fg:#7FD4A3; --edit-bd:transparent;
+           --view-bg:#1E2536; --view-fg:#A8B4CC; --view-bd:transparent;
+           --none-fg:#6B7488; --adm-bg:#241A3A; --adm-fg:#C9AEF7; --adm-bd:transparent;
+           /* so the native date picker and its icon are dark too, rather than a white
+              calendar punched into a dark row */
+           color-scheme:dark; }
   * { box-sizing:border-box; }
   body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); }
-  header { background:var(--navy); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  header { background:var(--headbg); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
   header h1 { margin:0; font-size:17px; font-weight:600; }
   header .who { font-size:13px; opacity:.85; }
   header .who button { margin-left:10px; }
+  .hdr-right { display:flex; align-items:center; gap:12px; }
   main { max-width:980px; margin:20px auto; padding:0 16px; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:18px 20px; margin-bottom:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:18px 20px; margin-bottom:14px; }
   h2 { margin:0 0 4px; font-size:15px; }
   .hint { margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.45; }
   label { display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:10px 0 4px; }
-  input[type=text], input[type=password], input[type=date] { width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; }
+  input[type=text], input[type=password], input[type=date], input[type=email] { width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); }
   input.inline { padding:5px 8px; }
 
   /* The approved design: a role reads as a tinted pill rather than a plain dropdown, so a
      column can be scanned without reading every row. The colour is carried by the select
      itself, so it stays a real control. */
-  select.role { font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
-    padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line);
-    background: var(--paper); color: var(--ink); appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
-                      linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
-    background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; padding-right: 26px; }
-  select.role.is-admin { background-color:#E3EBFF; color:#1B34B8; border-color:#C9D8FB; }
-  select.role.is-staff { background-color:#E7EAF1; color:#4C5468; border-color:#D3D8E3; }
-  select.role.is-none  { background-color:transparent; color:var(--muted); font-weight:500; }
-  html[data-theme="dark"] select.role.is-admin { background-color:#1A2745; color:#9AB8FF; border-color:#2A3150; }
-  html[data-theme="dark"] select.role.is-staff { background-color:#202536; color:#A0A8C0; border-color:#2A3150; }
+  /* One row per person, whatever the number of tools. The row SUMMARISES; the drawer
+     underneath it is where a level is actually changed. A column per tool was the
+     previous design and it stops working somewhere around six tools — the row gets
+     narrower per column as the platform grows, which is backwards. */
+  .pill { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600;
+          padding:2px 9px; border-radius:999px; border:1px solid transparent; }
+  .p-edit { background:var(--edit-bg); color:var(--edit-fg); border-color:var(--edit-bd); }
+  .p-view { background:var(--view-bg); color:var(--view-fg); border-color:var(--view-bd); }
+  .p-none { color:var(--none-fg); font-style:italic; font-weight:500; }
+  .more { font-size:11.5px; color:var(--muted); }
+  .summary { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+
+  /* Administrator is a property of the person, not a fourth level on each tool, so it
+     sits beside the name once rather than repeating down a row. */
+  .adm { display:inline-flex; align-items:center; font-size:10px; font-weight:700; letter-spacing:.04em;
+         text-transform:uppercase; color:var(--adm-fg); background:var(--adm-bg); border:1px solid var(--adm-bd);
+         border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:2px; }
+
+  /* The three-way control. Real buttons, because this is a control and has to be
+     reachable by keyboard; aria-pressed carries the state that the tint shows. */
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:999px; overflow:hidden; background:var(--paper); }
+  .seg button { font:inherit; font-size:11.5px; font-weight:600; padding:4px 11px; border:none; border-radius:0;
+                background:transparent; color:var(--muted); cursor:pointer; white-space:nowrap; }
+  .seg button:hover { color:var(--ink); }
+  .seg button[aria-pressed="true"].lv-edit { background:var(--edit-bg); color:var(--edit-fg); }
+  .seg button[aria-pressed="true"].lv-view { background:var(--view-bg); color:var(--view-fg); }
+  .seg button[aria-pressed="true"].lv-none { background:transparent; color:var(--ink); font-weight:700; }
+  .seg button:focus-visible { outline:2px solid var(--brand); outline-offset:-2px; }
+
+  .drawer { margin:2px 0 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); overflow:hidden; }
+  .drawer .hd { padding:11px 13px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; }
+  .drawer .bd { padding:4px 13px 10px; }
+  .trow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .trow:last-child { border-bottom:none; }
+  .tname { display:flex; align-items:center; gap:8px; font-size:13px; }
+  .tname .dot { width:8px; height:8px; border-radius:50%; background:var(--c); flex:0 0 auto; }
+  .grp { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:11px 0 3px; }
+  .toolnote { font-size:10.5px; font-weight:600; color:var(--muted); }
+
+  .theme-toggle-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:50%; border:1px solid rgba(255,255,255,.28); background:transparent; color:#fff; cursor:pointer; padding:0; }
+  .theme-toggle-btn:hover { background:rgba(255,255,255,.12); }
+  .theme-toggle-btn .icon-moon { display:none; }
+  html[data-theme="dark"] .theme-toggle-btn .icon-sun { display:none; }
+  html[data-theme="dark"] .theme-toggle-btn .icon-moon { display:block; }
 
   /* A dot per tool in the header, so the columns are told apart at a glance. */
   .colhead { display:flex; align-items:center; gap:6px; white-space:nowrap; }
@@ -59,9 +118,8 @@
      is the only reason to give the column space at all. */
   .exp-wrap { display:flex; flex-direction:column; gap:3px; }
   .exp-note { font-size:11px; color:var(--muted); }
-  .exp-note.soon { color:#8A5F1E; font-weight:600; }
-  tr.expiring td { background:#FFF8E6; }
-  html[data-theme="dark"] tr.expiring td { background:#2A2413; }
+  .exp-note.soon { color:var(--warn); font-weight:600; }
+  tr.expiring td { background:var(--warnbg); }
 
   /* Adding someone is its own card, as approved, rather than a row under the table. */
   .addcard { border:1px solid var(--line); border-radius:12px; background:var(--card); margin-top:22px; }
@@ -69,12 +127,12 @@
   .addcard .hd h3 { margin:0; font-size:15px; }
   .addcard .hd .sub { font-size:12px; color:var(--muted); }
   .addcard .bd { padding:14px 16px; }
-  input[readonly] { background:#fafafa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  input[readonly] { background:var(--paper); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
   .row > div { flex:1; min-width:160px; }
-  button { font:inherit; font-size:13px; font-weight:600; padding:8px 13px; border-radius:6px; border:1px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer; white-space:nowrap; }
-  button.secondary { background:#fff; color:var(--navy); }
-  button.danger { background:#fff; color:var(--err); border-color:#fca5a5; }
+  button { font:inherit; font-size:13px; font-weight:600; padding:8px 13px; border-radius:6px; border:1px solid #0f314c; background:#0f314c; color:#fff; cursor:pointer; white-space:nowrap; }
+  button.secondary { background:var(--btn-face); color:var(--ink); border-color:var(--line); }
+  button.danger { background:var(--btn-face); color:var(--err); border-color:var(--line); }
   button.small { padding:5px 9px; font-size:12px; }
   button:disabled { opacity:.45; cursor:default; }
   .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:14px; }
@@ -84,22 +142,24 @@
      would present controls that do not control anything. They arrive with sign-in. */
   .who { display:flex; align-items:center; gap:10px; }
   .av { width:28px; height:28px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center;
-        justify-content:center; font-size:10px; font-weight:700; background:var(--navy); color:#fff; }
+        justify-content:center; font-size:10px; font-weight:800; color:#fff; letter-spacing:.02em;
+        background:linear-gradient(160deg,#a8d4ef 0%,#94c8e9 45%,#6fb2dc 100%);
+        text-shadow:0 1px 1.5px rgba(10,45,70,.45); }
   .nm { font-size:13.5px; font-weight:600; display:block; }
   .em { font-size:11.5px; color:var(--muted); display:block; margin-top:1px; }
-  .em.none { font-style:italic; color:#9A6A00; }
+  .em.none { font-style:italic; color:var(--warn); }
   .rolepill { display:inline-flex; align-items:center; height:23px; padding:0 10px; border-radius:999px;
-              font-size:11.5px; font-weight:600; background:#E7EAF1; color:#4C5468; border:1px solid #D3D8E3; }
+              font-size:11.5px; font-weight:600; background:var(--view-bg); color:var(--view-fg); border:1px solid var(--view-bd); }
 
   .tab { padding:9px 14px; font-size:13.5px; font-weight:600; color:var(--muted); background:none; border:none; border-bottom:2px solid transparent; border-radius:0; cursor:pointer; }
-  .tab.active { color:var(--navy); border-bottom-color:var(--navy); }
+  .tab.active { color:var(--ink); border-bottom-color:#0f314c; }
   table { width:100%; border-collapse:collapse; font-size:13.5px; }
   th { text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:8px 8px; border-bottom:1px solid var(--line); }
   td { padding:8px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
   td.actions { text-align:right; white-space:nowrap; }
   td.muted, .muted { color:var(--muted); }
   .key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; color:var(--muted); }
-  .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 7px; border-radius:999px; background:#eef2ff; color:#3730a3; margin-right:4px; text-transform:uppercase; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 7px; border-radius:999px; background:var(--adm-bg); color:var(--adm-fg); margin-right:4px; text-transform:uppercase; }
   .note { font-size:13px; padding:10px 12px; border-radius:6px; border:1px solid; margin:10px 0 0; line-height:1.45; }
   .note.warn { background:var(--warnbg); border-color:var(--warnline); color:var(--warn); }
   .note.err { background:var(--errbg); border-color:#fca5a5; color:var(--err); }
@@ -109,7 +169,7 @@
   .savebar .status.dirty { color:var(--warn); font-weight:600; }
   .overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px; }
   .overlay.open { display:flex; }
-  .modal { background:#fff; border-radius:10px; padding:22px; max-width:520px; width:100%; }
+  .modal { background:var(--card); border-radius:10px; padding:22px; max-width:520px; width:100%; }
   .modal h3 { margin:0 0 6px; font-size:16px; }
   .modal pre { background:#0f172a; color:#e2e8f0; padding:14px; border-radius:6px; font-size:16px; letter-spacing:.04em; text-align:center; margin:10px 0; user-select:all; }
   .hidden { display:none !important; }
@@ -119,7 +179,13 @@
 <header>
   <div style="display:flex; justify-content:flex-end; margin-bottom:10px"><div id="rs-account"></div></div>
   <h1>MISMO Initiative Hub — Admin</h1>
+  <div class="hdr-right">
   <div class="who" id="who"></div>
+  <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
+      <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
+    <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
+  </button>
+  </div>
 </header>
 <main>
 
@@ -148,6 +214,13 @@
       <h2>People &amp; access</h2>
       <p class="hint">Everyone who can sign in, and what they can do in each tool. One account, one
         password, set here once. Changes take effect within about a minute; nobody is signed out.</p>
+      <p class="hint" style="margin-top:-6px">Each tool is set to one of three levels.
+        <span class="pill p-edit">Edit</span> opens it and saves changes.
+        <span class="pill p-view">View</span> opens it and reads everything, but cannot save — the relay
+        refuses the save, so this holds even if a page offers the button.
+        <span class="pill p-none">No access</span> means the tool is not theirs at all.
+        <span class="adm" style="margin-left:0">Admin</span> is a badge on the person, not a fourth level:
+        it is who can change this list, and it is set in the repository rather than here.</p>
       <div class="err" id="accErr"></div>
       <div id="accUnavailable" class="hidden">
         <p class="hint"><strong>Not available yet.</strong> This needs the newest version of the save
@@ -156,7 +229,7 @@
       </div>
       <div id="accReady" class="hidden">
         <table id="accTable">
-          <thead><tr><th>Person</th><th id="thHub"></th><th id="thGlossary"></th><th id="thFiles"></th><th id="thSummit"></th><th id="thSponsor"></th><th>Expires</th><th></th></tr></thead>
+          <thead><tr><th>Person</th><th>Access</th><th>Expires</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
 
@@ -340,16 +413,21 @@
      than left blank, so the row says what is true rather than what is missing. Admin
      cannot be granted here for a tool: that is a deliberate limit in the relay, so a
      single compromised session cannot mint more admins. */
-  /* The header cell id is named here rather than derived from the key: deriving it turned
-     'hub-files' into 'thHubFiles' while the markup says 'thFiles', and the column simply
-     lost its heading with nothing to explain why. */
+  /* The tools, grouped. The group is only a heading inside the drawer — nothing is
+     enforced by it — but it is what keeps the drawer readable past a dozen tools.
+     `key` must match the project key in projects.json, because that is what the relay
+     looks up; a tool listed here under a key the relay does not know would render a
+     control that silently governs nothing. */
   const TOOLS = [
-    { key:'hub',       th:'thHub',      label:'Initiative Hub',    colour:'var(--brand, #2A4DFF)' },
-    { key:'glossary',  th:'thGlossary', label:'Business Glossary', colour:'#0F9D77' },
-    { key:'hub-files', th:'thFiles',    label:'Files',             colour:'#7F5AF0' },
-    { key:'summit-hq', th:'thSummit',   label:'Summit HQ',         colour:'#0d314c' },
-    { key:'sponsorship', th:'thSponsor', label:'Sponsorship',     colour:'#14486e' }
+    { key:'hub',         label:'Initiative Hub',    colour:'#2A4DFF', group:'Standards' },
+    { key:'glossary',    label:'Business Glossary', colour:'#0F9D77', group:'Standards' },
+    { key:'hub-files',   label:'Files',             colour:'#7F5AF0', group:'Standards' },
+    { key:'summit-hq',   label:'Summit HQ',         colour:'#B45309', group:'Events' },
+    { key:'sponsorship', label:'Sponsorship',       colour:'#0EA5E9', group:'Sponsorship' }
   ];
+  /* Which person's drawer is open, by email. One at a time: two open drawers turn the
+     table back into the wall of controls this design exists to avoid. */
+  let openDrawer = null;
   let acc = null;   // { people, sha, dirty }
 
   async function loadAccess(){
@@ -374,14 +452,55 @@
     }
   }
 
-  function roleSelect(email, tool, role){
-    const opt = (v, t) => `<option value="${v}"${role===v?' selected':''}>${t}</option>`;
-    const cls = role === 'admin' ? 'is-admin' : role === 'staff' ? 'is-staff' : 'is-none';
-    /* Admin is offered only where it is already set, so an existing admin is not silently
-       demoted by saving, but a new one cannot be created here. */
-    return `<select class="role ${cls}" data-acc-role="${esc(email)}" data-tool="${tool}">` +
-      opt('', 'No access') + opt('staff', 'Staff') + (role === 'admin' ? opt('admin', 'Admin') : '') +
-      '</select>';
+  /* Stored roles are 'admin', 'staff', 'view' or nothing. The panel shows three levels,
+     so 'admin' and 'staff' both read as Edit. They are NOT collapsed on save: a tool
+     admin who is left on Edit keeps 'admin', because that also grants the tool's own
+     settings, and saving an unrelated row must not quietly take it away. */
+  function levelOf(role){
+    if (role === 'admin' || role === 'staff' || role === 'facilitator') return 'edit';
+    if (role === 'view') return 'view';
+    return 'none';
+  }
+  function seg(email, tool, role){
+    const lv = levelOf(role);
+    const b = (v, label) => `<button type="button" class="lv-${v}" aria-pressed="${lv===v}" ` +
+      `data-acc-level="${esc(email)}" data-tool="${esc(tool)}" data-level="${v}">${label}</button>`;
+    return `<span class="seg" role="group" aria-label="Access to this tool">` +
+      b('edit','Edit') + b('view','View') + b('none','No access') + '</span>';
+  }
+
+  /* What the row says without opening anything: how many tools at each level, then the
+     first few by name. Counting is the part that stays true at twenty tools. */
+  function summarise(p){
+    const a = p.access || {};
+    const edit = TOOLS.filter(t => levelOf(a[t.key]) === 'edit');
+    const view = TOOLS.filter(t => levelOf(a[t.key]) === 'view');
+    const bits = [];
+    if (edit.length) bits.push(`<span class="pill p-edit">Edit &middot; ${edit.length}</span>`);
+    if (view.length) bits.push(`<span class="pill p-view">View &middot; ${view.length}</span>`);
+    if (!bits.length) bits.push('<span class="pill p-none">No tools yet</span>');
+    const named = edit.concat(view);
+    const first = named.slice(0, 3).map(t => esc(t.label)).join(', ');
+    const extra = named.length - 3;
+    const tail = first ? `<span class="more">${first}${extra > 0 ? ` and ${extra} more` : ''}</span>` : '';
+    return `<span class="summary">${bits.join(' ')}${tail}</span>`;
+  }
+
+  function drawerFor(email, p){
+    const a = p.access || {};
+    const order = [];
+    const groups = {};
+    TOOLS.forEach(t => { if (!groups[t.group]) { groups[t.group] = []; order.push(t.group); } groups[t.group].push(t); });
+    const body = order.map(g => `<div class="grp">${esc(g)}</div>` + groups[g].map(t => {
+      /* Said out loud rather than shown as a fourth segment, so the control stays three
+         wide while the extra permission is still visible to whoever is granting access. */
+      const note = a[t.key] === 'admin' ? ' <span class="toolnote">&middot; also manages this tool\u2019s settings</span>' : '';
+      return `<div class="trow"><span class="tname"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${note}</span>` +
+             seg(email, t.key, a[t.key]) + '</div>';
+    }).join('')).join('');
+    return `<div class="drawer"><div class="hd"><strong style="font-size:13.5px">${esc(p.name)}</strong>` +
+      '<span class="more">every tool, grouped</span></div>' +
+      `<div class="bd">${body}</div></div>`;
   }
 
   /* "in 6 weeks", "in 4 days", "expired" — the reason the column exists. */
@@ -399,41 +518,33 @@
   function renderAccess(){
     const tb = $('accTable').querySelector('tbody');
     const rows = Object.entries(acc.people).sort((a,b) => a[1].name.localeCompare(b[1].name));
-    /* Filled here rather than in the markup so the colours come from one list. */
-    TOOLS.forEach(t => {
-      const th = $(t.th);
-      if (th) th.innerHTML = `<span class="colhead" style="--c:${t.colour}"><span class="dot"></span>${esc(t.label)}</span>`;
-    });
-    tb.innerHTML = rows.map(([email, p]) => `
+    tb.innerHTML = rows.map(([email, p]) => {
+      const open = openDrawer === email;
+      return `
       <tr class="${expiryNote(p.expires).soon ? 'expiring' : ''}">
         <td>
           <span class="who">
             <span class="av">${esc(MismoStore.initials(p.name))}</span>
-            <span><span class="nm">${esc(p.name)}</span><span class="em">${esc(email)}</span>
-              ${p.platformAdmin ? '<span class="em" style="color:var(--navy)">Platform administrator</span>' : ''}</span>
+            <span><span class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}</span>
+              <span class="em">${esc(email)}</span></span>
           </span>
         </td>
-        ${TOOLS.map(t => `<td>${roleSelect(email, t.key, (p.access||{})[t.key] || '')}</td>`).join('')}
+        <td>${summarise(p)}</td>
         <td><span class="exp-wrap"><input type="date" class="inline" data-acc-exp="${esc(email)}" value="${esc(p.expires || '')}">
           ${p.expires ? `<span class="exp-note ${expiryNote(p.expires).soon ? 'soon' : ''}">${esc(expiryNote(p.expires).text)}</span>` : ''}</span></td>
         <td class="actions">
+          <button class="secondary small" data-acc-manage="${esc(email)}" aria-expanded="${open}">${open ? 'Close' : 'Manage'}</button>
           <button class="secondary small" data-acc-reset="${esc(email)}">Reset password</button>
           <button class="danger small" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Platform administrators are removed in the repository"' : ''}>Remove</button>
         </td>
-      </tr>`).join('');
+      </tr>` + (open ? `<tr><td colspan="4" style="padding-top:0">${drawerFor(email, p)}</td></tr>` : '');
+    }).join('');
     $('accSave').disabled = !acc.dirty;
   }
   function markAcc(){ acc.dirty = true; renderAccess(); }
 
   document.addEventListener('change', e => {
     if (!acc) return;
-    const sel = e.target.closest('[data-acc-role]');
-    if (sel) {
-      const p = acc.people[sel.dataset.accRole];
-      p.access = p.access || {};
-      if (sel.value) p.access[sel.dataset.tool] = sel.value; else delete p.access[sel.dataset.tool];
-      markAcc(); return;   // re-render carries the new colour
-    }
     const exp = e.target.closest('[data-acc-exp]');
     if (exp) {
       const p = acc.people[exp.dataset.accExp];
@@ -444,6 +555,35 @@
 
   document.addEventListener('click', async e => {
     if (!acc) return;
+
+    const mg = e.target.closest('[data-acc-manage]');
+    if (mg) { openDrawer = openDrawer === mg.dataset.accManage ? null : mg.dataset.accManage; renderAccess(); return; }
+
+    const lv = e.target.closest('[data-acc-level]');
+    if (lv) {
+      /* The table is rebuilt on every change, which would otherwise drop focus on the
+         button just pressed and leave a keyboard user back at the top of the page. */
+      const restore = `[data-acc-level="${CSS.escape(lv.dataset.accLevel)}"][data-tool="${CSS.escape(lv.dataset.tool)}"][data-level="${lv.dataset.level}"]`;
+      const p = acc.people[lv.dataset.accLevel];
+      p.access = p.access || {};
+      const tool = lv.dataset.tool, current = p.access[tool];
+      if (lv.dataset.level === 'edit') {
+        /* Already Edit at either stored value: leave it exactly as it is. Writing
+           'staff' here would demote a tool admin as a side effect of a click that
+           changed nothing on screen. */
+        if (levelOf(current) !== 'edit') p.access[tool] = 'staff';
+      } else if (lv.dataset.level === 'view') {
+        p.access[tool] = 'view';
+      } else {
+        /* No access is the absence of an entry, not a stored value. */
+        delete p.access[tool];
+      }
+      markAcc();
+      const back = document.querySelector(restore);
+      if (back) back.focus();
+      return;
+    }
+
     const rs = e.target.closest('[data-acc-reset]');
     if (rs) {
       const email = rs.dataset.accReset, p = acc.people[email];
@@ -475,6 +615,26 @@
     err.classList.remove('show');
     reveal(name, code); markAcc();
   });
+
+  /* Theme. The pre-paint script in the head has already applied the saved choice; this
+     only handles the button and remembers the change. The key is this page's own, matching
+     each dashboard keeping its own, so switching here does not change a dashboard. */
+  (function(){
+    const btn = $('themeToggleBtn');
+    function apply(theme){
+      document.documentElement.setAttribute('data-theme', theme);
+      const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      btn.setAttribute('aria-label', label); btn.title = label;
+    }
+    let saved = 'light';
+    try { saved = localStorage.getItem('resources:hub:admin:theme') || 'light'; } catch (e) {}
+    apply(saved === 'dark' ? 'dark' : 'light');
+    btn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      apply(next);
+      try { localStorage.setItem('resources:hub:admin:theme', next); } catch (e) {}
+    });
+  })();
 
   $('accReload').addEventListener('click', loadAccess);
   $('accSave').addEventListener('click', async () => {

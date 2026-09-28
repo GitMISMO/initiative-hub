@@ -11,8 +11,17 @@
  * each request (cached briefly), so adding or removing a person is a commit — made in
  * the GitHub web UI, or by the admin panel through this relay — and needs no AWS access.
  *
- *   facilitator   save any dashboard, as themselves
- *   admin         everything a facilitator can do, plus read and write facilitators.json
+ * Access is held per tool, at one of three levels. The central directory
+ * (_internal/access.json, described under THE DIRECTORY) is the source; a tool's own
+ * facilitators.json is the fallback for anything that predates it.
+ *
+ *   view          read a tool. Every write route refuses them, whatever the page shows.
+ *   staff         read and write
+ *   admin         everything staff can do, plus read and write that tool's own settings
+ *
+ * No entry for a tool means no access to it; there is no fourth "none" value to store.
+ * Platform administration — editing who holds what — is a separate flag on the person,
+ * not a level, so nobody acquires it by being an admin of something.
  *
  * The file is public (the repo is), which is why it holds hashes and why passcodes must
  * be generated, never chosen. key-helper.html generates them.
@@ -445,13 +454,27 @@ async function roleFor(email, projectKey) {
   const person = Object.entries(dir.people).find(([addr]) => addr.toLowerCase() === String(email).toLowerCase())?.[1];
   if (!person) return { error: 'NO_ACCOUNT' };
   if (isExpired(person)) return { error: 'ACCOUNT_EXPIRED' };
-  const role = person.access && person.access[projectKey];
+  const role = normaliseRole(person.access && person.access[projectKey]);
+  if (!role) return { error: 'NO_ACCESS' };
+  return { name: person.name || email, role };
+}
+
+/* The three levels a person can hold on one tool, plus the one historical spelling.
+ *
+ *   admin   read and write, and edit that tool's own settings
+ *   staff   read and write
+ *   view    read only — every write route refuses them
+ *
+ * Anything else, including an absent entry, means no access at all. Returning null
+ * rather than a default is deliberate: a typo in access.json must lock someone out,
+ * never quietly grant them something. */
+const ROLES = new Set(['admin', 'staff', 'view']);
+function normaliseRole(role) {
   /* 'facilitator' is accepted as a synonym for 'staff'. The role was renamed in Sept
    * 2026 while access.json was still empty, so nothing needed migrating — this only
    * covers a hand-edited file that predates the rename. */
-  if (role !== 'admin' && role !== 'staff' && role !== 'facilitator') return { error: 'NO_ACCESS' };
-  if (role === 'facilitator') return { name: person.name || email, role: 'staff' };
-  return { name: person.name || email, role };
+  if (role === 'facilitator') return 'staff';
+  return ROLES.has(role) ? role : null;
 }
 
 const facilitatorsCache = new Map();
@@ -780,7 +803,14 @@ export async function handler(event) {
     let found = await findPerson(email, password);
     let access = null;
     if (!found.error) {
-      access = found.access || {};
+      /* Normalised here so the page only ever sees admin/staff/view. A hand-edited
+       * entry with an unrecognised role is dropped rather than passed through, which
+       * keeps the page's idea of access identical to what the relay will enforce. */
+      access = {};
+      for (const [proj, role] of Object.entries(found.access || {})) {
+        const r = normaliseRole(role);
+        if (r) access[proj] = r;
+      }
     } else if (found.error === 'NO_DIRECTORY') {
       const legacy = await findAccount(proj.repo, proj.branch, email, password);
       if (legacy.error === 'FACILITATORS_UNREADABLE') return respond(502, { error: legacy.error });
@@ -801,8 +831,12 @@ export async function handler(event) {
     const token = signToken({
       sub: found.email, name: found.name, iat: now, exp: now + TOKEN_TTL_SECONDS
     }, secret);
+    /* Reported so the page can show the People & access link to the people who can
+     * actually use it. It is display only — the /access routes check the directory
+     * themselves on every request and do not trust anything sent back here. */
     return respond(200, {
       token, name: found.name, email: found.email, access,
+      platformAdmin: found.platformAdmin === true,
       expiresAt: new Date((now + TOKEN_TTL_SECONDS) * 1000).toISOString()
     });
   }
@@ -843,7 +877,23 @@ export async function handler(event) {
   if (who.error === 'DIRECTORY_UNREADABLE') return respond(502, { error: 'DIRECTORY_UNREADABLE', message: 'The account directory could not be read.' });
   if (who.error) return respond(401, { error: 'KEY_BAD', message: 'That email and password were not recognised.' });
 
-  /* ----- dashboards: facilitator or admin ----- */
+  /* ----- view-only accounts cannot write -----
+   *
+   * One guard in front of every route rather than a check inside each, because the
+   * routes that write are not a fixed list — /commit and /file were both added after
+   * the first version, and a per-route check is a thing to remember. Anything that is
+   * not a GET is refused here, so a new write route is covered the day it is written.
+   *
+   * /access is the exception and is left to its own gate below: it is the directory,
+   * not this project's content, and it turns on whether the caller is a platform
+   * administrator rather than on what they hold here. A platform administrator with
+   * view access to one tool must still be able to manage people. */
+  if (!isAccess && method !== 'GET' && who.role === 'view') {
+    return respond(403, { error: 'VIEW_ONLY',
+      message: 'Your account has view access to this application. You can read it but not save changes.' });
+  }
+
+  /* ----- dashboards: staff or admin ----- */
   /* GET  /{project}/access — the whole directory, for the admin panel.
    * PUT  /{project}/access — replaces it.
    *
@@ -893,9 +943,13 @@ export async function handler(event) {
         const access = {};
         for (const [proj, role] of Object.entries(p.access || {})) {
           if (!/^[a-z0-9-]{1,40}$/.test(proj)) return respond(400, { error: 'BAD_PROJECT', project: proj });
-          if (role === 'admin' || role === 'staff') access[proj] = role;
-          else if (role === 'facilitator') access[proj] = 'staff';
-          else if (role) return respond(400, { error: 'BAD_ROLE', project: proj, role });
+          /* No entry at all is how "no access" is stored, so a falsy role is simply
+           * left out rather than saved as a third state. The panel sends the map it
+           * wants; removing a tool from it removes the access. */
+          if (!role) continue;
+          const r = normaliseRole(role);
+          if (!r) return respond(400, { error: 'BAD_ROLE', project: proj, role });
+          access[proj] = r;
         }
         const entry = { name, hash: p.hash, access };
         if (p.platformAdmin === true) entry.platformAdmin = true;

@@ -789,3 +789,64 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
   globalThis.fetch = prevFetch;
   accessBust();
 }
+
+/* ---------- view access: read yes, write no ----------
+   The guard sits in front of every route rather than inside each one, so these check
+   both halves of that: a viewer gets the data, and every method that is not a GET is
+   refused with the same error whichever route it aims at. */
+{
+  facCacheBust(); accessBust(); projectsCacheBust();
+  process.env.PROJECTS_REPO = 'Org/SiteConfig';
+  accessStatus = 200;
+  accessFile = { people: {
+    'viewer@mismo.org': { name:'Val Viewer',  hash: mkHash('viewer-pw'),  access:{hub:'view'} },
+    'editor@mismo.org': { name:'Ed Editor',   hash: mkHash('editor-pw'),  access:{hub:'staff'} },
+    'runner@mismo.org': { name:'Ruth Runner', hash: mkHash('runner-pw'),  access:{hub:'view'}, platformAdmin:true },
+    'typo@mismo.org':   { name:'Typo Person', hash: mkHash('typo-pw'),    access:{hub:'viewer'} }
+  }};
+  const tok = (email) => mint({ sub: email, name: email, iat: Math.floor(Date.now()/1000),
+                                exp: Math.floor(Date.now()/1000) + 3600 });
+  const as = (email, method, path, body) => handler({
+    rawPath:'/hub'+path, requestContext:{http:{method}},
+    headers:{ origin:'https://org.github.io', authorization:'Bearer '+tok(email), 'content-type':'application/json' },
+    body: body ? JSON.stringify(body) : undefined });
+
+  r = await as('viewer@mismo.org', 'GET', '/data/mcd');
+  /* 200 is the whole point here: the read is allowed. Whether the fixture happens to
+     hold a file at this point in the suite is not what is being tested. */
+  ok('a viewer can read a dashboard', r.statusCode===200);
+
+  r = await as('viewer@mismo.org', 'PUT', '/data/mcd', {content:{a:1}, sha:'d'.repeat(40)});
+  ok('a viewer cannot save a dashboard', r.statusCode===403 && J(r).error==='VIEW_ONLY');
+
+  r = await as('viewer@mismo.org', 'PUT', '/potential/some-idea', {content:{name:'x'}});
+  ok('a viewer cannot write a potential initiative', r.statusCode===403 && J(r).error==='VIEW_ONLY');
+
+  r = await as('viewer@mismo.org', 'POST', '/commit', {files:[{path:'data/x.json', content:'{}'}]});
+  ok('a viewer cannot commit files', r.statusCode===403 && J(r).error==='VIEW_ONLY');
+
+  r = await as('viewer@mismo.org', 'GET', '/facilitators');
+  ok('a viewer is still not an admin', r.statusCode===403 && J(r).error==='ADMIN_ONLY');
+
+  r = await as('editor@mismo.org', 'PUT', '/data/mcd', {content:{a:1}, sha:'d'.repeat(40)});
+  ok('staff on the same tool can still save', r.statusCode===200);
+
+  /* The write guard must not shadow the directory's own gate. Ruth holds only view on
+     the hub but administers the platform, and managing people is not a hub write. */
+  r = await as('runner@mismo.org', 'GET', '/access');
+  ok('a platform administrator with view access can still read the directory', r.statusCode===200);
+
+  /* An unrecognised role is no access, not a downgrade to view and not a default to
+     staff. A typo in the file has to lock someone out to be safe. */
+  r = await as('typo@mismo.org', 'GET', '/data/mcd');
+  ok('an unrecognised role grants nothing at all', r.statusCode===403 && J(r).error==='NO_ACCESS');
+
+  r = await login({ email:'viewer@mismo.org', password:'viewer-pw' });
+  ok('signing in reports view so the page can show a read-only state',
+     r.statusCode===200 && JSON.stringify(J(r).access)==='{"hub":"view"}');
+  r = await login({ email:'typo@mismo.org', password:'typo-pw' });
+  ok('and an unrecognised role is dropped from what sign-in reports',
+     r.statusCode===200 && JSON.stringify(J(r).access)==='{}');
+
+  accessBust();
+}
