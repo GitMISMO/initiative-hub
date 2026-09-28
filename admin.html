@@ -2,323 +2,482 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin — MISMO Initiative Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin Panel · MISMO Resources</title>
 <!--
-  Admin panel. Two things live here and nowhere else:
+  Admin panel, dressed as Summit HQ: the same masthead across the top and the same
+  sections down the left, colour for colour (approved mockup, 2026-09-28).
 
-    Facilitators       who can save dashboards. Add, reset a passcode, remove, set an expiry.
-    Stakeholder types  the global list every dashboard reads display names from. Rename,
-                       add, remove (only if no dashboard uses it).
+    People & Access    everyone who can sign in, and Edit / View / No access per tool.
+                       Covers every tool, so it sits at the top of the sections.
+    Stakeholder Types  the global list every dashboard reads display names from.
+    Facilitators       the Hub's facilitator list. Two jobs: the names in EVERY facilitator
+                       drop-down (dashboards, potential initiatives, Summit HQ), and the
+                       older Hub passcodes. Saving it also publishes the names-only copy
+                       the drop-downs read (data/facilitator-roster.json).
 
-  Everything saves through the relay with the admin key, which is the same key mechanism
-  the dashboards use (dashboard-data.js). Nothing here can change the admin entry itself;
-  that is deliberate — see the relay for why.
+  Everything saves through the relay, signed in. Nothing here can change the admin entry
+  itself or make someone a platform administrator; that is deliberate (see the relay).
 
-  Renames reach the dashboards when the site next deploys, about a minute after saving.
+  Signing in and being refused use the shared screens from session.js, as every tool does.
 -->
 <script>
-  /* Set the theme before any CSS paints, so someone in dark mode does not see a flash of
-     the light panel first. Deliberately tiny and synchronous — one read, one attribute. */
+  /* Before any CSS paints: the theme (a saved choice, else the system's), and whether the
+     sections were narrowed, so neither flashes. */
   (function(){
-    try { if (localStorage.getItem('resources:hub:admin:theme') === 'dark')
-            document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+    var t = null;
+    try { t = localStorage.getItem('resources:hub:admin:theme'); } catch (e) {}
+    if (t !== 'dark' && t !== 'light') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    try { if (localStorage.getItem('resources:hub:admin:rail') === 'mini') document.documentElement.classList.add('railmini'); } catch (e) {}
   })();
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=c2b3c63251"></script>
+<script src="dashboard-data.js?v=e441bfe43c"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
-  /* Every colour on the page comes from here, so dark mode is a second block rather
-     than a hunt through the rules. --card and --paper were previously referenced in a
-     few places without ever being defined, which is why those surfaces were transparent. */
-  :root { --navy:#0b1a33; --brand:#1d4ed8; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --ok:#166534; --okbg:#dcfce7; --warn:#7c2d12; --warnbg:#fff7ed; --warnline:#fed7aa; --err:#991b1b; --errbg:#fee2e2;
-           --card:#fff; --paper:#f1f3f9; --headbg:var(--navy); --btn-face:#fff;
-           --edit-bg:#DCEBE2; --edit-fg:#14663F; --edit-bd:#BBD9C8;
-           --view-bg:#E5EAF2; --view-fg:#40506B; --view-bd:#CBD5E4;
-           --none-fg:#8B94A7; --adm-bg:#F0E9FB; --adm-fg:#7A4FBF; --adm-bd:#DFCFF5;
-           color-scheme:light; }
-  html[data-theme="dark"] { --navy:#0b1a33; --brand:#5B85FF; --ink:#E8EAF0; --muted:#A0A8C0; --line:#2A3150; --bg:#0B0F1C;
-           --ok:#7FD4A3; --okbg:#12311F; --warn:#E2B857; --warnbg:#2A2413; --warnline:#4A3E1C; --err:#FCA5A5; --errbg:#3A1A1A;
-           --card:#161C30; --paper:#0F1424; --headbg:#0B1226; --btn-face:#1E2436;
-           --edit-bg:#12311F; --edit-fg:#7FD4A3; --edit-bd:transparent;
-           --view-bg:#1E2536; --view-fg:#A8B4CC; --view-bd:transparent;
-           --none-fg:#6B7488; --adm-bg:#241A3A; --adm-fg:#C9AEF7; --adm-bd:transparent;
-           /* so the native date picker and its icon are dark too, rather than a white
-              calendar punched into a dark row */
-           color-scheme:dark; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); }
-  header { background:var(--headbg); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-  header h1 { margin:0; font-size:17px; font-weight:600; }
-  header .who { font-size:13px; opacity:.85; }
-  header .who button { margin-left:10px; }
-  .hdr-right { display:flex; align-items:center; gap:12px; }
-  main { max-width:980px; margin:20px auto; padding:0 16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:18px 20px; margin-bottom:14px; }
-  h2 { margin:0 0 4px; font-size:15px; }
-  .hint { margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.45; }
-  label { display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:10px 0 4px; }
-  input[type=text], input[type=password], input[type=date], input[type=email] { width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); }
-  input.inline { padding:5px 8px; }
+  /* Summit HQ's own tokens. Every colour on the page comes from here, so dark mode is a
+     second block rather than a hunt through the rules. */
+  :root{
+    --navy:#0f314c; --navy-deep:#06202f; --navy-mid:#14486e; --sky:#50a4db; --sky-soft:#94c8e9;
+    --paper:#F1F6FA; --surface:#FFFFFF; --sunk:#E9F1F8;
+    --ink:#0f314c; --ink-2:#456179; --ink-3:#546F88;
+    --line:#E5EEF5; --line-2:#D5E2ED; --line-3:#ADC4D6;
+    --accent:#14486E; --accent-soft:#dcedf8;
+    --bad:#B3372C; --bad-soft:#FBE9E7;
+    --warn-ink:#8A5F16; --warn-soft:#F7EFE0;
+    --good:#0F7B5C; --good-soft:#E1F2EC;
+    --btn:#0f314c; --btn-ink:#FFFFFF;
+    --adm-bg:#0f314c; --adm-ink:#FFFFFF;
+    --code-bg:#06202f; --code-ink:#E9F4FB;
+    --scrim:rgba(6,32,47,.55);
+    --shadow:0 1px 2px rgba(15,49,76,.06), 0 10px 26px -18px rgba(15,49,76,.45);
+    --font:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --hq-h:64px; --rail-w:240px; --rail-mini:62px;
+    color-scheme:light;
+  }
+  html[data-theme="dark"]{
+    --paper:#061722; --surface:#0D2837; --sunk:#173C52;
+    --ink:#E9F4FB; --ink-2:#A6C5D9; --ink-3:#7A9DB4;
+    --line:#173547; --line-2:#1F4A63; --line-3:#2F6688;
+    --accent:#50a4db; --accent-soft:#123143;
+    --bad:#F08579; --bad-soft:#3A1C19;
+    --warn-ink:#E0A83C; --warn-soft:#3A2E13;
+    --good:#4FC79B; --good-soft:#0C3128;
+    --btn:#50a4db; --btn-ink:#06202f;
+    --adm-bg:#123143; --adm-ink:#94c8e9;
+    --code-bg:#030C12; --code-ink:#E9F4FB;
+    --scrim:rgba(0,0,0,.6);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -18px rgba(0,0,0,.85);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-top:calc(var(--hq-h) + env(safe-area-inset-top,0px));padding-left:var(--rail-w)}
+  html.railmini body{padding-left:var(--rail-mini)}
+  svg.i{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
-  /* The approved design: a role reads as a tinted pill rather than a plain dropdown, so a
-     column can be scanned without reading every row. The colour is carried by the select
-     itself, so it stays a real control. */
-  /* One row per person, whatever the number of tools. The row SUMMARISES; the drawer
-     underneath it is where a level is actually changed. A column per tool was the
-     previous design and it stops working somewhere around six tools — the row gets
-     narrower per column as the platform grows, which is backwards. */
-  .pill { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600;
-          padding:2px 9px; border-radius:999px; border:1px solid transparent; }
-  .p-edit { background:var(--edit-bg); color:var(--edit-fg); border-color:var(--edit-bd); }
-  .p-view { background:var(--view-bg); color:var(--view-fg); border-color:var(--view-bd); }
-  .p-none { color:var(--none-fg); font-style:italic; font-weight:500; }
-  .more { font-size:11.5px; color:var(--muted); }
-  .summary { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  /* ───────── the masthead, as Summit HQ wears it ───────── */
+  .hqtop{position:fixed;top:0;left:0;right:0;z-index:30;height:calc(var(--hq-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 22px 0;background:var(--navy);color:#fff;display:flex;align-items:center;
+    box-shadow:0 1px 0 rgba(80,164,219,.28)}
+  .logoplate{background:#fff;border-radius:5px;padding:9px 13px;display:flex;align-items:center;line-height:0;
+    flex:0 0 auto;box-shadow:0 1px 0 rgba(80,164,219,.35)}
+  .logoplate svg{height:24px;width:auto;display:block}
+  .mastrule{display:block;width:2px;height:34px;flex:0 0 auto;margin-inline:20px;border-radius:1px;background:var(--sky)}
+  .hqname{font-size:15.5px;font-weight:700;letter-spacing:-.005em;color:var(--sky);white-space:nowrap;
+    min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hqtop-r{margin-left:auto;display:flex;align-items:center;gap:13px;flex:0 0 auto}
+  .eyebrow-m{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;white-space:nowrap}
 
+  /* ───────── the sections, down the left ───────── */
+  .rail{position:fixed;left:0;bottom:0;top:calc(var(--hq-h) + env(safe-area-inset-top,0px));width:var(--rail-w);z-index:20;
+    background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow:hidden auto;
+    box-shadow:1px 0 0 rgba(80,164,219,.22), 4px 0 18px rgba(6,32,47,.14)}
+  html.railmini .rail{width:var(--rail-mini)}
+  .rail-top{display:flex;align-items:center;gap:8px;padding:11px 10px 9px;border-bottom:1px solid rgba(80,164,219,.2)}
+  .rail-lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.55);padding-left:3px}
+  .railhide{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:5px;
+    color:rgba(255,255,255,.75);width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+  .railhide svg{width:16px;height:16px}
+  .railhide:hover{background:rgba(255,255,255,.14);color:#fff}
+  .railfind{position:relative;padding:11px 12px 3px}
+  .railfind svg{position:absolute;left:21px;top:20px;width:14px;height:14px;stroke:rgba(255,255,255,.5);pointer-events:none}
+  .railfind input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+    border-radius:6px;color:#fff;font:inherit;font-size:12.5px;padding:6px 10px 6px 30px}
+  .railfind input::placeholder{color:rgba(255,255,255,.5)}
+  .railfind input:focus{outline:2px solid var(--sky);outline-offset:-1px;background:rgba(255,255,255,.16)}
+  .rail nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 4px}
+  .rail nav button,.theme-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+    border-radius:6px;color:rgba(255,255,255,.76);padding:8px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .rail nav button svg,.theme-btn svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .rail nav button:hover,.theme-btn:hover{color:#fff;background:rgba(255,255,255,.09)}
+  .rail nav button[aria-current]{color:#fff;font-weight:600;background:var(--navy-mid);box-shadow:inset 3px 0 0 var(--sky)}
+  .rail nav button[aria-current] svg{opacity:1;stroke:var(--sky)}
+  .rail nav button:focus-visible,.theme-btn:focus-visible,.railhide:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .rail nav .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px}
+  .railgrp{border-top:1px solid rgba(80,164,219,.16);margin-top:4px;padding-top:7px}
+  .railgrp > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 0}
+  .railgrp nav{padding-top:4px}
+  .rail .foot{margin-top:auto;padding:8px 8px 10px;border-top:1px solid rgba(80,164,219,.2)}
+  /* Until the panel opens there is nothing to go to, so the sections stay quiet. */
+  body.out .rail nav,body.out .railgrp,body.out .railfind{visibility:hidden}
+
+  /* narrowed: icons only, the chevron turned round to open it again */
+  html.railmini .rail-top{justify-content:center;padding-inline:0}
+  html.railmini .railhide{margin:0}
+  html.railmini .railhide svg{transform:scaleX(-1)}
+  html.railmini .rail-lbl,html.railmini .railfind,html.railmini .rail nav button span,html.railmini .rail nav .count,
+  html.railmini .railgrp > span,html.railmini .theme-btn span{display:none}
+  html.railmini .rail nav{padding-inline:6px;align-items:center}
+  html.railmini .rail nav button,html.railmini .theme-btn{justify-content:center;padding:10px 0;width:42px}
+  html.railmini .rail .foot{display:flex;justify-content:center}
+
+  /* ───────── the page ───────── */
+  main{max-width:1180px;padding:22px 24px 48px;display:flex;flex-direction:column;gap:14px;min-width:0}
+  .mast{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .mast > div{min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .mast h1{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.05;margin:2px 0 0;text-wrap:balance}
+  .mast .sub{color:var(--ink-2);font-size:13px;margin-top:5px;max-width:78ch}
+  section.view{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+  .btn{font:inherit;font-size:13px;font-weight:600;border-radius:4px;padding:7px 14px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line-2);background:var(--surface);color:var(--ink)}
+  .btn:hover{border-color:var(--line-3)}
+  .btn.p{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn.sm{font-size:12px;padding:5px 10px}
+  .btn.danger{color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+
+  .legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;font-size:12.5px;color:var(--ink-2)}
+  .legend span.k{display:inline-flex;align-items:center;gap:7px}
+  .pill{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;line-height:20px;white-space:nowrap}
+  .p-edit{background:var(--good-soft);color:var(--good)}
+  .p-view{background:var(--accent-soft);color:var(--accent)}
+  .p-none{color:var(--ink-3);font-style:italic;font-weight:500;padding-inline:0}
   /* Administrator is a property of the person, not a fourth level on each tool, so it
      sits beside the name once rather than repeating down a row. */
-  .adm { display:inline-flex; align-items:center; font-size:10px; font-weight:700; letter-spacing:.04em;
-         text-transform:uppercase; color:var(--adm-fg); background:var(--adm-bg); border:1px solid var(--adm-bd);
-         border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:2px; }
+  .adm{display:inline-flex;align-items:center;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    background:var(--adm-bg);color:var(--adm-ink);border-radius:3px;padding:1px 6px;line-height:16px}
 
-  /* The three-way control. Real buttons, because this is a control and has to be
-     reachable by keyboard; aria-pressed carries the state that the tint shows. */
-  .seg { display:inline-flex; border:1px solid var(--line); border-radius:999px; overflow:hidden; background:var(--paper); }
-  .seg button { font:inherit; font-size:11.5px; font-weight:600; padding:4px 11px; border:none; border-radius:0;
-                background:transparent; color:var(--muted); cursor:pointer; white-space:nowrap; }
-  .seg button:hover { color:var(--ink); }
-  .seg button[aria-pressed="true"].lv-edit { background:var(--edit-bg); color:var(--edit-fg); }
-  .seg button[aria-pressed="true"].lv-view { background:var(--view-bg); color:var(--view-fg); }
-  .seg button[aria-pressed="true"].lv-none { background:transparent; color:var(--ink); font-weight:700; }
-  .seg button:focus-visible { outline:2px solid var(--brand); outline-offset:-2px; }
+  /* the lists: one row per person or type, the same width however many tools there are */
+  .list{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;box-shadow:var(--shadow);overflow:hidden}
+  .lh,.row{display:grid;grid-template-columns:minmax(200px,1.1fr) minmax(0,1.5fr) 150px 300px;gap:10px 16px;align-items:center;padding:11px 16px}
+  .lh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk);padding-block:8px}
+  .row{border-top:1px solid var(--line)}
+  .row.soon{background:var(--warn-soft)}
+  .row.fresh{box-shadow:inset 3px 0 0 var(--sky)}
+  .who{display:flex;align-items:center;gap:10px;min-width:0}
+  .av{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;font-weight:700;color:#fff;letter-spacing:.02em;
+    background:linear-gradient(160deg,#a8d4ef 0%,#94c8e9 45%,#6fb2dc 100%);text-shadow:0 1px 1.5px rgba(10,45,70,.45)}
+  .nm{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .em{font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere}
+  .sum{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
+  .sum small{font-size:12px;color:var(--ink-2)}
+  .exp{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums;min-width:0}
+  .exp b{font-size:11px;color:var(--warn-ink);font-weight:600}
+  .exp .k{display:none;color:var(--ink-3);font-size:11px}
+  .exp input{font:inherit;font-size:12.5px;color:var(--ink);background:transparent;border:1px solid var(--line-2);border-radius:4px;padding:3px 6px;width:100%;max-width:150px}
+  .exp input:focus{outline:2px solid var(--sky);outline-offset:-1px}
+  .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+  .empty{padding:18px 16px;color:var(--ink-3);font-style:italic;border-top:1px solid var(--line)}
 
-  .drawer { margin:2px 0 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); overflow:hidden; }
-  .drawer .hd { padding:11px 13px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; }
-  .drawer .bd { padding:4px 13px 10px; }
-  .trow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
-  .trow:last-child { border-bottom:none; }
-  .tname { display:flex; align-items:center; gap:8px; font-size:13px; }
-  .tname .dot { width:8px; height:8px; border-radius:50%; background:var(--c); flex:0 0 auto; }
-  .grp { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:11px 0 3px; }
-  .toolnote { font-size:10.5px; font-weight:600; color:var(--muted); }
+  /* the drawer: every tool, grouped, with the three-way control */
+  .drawer{border-top:1px solid var(--line);background:var(--sunk);padding:12px 16px 14px}
+  .drawer .dh{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .drawer .dh strong{font-size:13.5px}
+  .drawer .dh small{font-size:12px;color:var(--ink-3)}
+  .grp{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:10px 0 3px}
+  .trow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    padding:7px 10px;background:var(--surface);border:1px solid var(--line);border-radius:4px;margin-top:4px}
+  .tname{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+  .tname .dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto}
+  .tname small{font-size:11px;color:var(--ink-3)}
+  .seg{display:inline-flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;background:var(--surface)}
+  .seg button{font:inherit;font-size:12px;font-weight:600;padding:4px 11px;border:0;background:transparent;color:var(--ink-3);cursor:pointer}
+  .seg button + button{border-left:1px solid var(--line-2)}
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed="true"].lv-edit{background:var(--good-soft);color:var(--good)}
+  .seg button[aria-pressed="true"].lv-view{background:var(--accent-soft);color:var(--accent)}
+  .seg button[aria-pressed="true"].lv-none{color:var(--ink);font-weight:700;background:var(--sunk)}
+  .seg button:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
 
-  .theme-toggle-btn { display:flex; align-items:center; justify-content:center; width:30px; height:30px;
-    border-radius:50%; border:1px solid rgba(255,255,255,.28); background:transparent; color:#fff; cursor:pointer; padding:0; }
-  .theme-toggle-btn:hover { background:rgba(255,255,255,.12); }
-  .theme-toggle-btn .icon-moon { display:none; }
-  html[data-theme="dark"] .theme-toggle-btn .icon-sun { display:none; }
-  html[data-theme="dark"] .theme-toggle-btn .icon-moon { display:block; }
+  /* adding someone or something: its own panel, opened from the button in the masthead */
+  .addcard{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;box-shadow:var(--shadow)}
+  .addcard .hd{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .addcard .hd h2{margin:0;font-size:14.5px}
+  .addcard .hd small{font-size:12px;color:var(--ink-3)}
+  .addcard .bd{padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px}
+  .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 14px;align-items:end}
+  .fields label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+  .fields input{width:100%;font:inherit;font-size:13.5px;padding:7px 10px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface);color:var(--ink)}
+  .fields input:focus{outline:2px solid var(--sky);outline-offset:-1px}
+  .formacts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 
-  /* A dot per tool in the header, so the columns are told apart at a glance. */
-  .colhead { display:flex; align-items:center; gap:6px; white-space:nowrap; }
-  .colhead .dot { width:7px; height:7px; border-radius:50%; background:var(--c); flex:0 0 auto; }
+  .savebar{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+  .savebar .st{font-size:12.5px;color:var(--ink-3);margin-right:auto}
+  .savebar .st.dirty{color:var(--warn-ink);font-weight:600}
+  .savebar .st.ok{color:var(--good);font-weight:600}
 
-  /* Expiry says how long is left, not just a date. A row close to expiring is tinted, which
-     is the only reason to give the column space at all. */
-  .exp-wrap { display:flex; flex-direction:column; gap:3px; }
-  .exp-note { font-size:11px; color:var(--muted); }
-  .exp-note.soon { color:var(--warn); font-weight:600; }
-  tr.expiring td { background:var(--warnbg); }
+  .note{font-size:12.5px;line-height:1.5;color:var(--warn-ink);background:var(--warn-soft);border-radius:4px;padding:9px 12px;
+    display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
+  .note > span{flex:1 1 320px;min-width:0}
+  .note.info{color:var(--ink-2);background:var(--accent-soft)}
+  .note.err{color:var(--bad);background:var(--bad-soft)}
+  .note.ok{color:var(--good);background:var(--good-soft)}
 
-  /* Adding someone is its own card, as approved, rather than a row under the table. */
-  .addcard { border:1px solid var(--line); border-radius:12px; background:var(--card); margin-top:22px; }
-  .addcard .hd { padding:13px 16px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:10px; }
-  .addcard .hd h3 { margin:0; font-size:15px; }
-  .addcard .hd .sub { font-size:12px; color:var(--muted); }
-  .addcard .bd { padding:14px 16px; }
-  input[readonly] { background:var(--paper); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
-  .row > div { flex:1; min-width:160px; }
-  button { font:inherit; font-size:13px; font-weight:600; padding:8px 13px; border-radius:6px; border:1px solid #0f314c; background:#0f314c; color:#fff; cursor:pointer; white-space:nowrap; }
-  button.secondary { background:var(--btn-face); color:var(--ink); border-color:var(--line); }
-  button.danger { background:var(--btn-face); color:var(--err); border-color:var(--line); }
-  button.small { padding:5px 9px; font-size:12px; }
-  button:disabled { opacity:.45; cursor:default; }
-  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:14px; }
-  /* The people table, matching the approved design: an avatar, the name over the email,
-     and a role pill. Per-application access columns are deliberately absent — they belong
-     to access.json, which nothing reads for passcode authentication, so showing them now
-     would present controls that do not control anything. They arrive with sign-in. */
-  .who { display:flex; align-items:center; gap:10px; }
-  .av { width:28px; height:28px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center;
-        justify-content:center; font-size:10px; font-weight:800; color:#fff; letter-spacing:.02em;
-        background:linear-gradient(160deg,#a8d4ef 0%,#94c8e9 45%,#6fb2dc 100%);
-        text-shadow:0 1px 1.5px rgba(10,45,70,.45); }
-  .nm { font-size:13.5px; font-weight:600; display:block; }
-  .em { font-size:11.5px; color:var(--muted); display:block; margin-top:1px; }
-  .em.none { font-style:italic; color:var(--warn); }
-  .rolepill { display:inline-flex; align-items:center; height:23px; padding:0 10px; border-radius:999px;
-              font-size:11.5px; font-weight:600; background:var(--view-bg); color:var(--view-fg); border:1px solid var(--view-bd); }
+  /* stakeholder types */
+  .th,.trw{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(120px,.9fr) minmax(0,1.6fr) 92px;gap:8px 16px;align-items:center;padding:8px 16px}
+  .th{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk)}
+  .trw{border-top:1px solid var(--line)}
+  .trw input{width:100%;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:transparent;
+    border:1px solid transparent;border-radius:4px;padding:5px 8px;margin-left:-9px}
+  .trw input:hover{border-color:var(--line-2)}
+  .trw input:focus{outline:2px solid var(--sky);outline-offset:-1px;background:var(--surface)}
+  .key{font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere}
+  .uses{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .dash{font-size:11px;font-weight:600;padding:0 7px;line-height:19px;border-radius:3px;background:var(--sunk);color:var(--ink-2);border:1px solid var(--line-2);white-space:nowrap}
+  .unused{font-size:12px;color:var(--ink-3);font-style:italic}
+  .trw .btn{justify-self:end}
+  .filterbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
+    border-radius:4px;padding:5px 11px;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .chip small{font-weight:500;opacity:.75;margin-left:5px;font-variant-numeric:tabular-nums}
+  .chip:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
 
-  .tab { padding:9px 14px; font-size:13.5px; font-weight:600; color:var(--muted); background:none; border:none; border-bottom:2px solid transparent; border-radius:0; cursor:pointer; }
-  .tab.active { color:var(--ink); border-bottom-color:#0f314c; }
-  table { width:100%; border-collapse:collapse; font-size:13.5px; }
-  th { text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:8px 8px; border-bottom:1px solid var(--line); }
-  td { padding:8px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
-  td.actions { text-align:right; white-space:nowrap; }
-  td.muted, .muted { color:var(--muted); }
-  .key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; color:var(--muted); }
-  .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 7px; border-radius:999px; background:var(--adm-bg); color:var(--adm-fg); margin-right:4px; text-transform:uppercase; }
-  .note { font-size:13px; padding:10px 12px; border-radius:6px; border:1px solid; margin:10px 0 0; line-height:1.45; }
-  .note.warn { background:var(--warnbg); border-color:var(--warnline); color:var(--warn); }
-  .note.err { background:var(--errbg); border-color:#fca5a5; color:var(--err); }
-  .note.ok { background:var(--okbg); border-color:#bbf7d0; color:var(--ok); }
-  .savebar { display:flex; align-items:center; gap:12px; justify-content:flex-end; margin-top:12px; }
-  .savebar .status { font-size:13px; color:var(--muted); }
-  .savebar .status.dirty { color:var(--warn); font-weight:600; }
-  .overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px; }
-  .overlay.open { display:flex; }
-  .modal { background:var(--card); border-radius:10px; padding:22px; max-width:520px; width:100%; }
-  .modal h3 { margin:0 0 6px; font-size:16px; }
-  .modal pre { background:#0f172a; color:#e2e8f0; padding:14px; border-radius:6px; font-size:16px; letter-spacing:.04em; text-align:center; margin:10px 0; user-select:all; }
-  .hidden { display:none !important; }
+  /* facilitators */
+  .lh.frow,.row.frow{grid-template-columns:minmax(220px,1fr) 160px 240px}
+
+  /* the opening card, before the panel is available */
+  .opening{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:18px 20px;box-shadow:var(--shadow)}
+  .opening h1{margin:0;font-size:17px}
+
+  /* password reveal */
+  .overlay{position:fixed;inset:0;z-index:50;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal{background:var(--surface);color:var(--ink);border-radius:6px;padding:20px 22px;max-width:520px;width:100%;box-shadow:var(--shadow)}
+  .modal h2{margin:0 0 6px;font-size:16px}
+  .modal p{margin:0;color:var(--ink-2);font-size:13px}
+  .modal pre{background:var(--code-bg);color:var(--code-ink);padding:14px;border-radius:4px;font-size:16px;letter-spacing:.04em;
+    text-align:center;margin:12px 0;user-select:all;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* phone width: the sections shrink to icons, as Summit HQ's do, and each row stacks */
+  @media (max-width:760px){
+    :root{--hq-h:55px;--rail-w:58px;--rail-mini:58px}
+    .hqtop{padding-inline:12px}
+    .logoplate{padding:7px 10px}
+    .logoplate svg{height:18px}
+    .mastrule{height:30px;margin-inline:10px}
+    .hqname{font-size:13px}
+    .eyebrow-m{display:none}
+    .railhide{display:none}
+    .rail-lbl,.railfind,.rail nav button span,.rail nav .count,.railgrp > span,.theme-btn span{display:none}
+    .rail-top{justify-content:center;padding-inline:0;min-height:12px}
+    .rail nav{padding-inline:6px;align-items:center}
+    .rail nav button,.theme-btn{justify-content:center;padding:10px 0;width:42px}
+    .rail .foot{display:flex;justify-content:center}
+    main{padding:16px 16px 28px}
+    .lh,.th{display:none}
+    .row,.row.frow{grid-template-columns:1fr;gap:8px}
+    .acts{justify-content:flex-start}
+    .exp .k{display:inline}
+    .trw{grid-template-columns:1fr;gap:6px}
+    .trw input{margin-left:0}
+    .trw .btn{justify-self:start}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 </head>
-<body>
-<header>
-  <h1>MISMO Initiative Hub — Admin</h1>
-  <div class="hdr-right">
-  <!-- The shared account bubble, the same one every tool shows. It carries sign-out; this
-       page had its own "Signed in as / Sign out" that only cleared the old passcode. -->
-  <div id="rs-account"></div>
-  <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
-      <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
-    <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
-  </button>
-  </div>
-</header>
-<main>
+<body class="out">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
+0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
+355 253 355 520 0 270 -132 459 -361 520 -74 20 -730 20 -802 0z m692 -320
+c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
+-297 0 -307 2 -346 83 -30 61 -31 198 -2 262 41 93 68 100 368 97 219 -2 243
+-4 274 -22z M0 545 l0 -515 225 0 225 0 2 296 3 296 116 -294 116 -293 197 0 198
+0 119 295 118 295 1 -297 0 -298 225 0 225 0 0 515 0 515 -337 -2 -338 -3
+-104 -264 c-80 -204 -107 -260 -113 -245 -5 10 -52 129 -106 264 l-98 245
+-337 3 -337 2 0 -515z M1892 1044 l-22 -15 0 -483 c0 -455 1 -484 18 -499 16 -15 48 -17
+246 -17 128 0 235 4 246 10 32 17 34 57 4 95 -33 44 -64 143 -64 206 l0 49
+203 0 c191 0 205 -1 222 -20 10 -11 34 -24 54 -30 49 -13 586 -13 612 0 22 12
+26 62 7 78 -8 6 -174 15 -413 21 -502 15 -549 23 -628 110 -43 48 -57 93 -57
+187 0 82 19 156 55 208 30 44 32 77 7 99 -27 25 -456 25 -490 1z M3716 1044 c-23 -22 -20 -31 19 -77 43 -49 78 -155 73 -218 l-3 -44
+-204 -3 c-194 -2 -205 -1 -218 17 -24 35 -78 41 -355 41 -255 0 -269 -1 -288
+-20 -27 -27 -26 -58 3 -70 12 -5 202 -14 422 -19 421 -12 476 -18 555 -62 92
+-51 132 -159 111 -299 -12 -77 -34 -129 -77 -179 -23 -28 -25 -36 -16 -57 l12
+-24 215 0 215 0 2 306 3 306 120 -303 120 -304 197 -3 196 -2 118 296 119 297
+3 -296 2 -297 225 0 225 0 0 515 0 515 -338 0 -337 0 -104 -265 c-58 -146
+-106 -263 -108 -261 -2 2 -50 120 -107 262 l-104 259 -340 3 c-300 2 -342 0
+-356 -14z"/></g><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-s, #50a4db)"><path d="M2485 1046 c-44 -20 -111 -94 -136 -151 -27 -60 -37 -198 -20 -263
+13 -48 68 -115 114 -138 64 -34 162 -43 562 -55 239 -6 405 -15 413 -21 19
+-16 15 -66 -7 -78 -26 -13 -563 -13 -612 0 -20 6 -44 19 -54 30 -17 19 -31 20
+-222 20 l-203 0 0 -49 c0 -81 34 -172 86 -230 78 -87 31 -81 672 -81 l568 0
+46 29 c79 50 122 121 139 231 21 140 -19 248 -111 299 -79 44 -134 50 -555 62
+-220 5 -410 14 -422 19 -29 12 -30 43 -3 70 19 19 33 20 288 20 277 0 331 -6
+355 -41 13 -18 24 -19 218 -17 l204 3 3 44 c4 60 -31 168 -70 215 -17 21 -52
+52 -77 67 l-45 29 -550 0 c-440 -1 -557 -3 -581 -14z"/></g></symbol>
+</defs></svg>
 
-  <!-- ===== sign in ===== -->
-  <!-- Signing in and being refused use the shared screens from session.js, as every tool
-       does. This card only says the panel is opening, or why it could not. -->
-  <section class="card" id="signin">
-    <h2 id="siState">Opening the admin panel…</h2>
-    <div class="note err hidden" id="siErr"></div>
+<header class="hqtop">
+  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <span class="mastrule"></span>
+  <span class="hqname">Admin Panel</span>
+  <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
+    <!-- The shared account bubble every tool shows in this spot (session.js fills it). -->
+    <div id="rs-account"></div></span>
+</header>
+
+<aside class="rail" id="rail">
+  <div class="rail-top">
+    <span class="rail-lbl">Sections</span>
+    <button class="railhide" id="railHide" type="button" aria-label="Narrow the sections" title="Narrow the sections (backslash)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+  </div>
+  <div class="railfind">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    <input type="search" id="railQ" autocomplete="off" spellcheck="false" placeholder="Search" aria-label="Search this section">
+  </div>
+  <nav aria-label="Admin sections">
+    <button type="button" data-view="people" title="People &amp; Access">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 004 17.5V19"/><circle cx="10" cy="7.5" r="3.5"/><path d="M20 19v-1.5a3.5 3.5 0 00-2.5-3.35M15.5 4.3a3.5 3.5 0 010 6.4"/></svg>
+      <span>People &amp; Access</span><b class="count" id="nPeople"></b></button>
+  </nav>
+  <div class="railgrp"><span>Initiative Hub</span>
+    <nav aria-label="Initiative Hub settings">
+      <button type="button" data-view="types" title="Stakeholder Types">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l9 9-8 8-9-9z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg>
+        <span>Stakeholder Types</span><b class="count" id="nTypes"></b></button>
+      <button type="button" data-view="fac" title="Facilitators">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/></svg>
+        <span>Facilitators</span><b class="count" id="nFac"></b></button>
+    </nav>
+  </div>
+  <div class="foot">
+    <button class="theme-btn" id="themeBtn" type="button"></button>
+  </div>
+</aside>
+
+<main>
+  <!-- ===== opening ===== -->
+  <section class="opening" id="signin">
+    <h1 id="siState">Opening the admin panel…</h1>
+    <div class="note err" id="siErr" hidden style="margin-top:10px"></div>
   </section>
 
-  <!-- ===== panel ===== -->
-  <div id="panel" class="hidden">
-    <div class="tabs">
-      <button class="tab active" data-tab="people">People &amp; access</button>
-      <button class="tab" data-tab="fac">Facilitators (this tool only)</button>
-      <button class="tab" data-tab="types">Stakeholder types</button>
+  <!-- ===== People & Access ===== -->
+  <section class="view" id="view-people" hidden>
+    <header class="mast"><div><div class="eyebrow">Every Tool</div><h1>People &amp; Access</h1>
+      <div class="sub" id="accSub">Everyone who can sign in, and what they can do in each tool. Changes take effect within about a minute, and nobody is signed out.</div></div>
+      <button class="btn p" type="button" id="accAddOpen" hidden>+ Add a Person</button></header>
+
+    <div id="accUnavailable" class="note info" hidden></div>
+    <div id="accReady" hidden style="display:flex;flex-direction:column;gap:14px">
+      <div class="legend">
+        <span class="k"><span class="pill p-edit">Edit</span>opens the tool and saves changes</span>
+        <span class="k"><span class="pill p-view">View</span>reads everything, cannot save</span>
+        <span class="k"><span class="pill p-none">No access</span>the tool is not accessible</span>
+        <span class="k"><span class="adm">Admin</span>can change this list</span></div>
+
+      <div class="addcard" id="accAddCard" hidden>
+        <div class="hd"><h2>Add a person</h2><small>A password is generated here and shown once</small></div>
+        <div class="bd">
+          <div class="fields">
+            <div><label for="accName">Full name</label><input type="text" id="accName" placeholder="Meghan Tidgewell" autocomplete="off"></div>
+            <div><label for="accEmail">Email, used to sign in</label><input type="email" id="accEmail" placeholder="name@company.com" autocomplete="off"></div>
+            <div><label for="accExp">Access expires (optional)</label><input type="date" id="accExp"></div>
+          </div>
+          <div class="note err" id="accAddErr" hidden></div>
+          <div class="formacts"><button class="btn" type="button" id="accAddCancel">Cancel</button><button class="btn p" type="button" id="accAdd">Create account</button></div>
+        </div>
+      </div>
+
+      <div class="list" id="accList"></div>
+      <div class="note err" id="accErr" hidden></div>
+      <div class="savebar"><span class="st" id="accStatus">No changes</span>
+        <button class="btn" type="button" id="accReload">Discard</button>
+        <button class="btn p" type="button" id="accSave" disabled>Save Access</button></div>
+    </div>
+  </section>
+
+  <!-- ===== Stakeholder Types ===== -->
+  <section class="view" id="view-types" hidden>
+    <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Stakeholder Types</h1>
+      <div class="sub" id="typeSub"></div></div>
+      <button class="btn p" type="button" id="typeAddOpen">+ Add a Type</button></header>
+
+    <div class="addcard" id="typeAddCard" hidden>
+      <div class="hd"><h2>Add a type</h2><small>The key is set from the display name now and is fixed from then on</small></div>
+      <div class="bd">
+        <div class="fields"><div><label for="typeName">Display name</label><input type="text" id="typeName" placeholder="Title Agent" autocomplete="off"></div></div>
+        <div class="note err" id="typeAddErr" hidden></div>
+        <div class="formacts"><button class="btn" type="button" id="typeAddCancel">Cancel</button><button class="btn p" type="button" id="typeAdd">Add type</button></div>
+      </div>
     </div>
 
-    <!-- ----- facilitators ----- -->
-    <section id="tab-people">
-      <h2>People &amp; access</h2>
-      <p class="hint">Everyone who can sign in, and what they can do in each tool. One account, one
-        password, set here once. Changes take effect within about a minute; nobody is signed out.</p>
-      <p class="hint" style="margin-top:-6px">Each tool is set to one of three levels.
-        <span class="pill p-edit">Edit</span> opens it and saves changes.
-        <span class="pill p-view">View</span> opens it and reads everything, but cannot save. The relay
-        refuses the save itself, so this holds even if a page offers the button.
-        <span class="pill p-none">No access</span> means the tool is not theirs at all.
-        <span class="adm" style="margin-left:0">Admin</span> is a badge on the person, not a fourth level:
-        it is who can change this list, and it is set in the repository rather than here.</p>
-      <div class="err" id="accErr"></div>
-      <div id="accUnavailable" class="hidden">
-        <p class="hint"><strong>Not available yet.</strong> This needs the newest version of the save
-          relay, which is waiting to be deployed. Until then, use the Facilitators tab, which manages
-          this tool's own list.</p>
-      </div>
-      <div id="accReady" class="hidden">
-        <table id="accTable">
-          <thead><tr><th>Person</th><th>Access</th><th>Expires</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
+    <div class="filterbar" role="group" aria-label="Which types to show">
+      <button class="chip" type="button" data-filter="all" aria-pressed="true">All<small id="fAll"></small></button>
+      <button class="chip" type="button" data-filter="unused" aria-pressed="false">Not used by any dashboard<small id="fUnused"></small></button>
+    </div>
+    <div class="list" id="typeList"></div>
+    <div class="note">Change a display name and it shows everywhere that type appears. The key is what the dashboards and saved data use, and it never changes.
+      A type can be removed only when no dashboard uses it. Adding one makes it available; a dashboard starts using it in its own code.</div>
+    <div class="note err" id="typeErr" hidden></div>
+    <div class="savebar"><span class="st" id="typeStatus">No changes</span>
+      <button class="btn" type="button" id="typeReload">Discard</button>
+      <button class="btn p" type="button" id="typeSave" disabled>Save Types</button></div>
+  </section>
 
-        <div class="addcard">
-          <div class="hd"><h3>Add a person</h3>
-            <span class="sub">A password is generated here and shown once</span></div>
-          <div class="bd">
-            <p class="hint" style="margin-top:0">Only the scrambled form of the password is stored, so it
-              cannot be looked up later. If it is lost, reset it and send a new one.</p>
-            <div class="row">
-              <div><label for="accName">Full name</label><input type="text" id="accName" placeholder="Meghan Tidgewell"></div>
-              <div><label for="accEmail">MISMO email — used to sign in</label><input type="email" id="accEmail" placeholder="meghan@mismo.org"></div>
-              <div><label for="accExp">Access expires (optional)</label><input type="date" id="accExp"></div>
-              <button id="accAdd">Create account</button>
-            </div>
-          </div>
+  <!-- ===== Facilitators ===== -->
+  <section class="view" id="view-fac" hidden>
+    <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Facilitators</h1>
+      <div class="sub" id="facSub"></div></div>
+      <button class="btn p" type="button" id="facAddOpen">+ Add a Facilitator</button></header>
+
+    <div class="addcard" id="facAddCard" hidden>
+      <div class="hd"><h2>Add a facilitator</h2><small>A passcode is generated here and shown once</small></div>
+      <div class="bd">
+        <div class="fields">
+          <div><label for="facName">Full name</label><input type="text" id="facName" placeholder="Meghan Tidgewell" autocomplete="off"></div>
+          <div><label for="facEmail">Email (optional)</label><input type="email" id="facEmail" placeholder="name@company.com" autocomplete="off"></div>
+          <div><label for="facExp">Expires (optional)</label><input type="date" id="facExp"></div>
         </div>
+        <div class="note err" id="facAddErr" hidden></div>
+        <div class="formacts"><button class="btn" type="button" id="facAddCancel">Cancel</button><button class="btn p" type="button" id="facAdd">Add facilitator</button></div>
+      </div>
+    </div>
 
-        <div class="bar">
-          <span id="accStatus" class="status"></span>
-          <button class="secondary" id="accReload">Discard changes</button>
-          <button id="accSave" disabled>Save access</button>
-        </div>
-      </div>
-    </section>
+    <div class="note" id="facDrift" hidden></div>
+    <div class="list" id="facList"></div>
+    <div class="note info">These names are the choices in every facilitator drop-down: the dashboards, potential initiatives and Summit HQ.
+      Signing in comes from People &amp; Access; the passcode here only matters for anyone still saving with a Hub passcode.
+      A lost passcode is reset, not looked up. Removing someone takes effect on their next save.</div>
+    <div class="note err" id="facErr" hidden></div>
+    <div class="savebar"><span class="st" id="facStatus">No changes</span>
+      <button class="btn" type="button" id="facReload">Discard</button>
+      <button class="btn p" type="button" id="facSave" disabled>Save Facilitators</button></div>
+  </section>
 
-    <section id="tab-fac" class="hidden">
-      <div class="card">
-        <h2>People</h2>
-        <p class="hint">Everyone who can save. Their name becomes the author on their commits, so a save is always attributable. Removing someone takes effect on their next save — a save already in flight is not interrupted.</p>
-        <table id="facTable">
-          <thead><tr><th>Person</th><th>Access</th><th>Expires</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="note warn hidden" id="facEmpty">No facilitators yet. Add the first one below.</div>
-      </div>
-      <div class="card">
-        <h2>Add a person</h2>
-        <p class="hint">A password is generated here and shown once. Only its hash is stored, so it cannot be looked up afterwards — if it is lost, reset it and send a new one.</p>
-        <div class="row">
-          <div><label for="facName">Full name</label><input type="text" id="facName" placeholder="Meghan Tidgewell"></div>
-          <div><label for="facEmail">MISMO email — used to sign in</label><input type="email" id="facEmail" placeholder="meghan@mismo.org"></div>
-          <div><label for="facExp">Access expires (optional)</label><input type="date" id="facExp"></div>
-          <button id="facAdd">Create account</button>
-        </div>
-        <div class="note err hidden" id="facErr"></div>
-      </div>
-      <div class="savebar">
-        <span class="status" id="facStatus">No changes</span>
-        <button class="secondary" id="facReload">Discard changes</button>
-        <button id="facSave" disabled>Save facilitators</button>
-      </div>
-    </section>
-
-    <!-- ----- stakeholder types ----- -->
-    <section id="tab-types" class="hidden">
-      <div class="card">
-        <h2>Stakeholder types</h2>
-        <p class="hint">The global list every dashboard reads. Change a <strong>display name</strong> and it shows everywhere that type appears, on every dashboard, after the site next deploys (about a minute). The <strong>key</strong> is what the dashboards and saved data use internally; it never changes.</p>
-        <table id="typeTable">
-          <thead><tr><th style="width:40%">Display name</th><th>Key</th><th>Used by</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="note warn" style="margin-top:12px">A type can be removed only when no dashboard uses it. Adding a type here makes it <em>available</em>; a dashboard adopts it by adding a lane in its own code, which is a developer change. Merging two keys into one is also a dashboard change, not a rename.</div>
-      </div>
-      <div class="card">
-        <h2>Add a type</h2>
-        <p class="hint">The key is set from the display name at creation and is fixed from then on. Pick a name that reads well as a heading.</p>
-        <div class="row">
-          <div><label for="typeName">Display name</label><input type="text" id="typeName" placeholder="Title Agent"></div>
-          <button id="typeAdd">Add type</button>
-        </div>
-        <div class="note err hidden" id="typeErr"></div>
-      </div>
-      <div class="savebar">
-        <span class="status" id="typeStatus">No changes</span>
-        <button class="secondary" id="typeReload">Discard changes</button>
-        <button id="typeSave" disabled>Save types</button>
-      </div>
-    </section>
-
-    <div class="note err hidden" id="globalErr" style="margin-top:12px"></div>
-  </div>
+  <div class="note err" id="globalErr" hidden></div>
 </main>
 
-<!-- passcode reveal -->
-<div class="overlay" id="reveal">
+<!-- password reveal -->
+<div class="overlay" id="reveal" hidden role="dialog" aria-modal="true" aria-labelledby="revealTitle">
   <div class="modal">
-    <h3 id="revealTitle">Password for Jane Facilitator</h3>
-    <p class="hint">Give this to them now. It is not stored anywhere and cannot be shown again. Nothing is live until you click Save facilitators.</p>
+    <h2 id="revealTitle">Password</h2>
+    <p id="revealNote">Give this to them now. It is not stored anywhere and cannot be shown again.</p>
     <pre id="revealCode"></pre>
-    <div class="row" style="justify-content:flex-end"><div></div><button class="secondary" id="revealCopy">Copy</button><button id="revealClose">Done</button></div>
+    <div class="formacts"><button class="btn" type="button" id="revealCopy">Copy</button><button class="btn p" type="button" id="revealClose">Done</button></div>
   </div>
 </div>
 
@@ -328,44 +487,74 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const S = window.MismoStore;
+  const RS = window.ResourcesSession;
+  const initials = n => (S && S.initials) ? S.initials(n) : String(n || '?').slice(0, 2).toUpperCase();
 
   /* ---------- state ---------- */
-  let fac = { sha:null, admin:null, list:[], dirty:false };
+  let fac = { sha:null, admins:[], list:[], dirty:false };
   let types = { sha:null, list:[], usage:{}, dirty:false };
+  let acc = null;            // { people, sha, dirty } once the central list has loaded
+  let roster = null;         // names the drop-downs show now (data/facilitator-roster.json)
+  let view = 'people';
+  let query = '';
+  let typeFilter = 'all';
+  let openDrawer = null;     // whose drawer is open, by email; one at a time
+  let freshRow = null;       // the row just added, marked so it can be found
+  let publishPending = false; // the list saved but its names have not reached the drop-downs
 
-  /* ---------- sign in ---------- */
+  /* ---------- sections ---------- */
+  const VIEWS = { people:'view-people', types:'view-types', fac:'view-fac' };
+  const HASH = { people:'people', types:'types', fac:'facilitators' };
+  const SEARCH = { people:'Search people', types:'Search types', fac:'Search facilitators' };
+  function show(v, opts){
+    if (!VIEWS[v]) v = 'people';
+    view = v;
+    Object.entries(VIEWS).forEach(([k, id]) => { $(id).hidden = k !== v; });
+    document.querySelectorAll('.rail [data-view]').forEach(b => {
+      if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    if (!(opts && opts.keepQuery)) { query = ''; $('railQ').value = ''; }
+    $('railQ').placeholder = SEARCH[v];
+    if (location.hash.slice(1) !== HASH[v]) history.replaceState(null, '', '#' + HASH[v]);
+    renderCurrent();
+    if (!(opts && opts.quiet)) window.scrollTo(0, 0);
+  }
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'types') renderTypes(); else renderFac(); }
+  function viewFromHash(){ const h = location.hash.slice(1); return Object.keys(HASH).find(k => HASH[k] === h) || 'people'; }
+  document.querySelectorAll('.rail [data-view]').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+  $('railQ').addEventListener('input', () => { query = $('railQ').value.trim().toLowerCase(); renderCurrent(); });
+  const matches = (...parts) => !query || parts.some(p => String(p || '').toLowerCase().includes(query));
+
+  /* ---------- opening: the shared sign-in decides who gets in ---------- */
   function showSignedIn(){
-    $('signin').classList.add('hidden'); $('panel').classList.remove('hidden');
+    $('signin').hidden = true;
+    document.body.classList.remove('out');
+    show(viewFromHash(), { keepQuery:true });
   }
   /* Returns true, or the reason it could not open. ADMIN_ONLY comes from the relay, which
      reads access fresh, so the decision never rests on the browser's saved copy. */
   async function trySignIn(){
-    $('siErr').classList.add('hidden');
+    $('siErr').hidden = true;
     const r = await S.facilitators.get();
     if (!r.ok) {
       if (r.reason !== 'ADMIN_ONLY') {
         $('siState').textContent = 'The admin panel could not open';
-        $('siErr').textContent = S.explain(r.reason); $('siErr').classList.remove('hidden');
+        $('siErr').textContent = S.explain(r.reason); $('siErr').hidden = false;
       }
       return r.reason || 'FAILED';
     }
-    showSignedIn();
     applyFac(r); renderFac();
     await loadTypes();
-    /* The central list is separate and may be unavailable — an older relay, or an
-       account that is not a platform administrator. Neither should stop the rest of the
-       panel working, so it is loaded on its own and reports its own state. */
+    showSignedIn();
+    loadRoster();
+    /* The central list is separate and may be unavailable: an older relay, or an account
+       that is not a platform administrator. Neither should stop the rest of the panel. */
     loadAccess();
     return true;
   }
-  /* The shared sign-in decides who gets in, the same as every other tool: the sign-in
-     window if nobody is signed in, the refusal screen if the relay says this account is
-     not an administrator here. The passcode form this page used to have is gone; the
-     relay still accepts passcodes from the dashboards until they are retired. */
-  const RS = window.ResourcesSession;
   const PANEL = 'the Initiative Hub admin panel';
   async function open(){
-    if (!RS) { $('siState').textContent = 'The sign-in could not load. Reload the page.'; return; }
+    if (!RS || !S) { $('siState').textContent = 'The sign-in could not load. Reload the page.'; return; }
     try { await RS.requireAccess('hub', { toolName: PANEL }); }
     catch (e) {
       if (e && e.code === 'OFFLINE') $('siState').textContent = 'The admin panel could not reach the sign-in service. Check your connection, then reload.';
@@ -383,402 +572,497 @@
     RS.onChange(s => { if (!s) location.reload(); });
   }
 
-  /* ---------- tabs ---------- */
-  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
-    $('tab-fac').classList.toggle('hidden', t.dataset.tab !== 'fac');
-    $('tab-types').classList.toggle('hidden', t.dataset.tab !== 'types');
-  }));
-
   /* ---------- helpers ---------- */
-  function setStatus(id, dirty, text){
-    const el = $(id); el.textContent = text || (dirty ? 'Unsaved changes' : 'No changes'); el.classList.toggle('dirty', !!dirty);
+  function setStatus(id, state, text){
+    const el = $(id);
+    el.textContent = text || (state === 'dirty' ? 'Unsaved changes' : 'No changes');
+    el.classList.toggle('dirty', state === 'dirty'); el.classList.toggle('ok', state === 'ok');
   }
-  function showErr(id, msg){ const el = $(id); if (!msg){ el.classList.add('hidden'); el.classList.remove('show'); return; }
-    el.textContent = msg; el.classList.remove('hidden'); el.classList.add('show'); }
-  function reveal(name, code){
-    $('revealTitle').textContent = `Password for ${name}`;
+  function showErr(id, msg){ const el = $(id); if (!msg) { el.hidden = true; el.textContent = ''; return; } el.textContent = msg; el.hidden = false; }
+  let revealBack = null;
+  function reveal(name, code, what){
+    revealBack = document.activeElement;
+    $('revealTitle').textContent = `${what === 'passcode' ? 'Passcode' : 'Password'} for ${name}`;
+    $('revealNote').textContent = `Give this to them now. It is not stored anywhere and cannot be shown again. Nothing is live until you click ${what === 'passcode' ? 'Save Facilitators' : 'Save Access'}.`;
     $('revealCode').textContent = code;
-    $('reveal').classList.add('open');
+    $('reveal').hidden = false;
+    $('revealClose').focus();
   }
-  $('revealClose').addEventListener('click', () => { $('revealCode').textContent = ''; $('reveal').classList.remove('open'); });
-  $('revealCopy').addEventListener('click', async e => { try { await navigator.clipboard.writeText($('revealCode').textContent); e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy', 1200); } catch (_) {} });
-  window.addEventListener('beforeunload', e => { if (fac.dirty || types.dirty) { e.preventDefault(); e.returnValue = ''; } });
-
-  /* ---------- facilitators ---------- */
-  /* ---------- People & access: the central list, one row per person ----------
-     Each column is a tool, and a tool someone has no access to is shown as such rather
-     than left blank, so the row says what is true rather than what is missing. Admin
-     cannot be granted here for a tool: that is a deliberate limit in the relay, so a
-     single compromised session cannot mint more admins. */
-  /* The tools, grouped. The group is only a heading inside the drawer — nothing is
-     enforced by it — but it is what keeps the drawer readable past a dozen tools.
-     `key` must match the project key in projects.json, because that is what the relay
-     looks up; a tool listed here under a key the relay does not know would render a
-     control that silently governs nothing. */
-  const TOOLS = [
-    { key:'hub',         label:'Initiative Hub',    colour:'#2A4DFF', group:'Standards' },
-    { key:'glossary',    label:'Business Glossary', colour:'#0F9D77', group:'Standards' },
-    { key:'hub-files',   label:'Files',             colour:'#7F5AF0', group:'Standards' },
-    { key:'summit-hq',   label:'Summit HQ',         colour:'#B45309', group:'Events' },
-    { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' }
-  ];
-  /* Which person's drawer is open, by email. One at a time: two open drawers turn the
-     table back into the wall of controls this design exists to avoid. */
-  let openDrawer = null;
-  let acc = null;   // { people, sha, dirty }
-
-  async function loadAccess(){
-    try {
-      const r = await S.access.get();
-      acc = { people: r.people || {}, sha: r.sha, dirty:false };
-      $('accUnavailable').classList.add('hidden');
-      $('accReady').classList.remove('hidden');
-      renderAccess();
-    } catch (e) {
-      /* 404 means the relay predates this feature; 403 means this account may not edit
-         the list. They need different words, because one is a deployment and the other
-         is a permission. */
-      $('accReady').classList.add('hidden');
-      if (e.code === 'NOT_PLATFORM_ADMIN') {
-        $('accUnavailable').classList.remove('hidden');
-        $('accUnavailable').innerHTML = '<p class="hint"><strong>You cannot change who has access.</strong> ' +
-          'That is limited to platform administrators. The Facilitators tab still manages this tool\'s own list.</p>';
-      } else {
-        $('accUnavailable').classList.remove('hidden');
-      }
-    }
-  }
-
-  /* Stored roles are 'admin', 'staff', 'view' or nothing. The panel shows three levels,
-     so 'admin' and 'staff' both read as Edit. They are NOT collapsed on save: a tool
-     admin who is left on Edit keeps 'admin', because that also grants the tool's own
-     settings, and saving an unrelated row must not quietly take it away. */
-  function levelOf(role){
-    if (role === 'admin' || role === 'staff' || role === 'facilitator') return 'edit';
-    if (role === 'view') return 'view';
-    return 'none';
-  }
-  function seg(email, tool, role){
-    const lv = levelOf(role);
-    const b = (v, label) => `<button type="button" class="lv-${v}" aria-pressed="${lv===v}" ` +
-      `data-acc-level="${esc(email)}" data-tool="${esc(tool)}" data-level="${v}">${label}</button>`;
-    return `<span class="seg" role="group" aria-label="Access to this tool">` +
-      b('edit','Edit') + b('view','View') + b('none','No access') + '</span>';
-  }
-
-  /* What the row says without opening anything: how many tools at each level, then the
-     first few by name. Counting is the part that stays true at twenty tools. */
-  function summarise(p){
-    const a = p.access || {};
-    const edit = TOOLS.filter(t => levelOf(a[t.key]) === 'edit');
-    const view = TOOLS.filter(t => levelOf(a[t.key]) === 'view');
-    const bits = [];
-    if (edit.length) bits.push(`<span class="pill p-edit">Edit &middot; ${edit.length}</span>`);
-    if (view.length) bits.push(`<span class="pill p-view">View &middot; ${view.length}</span>`);
-    if (!bits.length) bits.push('<span class="pill p-none">No tools yet</span>');
-    const named = edit.concat(view);
-    const first = named.slice(0, 3).map(t => esc(t.label)).join(', ');
-    const extra = named.length - 3;
-    const tail = first ? `<span class="more">${first}${extra > 0 ? ` and ${extra} more` : ''}</span>` : '';
-    return `<span class="summary">${bits.join(' ')}${tail}</span>`;
-  }
-
-  function drawerFor(email, p){
-    const a = p.access || {};
-    const order = [];
-    const groups = {};
-    TOOLS.forEach(t => { if (!groups[t.group]) { groups[t.group] = []; order.push(t.group); } groups[t.group].push(t); });
-    const body = order.map(g => `<div class="grp">${esc(g)}</div>` + groups[g].map(t => {
-      /* Said out loud rather than shown as a fourth segment, so the control stays three
-         wide while the extra permission is still visible to whoever is granting access. */
-      const note = a[t.key] === 'admin' ? ' <span class="toolnote">&middot; also manages this tool\u2019s settings</span>' : '';
-      return `<div class="trow"><span class="tname"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${note}</span>` +
-             seg(email, t.key, a[t.key]) + '</div>';
-    }).join('')).join('');
-    return `<div class="drawer"><div class="hd"><strong style="font-size:13.5px">${esc(p.name)}</strong>` +
-      '<span class="more">every tool, grouped</span></div>' +
-      `<div class="bd">${body}</div></div>`;
-  }
-
-  /* "in 6 weeks", "in 4 days", "expired" — the reason the column exists. */
+  function closeReveal(){ $('revealCode').textContent = ''; $('reveal').hidden = true; if (revealBack && revealBack.isConnected) revealBack.focus(); }
+  $('revealClose').addEventListener('click', closeReveal);
+  $('reveal').addEventListener('keydown', e => { if (e.key === 'Escape') closeReveal(); });
+  $('revealCopy').addEventListener('click', async e => {
+    const b = e.currentTarget;
+    try { await navigator.clipboard.writeText($('revealCode').textContent); b.textContent = 'Copied'; }
+    catch (_) { const r = document.createRange(); r.selectNodeContents($('revealCode')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Selected'; }
+    setTimeout(() => { b.textContent = 'Copy'; }, 1400);
+  });
+  window.addEventListener('beforeunload', e => {
+    if (fac.dirty || types.dirty || (acc && acc.dirty)) { e.preventDefault(); e.returnValue = ''; }
+  });
+  /* "in 6 weeks", "in 4 days", "expired": the reason the column exists. */
   function expiryNote(date){
     if (!date) return { text:'', soon:false };
     const days = Math.round((Date.parse(date + 'T00:00:00') - Date.now()) / 86400000);
     if (isNaN(days)) return { text:'', soon:false };
     if (days < 0)  return { text:'expired', soon:true };
     if (days === 0) return { text:'today', soon:true };
-    if (days < 14) return { text:`in ${days} ${days===1?'day':'days'}`, soon:true };
-    if (days < 70) return { text:`in ${Math.round(days/7)} weeks`, soon:days < 42 };
-    return { text:`in ${Math.round(days/30)} months`, soon:false };
+    if (days < 14) return { text:`in ${days} ${days === 1 ? 'day' : 'days'}`, soon:true };
+    if (days < 70) return { text:`in ${Math.round(days / 7)} weeks`, soon:days < 42 };
+    return { text:`in ${Math.round(days / 30)} months`, soon:false };
+  }
+  function expCell(attr, key, date, label){
+    const n = expiryNote(date);
+    return `<div class="exp"><span class="k">Expires</span>` +
+      `<input type="date" ${attr}="${esc(key)}" value="${esc(date || '')}" aria-label="${esc(label)}">` +
+      (n.text ? `<b>${esc(n.text)}</b>` : '') + '</div>';
+  }
+  /* The add panels open from the masthead button and close on Cancel or once added. */
+  function addPanel(openId, cardId, cancelId, firstField){
+    $(openId).addEventListener('click', () => { $(cardId).hidden = false; $(firstField).focus(); });
+    $(cancelId).addEventListener('click', () => { $(cardId).hidden = true; $(openId).focus(); });
   }
 
+  /* ================= People & Access ================= */
+  /* The tools, grouped. The group is only a heading inside the drawer; nothing is
+     enforced by it. `key` must match the project key in projects.json, because that is
+     what the relay looks up: a tool listed here under a key the relay does not know would
+     render a control that silently governs nothing. */
+  const TOOLS = [
+    { key:'hub',         label:'Initiative Hub',     colour:'#2A4DFF', group:'Standards' },
+    { key:'glossary',    label:'Business Glossary',  colour:'#0F9D77', group:'Standards' },
+    { key:'hub-files',   label:'Files',              colour:'#7F5AF0', group:'Standards' },
+    { key:'summit-hq',   label:'Summit HQ',          colour:'#B45309', group:'Events' },
+    { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' }
+  ];
+
+  async function loadAccess(){
+    try {
+      const r = await S.access.get();
+      acc = { people: r.people || {}, sha: r.sha, dirty:false };
+      $('accUnavailable').hidden = true;
+      $('accReady').hidden = false;
+      $('accAddOpen').hidden = false;
+      setStatus('accStatus');
+      renderAccess();
+    } catch (e) {
+      /* 404 means the relay predates this feature; NOT_PLATFORM_ADMIN means this account
+         may not edit the list. One is a deployment and the other is a permission. */
+      acc = null;
+      $('accReady').hidden = true;
+      $('accAddOpen').hidden = true;
+      $('accUnavailable').hidden = false;
+      $('accUnavailable').innerHTML = e && e.code === 'NOT_PLATFORM_ADMIN'
+        ? '<span><strong>You cannot change who has access.</strong> That is limited to platform administrators. Stakeholder Types and Facilitators still work.</span>'
+        : `<span><strong>Not available.</strong> ${esc((e && e.message) || 'The access list could not be loaded.')}</span>`;
+      $('nPeople').textContent = '';
+    }
+  }
+
+  /* Stored roles are 'admin', 'staff', 'view' or nothing. The panel shows three levels, so
+     'admin' and 'staff' both read as Edit. They are NOT collapsed on save: a tool admin
+     left on Edit keeps 'admin', because that also grants the tool's own settings. */
+  function levelOf(role){
+    if (role === 'admin' || role === 'staff' || role === 'facilitator') return 'edit';
+    if (role === 'view') return 'view';
+    return 'none';
+  }
+  function seg(email, tool, label, role){
+    const lv = levelOf(role);
+    const b = (v, text) => `<button type="button" class="lv-${v}" aria-pressed="${lv === v}" ` +
+      `data-acc-level="${esc(email)}" data-tool="${esc(tool)}" data-level="${v}">${text}</button>`;
+    return `<span class="seg" role="group" aria-label="${esc(label)} access">` + b('edit','Edit') + b('view','View') + b('none','No access') + '</span>';
+  }
+  /* What the row says without opening anything: how many tools at each level, then the
+     first few by name. Counting is the part that stays true at twenty tools. */
+  function summarise(p){
+    const a = p.access || {};
+    const edit = TOOLS.filter(t => levelOf(a[t.key]) === 'edit');
+    const vw = TOOLS.filter(t => levelOf(a[t.key]) === 'view');
+    const bits = [];
+    if (edit.length) bits.push(`<span class="pill p-edit">Edit &middot; ${edit.length}</span>`);
+    if (vw.length) bits.push(`<span class="pill p-view">View &middot; ${vw.length}</span>`);
+    if (!bits.length) bits.push('<span class="pill p-none">No tools yet</span>');
+    const named = edit.concat(vw);
+    const first = named.slice(0, 3).map(t => esc(t.label)).join(', ');
+    const extra = named.length - 3;
+    return bits.join('') + (first ? `<small>${first}${extra > 0 ? ` and ${extra} more` : ''}</small>` : '');
+  }
+  function drawerFor(email, p){
+    const a = p.access || {};
+    const order = [], groups = {};
+    TOOLS.forEach(t => { if (!groups[t.group]) { groups[t.group] = []; order.push(t.group); } groups[t.group].push(t); });
+    return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>every tool, grouped</small></div>` +
+      order.map(g => `<div class="grp">${esc(g)}</div>` + groups[g].map(t => {
+        /* Said out loud rather than shown as a fourth segment, so the control stays three
+           wide while the extra permission is still visible to whoever is granting access. */
+        const note = a[t.key] === 'admin' ? ' <small>&middot; also manages this tool’s settings</small>' : '';
+        return `<div class="trow"><span class="tname"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${note}</span>` +
+          seg(email, t.key, t.label, a[t.key]) + '</div>';
+      }).join('')).join('') + '</div>';
+  }
   function renderAccess(){
-    const tb = $('accTable').querySelector('tbody');
-    const rows = Object.entries(acc.people).sort((a,b) => a[1].name.localeCompare(b[1].name));
-    tb.innerHTML = rows.map(([email, p]) => {
-      const open = openDrawer === email;
-      return `
-      <tr class="${expiryNote(p.expires).soon ? 'expiring' : ''}">
-        <td>
-          <span class="who">
-            <span class="av">${esc(MismoStore.initials(p.name))}</span>
-            <span><span class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}</span>
-              <span class="em">${esc(email)}</span></span>
-          </span>
-        </td>
-        <td>${summarise(p)}</td>
-        <td><span class="exp-wrap"><input type="date" class="inline" data-acc-exp="${esc(email)}" value="${esc(p.expires || '')}">
-          ${p.expires ? `<span class="exp-note ${expiryNote(p.expires).soon ? 'soon' : ''}">${esc(expiryNote(p.expires).text)}</span>` : ''}</span></td>
-        <td class="actions">
-          <button class="secondary small" data-acc-manage="${esc(email)}" aria-expanded="${open}">${open ? 'Close' : 'Manage'}</button>
-          <button class="secondary small" data-acc-reset="${esc(email)}">Reset password</button>
-          <button class="danger small" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Platform administrators are removed in the repository"' : ''}>Remove</button>
-        </td>
-      </tr>` + (open ? `<tr><td colspan="4" style="padding-top:0">${drawerFor(email, p)}</td></tr>` : '');
-    }).join('');
+    if (!acc) return;
+    const all = Object.entries(acc.people).sort((a, b) => a[1].name.localeCompare(b[1].name));
+    $('nPeople').textContent = all.length;
+    $('accSub').textContent = `${all.length} ${all.length === 1 ? 'account' : 'accounts'}. Changes take effect within about a minute, and nobody is signed out.`;
+    const rows = all.filter(([email, p]) => matches(p.name, email));
+    $('accList').innerHTML = '<div class="lh"><span>Person</span><span>Access</span><span>Expires</span><span></span></div>' +
+      (rows.length ? rows.map(([email, p]) => {
+        const open = openDrawer === email;
+        const cls = ['row', expiryNote(p.expires).soon ? 'soon' : '', freshRow === email ? 'fresh' : ''].filter(Boolean).join(' ');
+        return `<div class="${cls}">` +
+          `<div class="who"><span class="av">${esc(initials(p.name))}</span><div style="min-width:0">` +
+            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}</div>` +
+            `<div class="em">${esc(email)}</div></div></div>` +
+          `<div class="sum">${summarise(p)}</div>` +
+          expCell('data-acc-exp', email, p.expires, `Access for ${p.name} expires`) +
+          `<div class="acts"><button class="btn sm" type="button" data-acc-manage="${esc(email)}" aria-expanded="${open}">${open ? 'Close' : 'Manage'}</button>` +
+            `<button class="btn sm" type="button" data-acc-reset="${esc(email)}">Reset password</button>` +
+            `<button class="btn sm danger" type="button" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Administrators are removed in the repository"' : ''}>Remove</button></div>` +
+          '</div>' + (open ? drawerFor(email, p) : '');
+      }).join('') : `<div class="empty">${query ? 'Nobody matches that search.' : 'No accounts yet.'}</div>`);
     $('accSave').disabled = !acc.dirty;
   }
-  function markAcc(){ acc.dirty = true; renderAccess(); }
+  function markAcc(){ acc.dirty = true; setStatus('accStatus', 'dirty'); showErr('accErr'); renderAccess(); }
 
-  document.addEventListener('change', e => {
-    if (!acc) return;
-    const exp = e.target.closest('[data-acc-exp]');
-    if (exp) {
-      const p = acc.people[exp.dataset.accExp];
-      if (exp.value) p.expires = exp.value; else delete p.expires;
-      markAcc();
-    }
+  $('accList').addEventListener('change', e => {
+    const exp = e.target.closest('[data-acc-exp]'); if (!exp || !acc) return;
+    const p = acc.people[exp.dataset.accExp];
+    if (exp.value) p.expires = exp.value; else delete p.expires;
+    markAcc();
   });
-
-  document.addEventListener('click', async e => {
+  $('accList').addEventListener('click', async e => {
     if (!acc) return;
-
     const mg = e.target.closest('[data-acc-manage]');
-    if (mg) { openDrawer = openDrawer === mg.dataset.accManage ? null : mg.dataset.accManage; renderAccess(); return; }
-
+    if (mg) {
+      openDrawer = openDrawer === mg.dataset.accManage ? null : mg.dataset.accManage; renderAccess();
+      const back = $('accList').querySelector(`[data-acc-manage="${CSS.escape(mg.dataset.accManage)}"]`); if (back) back.focus();
+      return;
+    }
     const lv = e.target.closest('[data-acc-level]');
     if (lv) {
-      /* The table is rebuilt on every change, which would otherwise drop focus on the
+      /* The list is rebuilt on every change, which would otherwise drop focus on the
          button just pressed and leave a keyboard user back at the top of the page. */
       const restore = `[data-acc-level="${CSS.escape(lv.dataset.accLevel)}"][data-tool="${CSS.escape(lv.dataset.tool)}"][data-level="${lv.dataset.level}"]`;
       const p = acc.people[lv.dataset.accLevel];
       p.access = p.access || {};
       const tool = lv.dataset.tool, current = p.access[tool];
       if (lv.dataset.level === 'edit') {
-        /* Already Edit at either stored value: leave it exactly as it is. Writing
-           'staff' here would demote a tool admin as a side effect of a click that
-           changed nothing on screen. */
+        /* Already Edit at either stored value: leave it exactly as it is. Writing 'staff'
+           here would demote a tool admin as a side effect of a click that changed nothing. */
         if (levelOf(current) !== 'edit') p.access[tool] = 'staff';
       } else if (lv.dataset.level === 'view') {
         p.access[tool] = 'view';
       } else {
-        /* No access is the absence of an entry, not a stored value. */
-        delete p.access[tool];
+        delete p.access[tool];   // No access is the absence of an entry, not a stored value
       }
       markAcc();
-      const back = document.querySelector(restore);
-      if (back) back.focus();
+      const back = document.querySelector(restore); if (back) back.focus();
       return;
     }
-
     const rs = e.target.closest('[data-acc-reset]');
     if (rs) {
-      const email = rs.dataset.accReset, p = acc.people[email];
+      const p = acc.people[rs.dataset.accReset];
       const code = S.facilitators.generatePasscode();
       p.hash = await S.facilitators.pbkdf2Hash(code);
-      reveal(p.name, code); markAcc(); return;
+      markAcc(); reveal(p.name, code, 'password'); return;
     }
     const rm = e.target.closest('[data-acc-remove]');
     if (rm) {
       const email = rm.dataset.accRemove;
-      if (confirm(`Remove ${acc.people[email].name}? They lose access to every tool within about a minute.`)) {
-        delete acc.people[email]; markAcc();
+      if (confirm(`Remove ${acc.people[email].name}? They lose access to every tool within about a minute of saving.`)) {
+        delete acc.people[email]; if (openDrawer === email) openDrawer = null; markAcc();
       }
     }
   });
-
+  addPanel('accAddOpen', 'accAddCard', 'accAddCancel', 'accName');
   $('accAdd').addEventListener('click', async () => {
+    showErr('accAddErr');
     const name = $('accName').value.trim();
     const email = $('accEmail').value.trim().toLowerCase();
-    const err = $('accErr');
-    if (!name) return showErr('accErr', 'A full name is needed.');
-    if (!email || !email.includes('@')) return showErr('accErr', 'A MISMO email is needed — it is what they sign in with.');
-    if (acc.people[email]) return showErr('accErr', 'There is already an account with that email.');
+    if (!name) return showErr('accAddErr', 'A full name is needed.');
+    if (!email || !email.includes('@')) return showErr('accAddErr', 'An email is needed. It is what they sign in with.');
+    if (acc.people[email]) return showErr('accAddErr', 'There is already an account with that email.');
     const code = S.facilitators.generatePasscode();
     const entry = { name, hash: await S.facilitators.pbkdf2Hash(code), access: { hub: 'staff' } };
     if ($('accExp').value) entry.expires = $('accExp').value;
     acc.people[email] = entry;
     $('accName').value = ''; $('accEmail').value = ''; $('accExp').value = '';
-    err.classList.remove('show');
-    reveal(name, code); markAcc();
+    $('accAddCard').hidden = true;
+    /* Open their drawer, so the tools they get are set while the account is in mind. */
+    openDrawer = email; freshRow = email;
+    markAcc(); reveal(name, code, 'password');
   });
-
-  /* Theme. The pre-paint script in the head has already applied the saved choice; this
-     only handles the button and remembers the change. The key is this page's own, matching
-     each dashboard keeping its own, so switching here does not change a dashboard. */
-  (function(){
-    const btn = $('themeToggleBtn');
-    function apply(theme){
-      document.documentElement.setAttribute('data-theme', theme);
-      const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-      btn.setAttribute('aria-label', label); btn.title = label;
-    }
-    let saved = 'light';
-    try { saved = localStorage.getItem('resources:hub:admin:theme') || 'light'; } catch (e) {}
-    apply(saved === 'dark' ? 'dark' : 'light');
-    btn.addEventListener('click', () => {
-      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      apply(next);
-      try { localStorage.setItem('resources:hub:admin:theme', next); } catch (e) {}
-    });
-  })();
-
-  $('accReload').addEventListener('click', loadAccess);
+  $('accReload').addEventListener('click', () => {
+    if (acc && acc.dirty && !confirm('Discard unsaved access changes?')) return;
+    openDrawer = null; freshRow = null; showErr('accErr'); loadAccess();
+  });
   $('accSave').addEventListener('click', async () => {
-    $('accSave').disabled = true;
+    $('accSave').disabled = true; showErr('accErr'); setStatus('accStatus', 'dirty', 'Saving…');
     try {
       const r = await S.access.put(acc.people, acc.sha);
-      acc.sha = r.sha; acc.dirty = false;
-      setStatus('accStatus', true, `Saved. ${r.count} ${r.count === 1 ? 'person' : 'people'}.`);
+      acc.sha = r.sha; acc.dirty = false; freshRow = null;
+      setStatus('accStatus', 'ok', `Saved. ${r.count} ${r.count === 1 ? 'person' : 'people'}.`);
       renderAccess();
     } catch (e) {
-      $('accSave').disabled = false;
-      showErr('accErr', e.message || 'Could not save.');
+      $('accSave').disabled = false; setStatus('accStatus', 'dirty');
+      showErr('accErr', (e && e.message) || 'Could not save.');
     }
   });
 
-  function applyFac(r){ fac = { sha:r.sha, admin:r.admin, admins:r.admins || (r.admin ? [r.admin] : []), list:(r.facilitators||[]).map(f => ({...f})), dirty:false }; }
-  function renderFac(){
-    const tb = $('facTable').querySelector('tbody');
-    tb.innerHTML = fac.list.map((f, i) => `
-      <tr>
-        <td>
-          <span class="who">
-            <span class="av">${esc(MismoStore.initials(f.name))}</span>
-            <span><span class="nm">${esc(f.name)}</span>${f.email ? `<span class="em">${esc(f.email)}</span>` : '<span class="em none">no email — cannot sign in once passcodes are retired</span>'}</span>
-          </span>
-        </td>
-        <td><span class="rolepill staff">Staff</span></td>
-        <td><input type="date" class="inline" data-exp="${i}" value="${esc(f.expires || '')}"></td>
-        <td class="actions">
-          <button class="secondary small" data-reset="${i}">Reset password</button>
-          <button class="danger small" data-remove="${i}">Remove</button>
-        </td>
-      </tr>`).join('');
-    $('facEmpty').classList.toggle('hidden', fac.list.length > 0);
-    $('facSave').disabled = !fac.dirty;
-    setStatus('facStatus', fac.dirty);
+  /* ================= Stakeholder Types ================= */
+  const DASH = { 'avm-testing':'AVM Testing', ccs:'CCS', lbds:'LBDS', mcd:'MCD', 'title-order':'Title Order', tpa:'TPA' };
+  const dashName = d => DASH[d] || d;
+  async function loadTypes(){
+    const r = await S.config.get('stakeholder-types');
+    if (!r.ok) { showErr('globalErr', S.explain(r.reason)); return; }
+    const c = r.content || { types:[], usage:{} };
+    types = { sha:r.sha, list:(c.types || []).map(t => ({ ...t })), usage:c.usage || {}, dirty:false };
+    setStatus('typeStatus');
+    renderTypes();
   }
-  function markFac(){ fac.dirty = true; renderFac(); }
-  $('facTable').addEventListener('click', async e => {
+  function usedBy(key){ return Object.entries(types.usage).filter(([, ks]) => (ks || []).includes(key)).map(([d]) => d); }
+  function renderTypes(){
+    const all = types.list.map((t, i) => ({ t, i, used: usedBy(t.key) }));
+    const unused = all.filter(x => !x.used.length);
+    $('nTypes').textContent = all.length;
+    $('fAll').textContent = all.length; $('fUnused').textContent = unused.length;
+    $('typeSub').textContent = `${all.length} types across ${Object.keys(types.usage).length} dashboards. A renamed type shows on every dashboard about a minute after saving.`;
+    document.querySelectorAll('[data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === typeFilter)));
+    const rows = (typeFilter === 'unused' ? unused : all).filter(x => matches(x.t.name, x.t.key));
+    $('typeList').innerHTML = '<div class="th"><span>Display name</span><span>Key</span><span>Used by</span><span></span></div>' +
+      (rows.length ? rows.map(({ t, i, used }) => `<div class="trw">` +
+        `<input type="text" data-name="${i}" value="${esc(t.name)}" aria-label="Display name for ${esc(t.key)}">` +
+        `<span class="key">${esc(t.key)}</span>` +
+        `<span class="uses">${used.length ? used.map(d => `<span class="dash">${esc(dashName(d))}</span>`).join('') : '<span class="unused">Not used</span>'}</span>` +
+        `<button class="btn sm danger" type="button" data-rmtype="${i}"${used.length ? ` disabled title="Used by ${esc(used.map(dashName).join(', '))}"` : ''}>Remove</button></div>`
+      ).join('') : `<div class="empty">${query ? 'No type matches that search.' : 'Every type is in use.'}</div>`);
+    $('typeSave').disabled = !types.dirty;
+  }
+  function markTypes(){ types.dirty = true; $('typeSave').disabled = false; setStatus('typeStatus', 'dirty'); }
+  document.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { typeFilter = b.dataset.filter; renderTypes(); }));
+  /* Typing edits in place without a re-render, so the cursor stays where it is. */
+  $('typeList').addEventListener('input', e => {
+    const inp = e.target.closest('[data-name]'); if (!inp) return;
+    types.list[+inp.dataset.name].name = inp.value; markTypes();
+  });
+  $('typeList').addEventListener('click', e => {
+    const rm = e.target.closest('[data-rmtype]'); if (!rm || rm.disabled) return;
+    const t = types.list[+rm.dataset.rmtype];
+    if (confirm(`Remove the type "${t.name}"? No dashboard uses it.`)) { types.list.splice(+rm.dataset.rmtype, 1); markTypes(); renderTypes(); }
+  });
+  addPanel('typeAddOpen', 'typeAddCard', 'typeAddCancel', 'typeName');
+  $('typeAdd').addEventListener('click', () => {
+    showErr('typeAddErr');
+    const name = $('typeName').value.trim();
+    if (!name) return showErr('typeAddErr', 'A display name is needed.');
+    if (types.list.some(t => t.key === name || t.name.toLowerCase() === name.toLowerCase())) return showErr('typeAddErr', 'A type with that name already exists.');
+    types.list.push({ key:name, name });
+    types.list.sort((a, b) => a.name.localeCompare(b.name));
+    $('typeName').value = ''; $('typeAddCard').hidden = true;
+    typeFilter = 'all'; markTypes(); renderTypes();
+  });
+  $('typeReload').addEventListener('click', async () => {
+    if (types.dirty && !confirm('Discard unsaved type changes?')) return;
+    showErr('typeErr'); await loadTypes();
+  });
+  $('typeSave').addEventListener('click', async () => {
+    showErr('typeErr');
+    const trimmed = types.list.map(t => ({ key:t.key, name:t.name.trim() }));
+    const blank = trimmed.find(t => !t.name);
+    if (blank) return showErr('typeErr', `"${blank.key}" needs a display name.`);
+    const seen = new Set();
+    for (const t of trimmed) { const n = t.name.toLowerCase(); if (seen.has(n)) return showErr('typeErr', `Two types would show as "${t.name}". Display names must be distinct.`); seen.add(n); }
+    setStatus('typeStatus', 'dirty', 'Saving…'); $('typeSave').disabled = true;
+    const r = await S.config.put('stakeholder-types', { types: trimmed }, types.sha);
+    if (r.ok) { types.sha = r.sha; types.list = trimmed; types.dirty = false; renderTypes(); setStatus('typeStatus', 'ok', 'Saved. Dashboards show it in about a minute.'); return; }
+    $('typeSave').disabled = false; setStatus('typeStatus', 'dirty');
+    if (r.reason === 'REJECTED' && r.detail) return showErr('typeErr', r.detail.error === 'IN_USE' ? `"${r.detail.key}" is still used by ${dashName(r.detail.dashboard)} and cannot be removed.` : `Not saved: ${r.detail.error}${r.detail.key ? ' (' + r.detail.key + ')' : ''}.`);
+    showErr('typeErr', S.explain(r.reason));
+  });
+
+  /* ================= Facilitators ================= */
+  function applyFac(r){
+    fac = { sha:r.sha, admins:r.admins || (r.admin ? [r.admin] : []), list:(r.facilitators || []).map(f => ({ ...f })), dirty:false };
+  }
+  /* The names the drop-downs should show for this list: the same rule rosterPublish uses. */
+  function rosterNamesFor(list){
+    const today = new Date().toISOString().slice(0, 10);
+    return list.filter(f => f.name && !(f.expires && f.expires < today)).map(f => f.name.trim()).sort((a, b) => a.localeCompare(b, 'en'));
+  }
+  async function loadRoster(){
+    try { roster = await S.roster.load(); } catch (e) { roster = []; }
+    if (view === 'fac') renderFac(); else renderDrift();
+  }
+  /* Two ways the drop-downs and this list can differ, said plainly with the fix beside it:
+     names on the drop-downs that are not in this list (saving would take them off), and a
+     list that has not been published to the drop-downs yet. */
+  function renderDrift(){
+    const el = $('facDrift');
+    if (!roster) { el.hidden = true; return; }
+    const inList = new Set(fac.list.map(f => f.name.trim()));
+    const missing = roster.filter(n => !inList.has(n));
+    const want = rosterNamesFor(fac.list);
+    const stale = publishPending || (!fac.dirty && (want.length !== roster.length || want.some((n, i) => n !== roster[i])));
+    /* After a save whose publish failed, the drop-downs are simply behind: offering to
+       add back a name that was just removed would undo what the save meant. */
+    if (missing.length && !publishPending) {
+      el.className = 'note';
+      el.innerHTML = `<span><strong>${missing.length === 1 ? '1 name is' : missing.length + ' names are'} on the drop-downs but not in this list:</strong> ` +
+        `${esc(missing.join(', '))}. Saving this list as it is would take ${missing.length === 1 ? 'it' : 'them'} off. Adding them gives each a passcode nobody knows; use Reset password if one of them needs one.</span>` +
+        `<button class="btn sm" type="button" id="facAddMissing">Add ${missing.length === 1 ? 'it' : 'them'} to the list</button>`;
+      el.hidden = false;
+    } else if (stale) {
+      el.className = 'note info';
+      el.innerHTML = '<span>The facilitator drop-downs do not match this list yet.</span>' +
+        '<button class="btn sm" type="button" id="facPublish">Update the drop-downs</button>';
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+    }
+  }
+  $('facDrift').addEventListener('click', async e => {
+    if (e.target.closest('#facAddMissing')) {
+      const inList = new Set(fac.list.map(f => f.name.trim()));
+      const add = roster.filter(n => !inList.has(n) && !(fac.admins || []).some(a => a.name === n));
+      for (const name of add) fac.list.push({ name, hash: await S.facilitators.pbkdf2Hash(S.facilitators.generatePasscode()) });
+      fac.list.sort((a, b) => a.name.localeCompare(b.name, 'en'));
+      markFac();
+      return;
+    }
+    if (e.target.closest('#facPublish')) { e.target.disabled = true; await publishRoster(); }
+  });
+  async function publishRoster(){
+    showErr('facErr');
+    try {
+      const names = await S.roster.publish(fac.list);
+      publishPending = false;
+      roster = names.map(n => n.name).sort((a, b) => a.localeCompare(b, 'en'));
+      renderDrift();
+      return true;
+    } catch (e) {
+      showErr('facErr', `The list is saved, but the drop-downs could not be updated: ${(e && e.message) || 'the relay refused it.'} Use "Update the drop-downs" to try again.`);
+      renderDrift();
+      return false;
+    }
+  }
+  function renderFac(){
+    $('nFac').textContent = fac.list.length;
+    $('facSub').textContent = `${fac.list.length} ${fac.list.length === 1 ? 'facilitator' : 'facilitators'}. Administrators are not listed; they are not facilitators.`;
+    const rows = fac.list.map((f, i) => ({ f, i })).filter(({ f }) => matches(f.name, f.email));
+    $('facList').innerHTML = '<div class="lh frow"><span>Facilitator</span><span>Expires</span><span></span></div>' +
+      (rows.length ? rows.map(({ f, i }) => {
+        const cls = ['row frow', expiryNote(f.expires).soon ? 'soon' : '', freshRow === 'fac:' + f.name ? 'fresh' : ''].filter(Boolean).join(' ');
+        return `<div class="${cls}"><div class="who"><span class="av">${esc(initials(f.name))}</span><div style="min-width:0">` +
+            `<div class="nm">${esc(f.name)}</div><div class="em">${f.email ? esc(f.email) : 'No email on file'}</div></div></div>` +
+          expCell('data-exp', i, f.expires, `${f.name} expires`) +
+          `<div class="acts"><button class="btn sm" type="button" data-reset="${i}">Reset password</button>` +
+            `<button class="btn sm danger" type="button" data-remove="${i}">Remove</button></div></div>`;
+      }).join('') : `<div class="empty">${query ? 'Nobody matches that search.' : 'No facilitators yet. Add the first one with the button above.'}</div>`);
+    $('facSave').disabled = !fac.dirty;
+    renderDrift();
+  }
+  function markFac(){ fac.dirty = true; setStatus('facStatus', 'dirty'); showErr('facErr'); renderFac(); }
+  $('facList').addEventListener('click', async e => {
     const rs = e.target.closest('[data-reset]'), rm = e.target.closest('[data-remove]');
     if (rs) {
       const f = fac.list[+rs.dataset.reset];
       const code = S.facilitators.generatePasscode();
       f.hash = await S.facilitators.pbkdf2Hash(code);
-      reveal(f.name, code); markFac();
+      markFac(); reveal(f.name, code, 'passcode');
     }
     if (rm) {
       const f = fac.list[+rm.dataset.remove];
-      if (confirm(`Remove ${f.name}? Their next save will be refused.`)) { fac.list.splice(+rm.dataset.remove, 1); markFac(); }
+      if (confirm(`Remove ${f.name}? They come off every facilitator drop-down, and a save with their passcode is refused. Names already chosen stay as they are.`)) { fac.list.splice(+rm.dataset.remove, 1); markFac(); }
     }
   });
-  $('facTable').addEventListener('change', e => {
+  $('facList').addEventListener('change', e => {
     const inp = e.target.closest('[data-exp]'); if (!inp) return;
     const f = fac.list[+inp.dataset.exp];
     if (inp.value) f.expires = inp.value; else delete f.expires;
-    fac.dirty = true; $('facSave').disabled = false; setStatus('facStatus', true);
+    markFac();
   });
+  addPanel('facAddOpen', 'facAddCard', 'facAddCancel', 'facName');
   $('facAdd').addEventListener('click', async () => {
-    showErr('facErr');
+    showErr('facAddErr');
     const name = $('facName').value.trim();
     const email = $('facEmail').value.trim().toLowerCase();
-    if (!name) return showErr('facErr', 'A full name is needed.');
-    if (!email || !email.includes('@')) return showErr('facErr', 'A MISMO email is needed — it is what they sign in with.');
+    if (!name) return showErr('facAddErr', 'A full name is needed. It is how they appear in every drop-down.');
+    if (email && !email.includes('@')) return showErr('facAddErr', 'That email does not look right. It can also be left blank.');
     /* The admin list and the facilitator list are searched together when a credential is
        resolved, so a duplicate name or email would make the winner depend on ordering. */
-    if ((fac.admins || []).some(a => a.name === name)) return showErr('facErr', 'That name belongs to an administrator and cannot also be a facilitator.');
-    if (fac.list.some(f => f.name === name)) return showErr('facErr', 'There is already someone with that name.');
-    if (fac.list.some(f => (f.email || '').toLowerCase() === email)) return showErr('facErr', 'There is already an account with that email.');
+    if ((fac.admins || []).some(a => a.name === name)) return showErr('facAddErr', 'That name belongs to an administrator and cannot also be a facilitator.');
+    if (fac.list.some(f => f.name.toLowerCase() === name.toLowerCase())) return showErr('facAddErr', 'There is already a facilitator with that name.');
+    if (email && fac.list.some(f => (f.email || '').toLowerCase() === email)) return showErr('facAddErr', 'There is already a facilitator with that email.');
     const code = S.facilitators.generatePasscode();
-    const entry = { name, email, hash: await S.facilitators.pbkdf2Hash(code) };
+    const entry = { name, hash: await S.facilitators.pbkdf2Hash(code) };
+    if (email) entry.email = email;
     if ($('facExp').value) entry.expires = $('facExp').value;
     fac.list.push(entry);
+    fac.list.sort((a, b) => a.name.localeCompare(b.name, 'en'));
     $('facName').value = ''; $('facEmail').value = ''; $('facExp').value = '';
-    reveal(name, code); markFac();
+    $('facAddCard').hidden = true; freshRow = 'fac:' + name;
+    markFac(); reveal(name, code, 'passcode');
   });
   $('facReload').addEventListener('click', async () => {
     if (fac.dirty && !confirm('Discard unsaved facilitator changes?')) return;
-    const r = await S.facilitators.get(); if (r.ok) { applyFac(r); renderFac(); } else showErr('globalErr', S.explain(r.reason));
+    showErr('facErr');
+    const r = await S.facilitators.get();
+    if (r.ok) { applyFac(r); freshRow = null; setStatus('facStatus'); renderFac(); } else showErr('facErr', S.explain(r.reason));
   });
   $('facSave').addEventListener('click', async () => {
-    showErr('globalErr'); setStatus('facStatus', true, 'Saving…');
-    const r = await S.facilitators.put(fac.list.map(f => ({ name:f.name, hash:f.hash, ...(f.expires ? { expires:f.expires } : {}) })), fac.sha);
-    if (r.ok) { fac.sha = r.sha; fac.dirty = false; renderFac(); setStatus('facStatus', false, 'Saved'); return; }
-    if (r.reason === 'REJECTED' && r.detail) return showErr('globalErr', `Not saved: ${r.detail.error}${r.detail.name ? ' (' + r.detail.name + ')' : ''}. Fix the entry and try again.`);
-    setStatus('facStatus', true); showErr('globalErr', S.explain(r.reason));
+    showErr('facErr'); setStatus('facStatus', 'dirty', 'Saving…'); $('facSave').disabled = true;
+    /* Email goes back too: the relay keeps whatever it is sent, so leaving it out would
+       quietly strip every facilitator's email on the next save. */
+    const r = await S.facilitators.put(fac.list.map(f => ({
+      name:f.name, hash:f.hash, ...(f.email ? { email:f.email } : {}), ...(f.expires ? { expires:f.expires } : {}) })), fac.sha);
+    if (!r.ok) {
+      $('facSave').disabled = false; setStatus('facStatus', 'dirty');
+      if (r.reason === 'REJECTED' && r.detail) return showErr('facErr', `Not saved: ${r.detail.error}${r.detail.name ? ' (' + r.detail.name + ')' : ''}. Fix the entry and try again.`);
+      return showErr('facErr', S.explain(r.reason));
+    }
+    fac.sha = r.sha; fac.dirty = false; freshRow = null; publishPending = true;
+    setStatus('facStatus', 'dirty', 'Saved. Updating the drop-downs…');
+    renderFac();
+    /* Then the names-only copy the drop-downs read. */
+    const ok = await publishRoster();
+    const n = rosterNamesFor(fac.list).length;
+    setStatus('facStatus', ok ? 'ok' : 'dirty', ok ? `Saved. The drop-downs list ${n} ${n === 1 ? 'facilitator' : 'facilitators'} in about a minute.` : 'Saved, but the drop-downs were not updated.');
   });
 
-  /* ---------- stakeholder types ---------- */
-  async function loadTypes(){
-    const r = await S.config.get('stakeholder-types');
-    if (!r.ok) return showErr('globalErr', S.explain(r.reason));
-    const c = r.content || { types:[], usage:{} };
-    types = { sha:r.sha, list:(c.types||[]).map(t => ({...t})), usage:c.usage||{}, dirty:false };
-    renderTypes();
+  /* ---------- the sections: narrowing, and the theme ---------- */
+  function setMini(on){
+    document.documentElement.classList.toggle('railmini', on);
+    $('railHide').setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
+    $('railHide').title = (on ? 'Widen the sections' : 'Narrow the sections') + ' (backslash)';
+    try { localStorage.setItem('resources:hub:admin:rail', on ? 'mini' : 'full'); } catch (e) {}
   }
-  function usedBy(key){ return Object.entries(types.usage).filter(([, ks]) => ks.includes(key)).map(([d]) => d); }
-  function renderTypes(){
-    const tb = $('typeTable').querySelector('tbody');
-    tb.innerHTML = types.list.map((t, i) => {
-      const used = usedBy(t.key);
-      return `<tr>
-        <td><input type="text" class="inline" data-name="${i}" value="${esc(t.name)}"></td>
-        <td class="key">${esc(t.key)}</td>
-        <td>${used.length ? used.map(d => `<span class="badge">${esc(d)}</span>`).join('') : '<span class="muted">—</span>'}</td>
-        <td class="actions"><button class="danger small" data-rmtype="${i}" ${used.length ? 'disabled title="In use by ' + esc(used.join(', ')) + '"' : ''}>Remove</button></td>
-      </tr>`;
-    }).join('');
-    $('typeSave').disabled = !types.dirty;
-    setStatus('typeStatus', types.dirty);
-  }
-  $('typeTable').addEventListener('input', e => {
-    const inp = e.target.closest('[data-name]'); if (!inp) return;
-    types.list[+inp.dataset.name].name = inp.value;
-    types.dirty = true; $('typeSave').disabled = false; setStatus('typeStatus', true);
+  $('railHide').addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
+  document.addEventListener('keydown', e => {
+    if (e.key !== '\\' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); setMini(!document.documentElement.classList.contains('railmini'));
   });
-  $('typeTable').addEventListener('click', e => {
-    const rm = e.target.closest('[data-rmtype]'); if (!rm || rm.disabled) return;
-    const t = types.list[+rm.dataset.rmtype];
-    if (confirm(`Remove the type "${t.name}"? No dashboard uses it.`)) { types.list.splice(+rm.dataset.rmtype, 1); types.dirty = true; renderTypes(); }
-  });
-  $('typeAdd').addEventListener('click', () => {
-    showErr('typeErr');
-    const name = $('typeName').value.trim();
-    if (!name) return showErr('typeErr', 'A display name is needed.');
-    if (types.list.some(t => t.key === name || t.name.toLowerCase() === name.toLowerCase())) return showErr('typeErr', 'A type with that name already exists.');
-    types.list.push({ key:name, name });
-    types.list.sort((a, b) => a.name.localeCompare(b.name));
-    $('typeName').value = ''; types.dirty = true; renderTypes();
-  });
-  $('typeReload').addEventListener('click', async () => {
-    if (types.dirty && !confirm('Discard unsaved type changes?')) return;
-    await loadTypes();
-  });
-  $('typeSave').addEventListener('click', async () => {
-    showErr('globalErr');
-    const trimmed = types.list.map(t => ({ key:t.key, name:t.name.trim() }));
-    const blank = trimmed.find(t => !t.name);
-    if (blank) return showErr('globalErr', `"${blank.key}" needs a display name.`);
-    const seen = new Set();
-    for (const t of trimmed) { const n = t.name.toLowerCase(); if (seen.has(n)) return showErr('globalErr', `Two types would show as "${t.name}". Display names must be distinct.`); seen.add(n); }
-    setStatus('typeStatus', true, 'Saving…');
-    const r = await S.config.put('stakeholder-types', { types: trimmed }, types.sha);
-    if (r.ok) { types.sha = r.sha; types.list = trimmed; types.dirty = false; renderTypes(); setStatus('typeStatus', false, 'Saved — dashboards pick this up on their next deploy'); return; }
-    if (r.reason === 'REJECTED' && r.detail) return showErr('globalErr', r.detail.error === 'IN_USE' ? `"${r.detail.key}" is still used by ${r.detail.dashboard} and cannot be removed.` : `Not saved: ${r.detail.error}${r.detail.key ? ' (' + r.detail.key + ')' : ''}.`);
-    setStatus('typeStatus', true); showErr('globalErr', S.explain(r.reason));
-  });
+  (function(){
+    const btn = $('themeBtn');
+    const MOON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>';
+    const SUN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
+    function paint(){
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      btn.innerHTML = (dark ? SUN : MOON) + `<span>${dark ? 'Light Mode' : 'Dark Mode'}</span>`;
+      btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    }
+    paint();
+    btn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('resources:hub:admin:theme', next); } catch (e) {}
+      paint();
+    });
+  })();
+  if (document.documentElement.classList.contains('railmini')) setMini(true);
+  window.addEventListener('hashchange', () => { if (!document.body.classList.contains('out')) show(viewFromHash()); });
 
   /* ---------- boot ---------- */
   open();

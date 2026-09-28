@@ -581,8 +581,108 @@
     return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
 
+  /* ── The facilitator roster: the names every "facilitator" drop-down offers ──────────
+   * The list itself is _internal/facilitators.json, which also holds each person's
+   * passcode hash, so pages cannot read it (it is not served, and the relay route for it
+   * is admin-only). The admin panel therefore publishes a names-only copy every time it
+   * saves that list: data/facilitator-roster.json, in this repository, which any page on
+   * resources.mismo.org can read. Names only: no emails, no hashes. Admins are not on it;
+   * they are not facilitators. Expired entries are left off. */
+  var ROSTER_PATH = 'data/facilitator-roster.json';
+  var ROSTER_URL = '/initiative-hub/' + ROSTER_PATH;
+  var rosterPromise = null;
+  function rosterLoad() {
+    if (!rosterPromise) {
+      rosterPromise = fetch(ROSTER_URL + '?t=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : { facilitators: [] }; })
+        .then(function (d) {
+          return (Array.isArray(d && d.facilitators) ? d.facilitators : [])
+            .map(function (f) { return String((f && f.name) || '').trim(); })
+            .filter(Boolean)
+            .sort(function (a, b) { return a.localeCompare(b, 'en'); });
+        })
+        .catch(function () { return []; });
+    }
+    return rosterPromise;
+  }
+  /* list: the facilitators as the admin panel holds them ({name, expires?}). */
+  async function rosterPublish(list) {
+    var today = new Date().toISOString().slice(0, 10);
+    var names = (list || [])
+      .filter(function (f) { return f && f.name && !(f.expires && f.expires < today); })
+      .map(function (f) { return { name: String(f.name).trim() }; });
+    var res = await relay('/commit', { method: 'POST', body: {
+      message: 'Update the facilitator roster',
+      files: [{ path: ROSTER_PATH, content: JSON.stringify({ facilitators: names }, null, 2) + '\n' }]
+    }});
+    var body = null; try { body = await res.json(); } catch (e) {}
+    if (!res.ok) throw accessError(res, body);
+    rosterPromise = null;
+    return names;
+  }
+
+  /* ── The facilitator chip on a dashboard: a drop-down, not typing ───────────────────
+   * The name stays where it has always been saved: the chip's .name span, which the
+   * dashboard's generic save captures by position. The drop-down sits beside it and
+   * writes into it, and is marked data-fac-pick so the dashboards' generic save leaves it
+   * out. That matters: the chips are at the top of the page, and the generic save counts
+   * drop-downs by position across the WHOLE page (16 to 28 of them), so an uncounted-for
+   * drop-down there would shift every saved status below it by one. Locked, the name shows
+   * as text; unlocked, the drop-down shows. A name already saved that is not on the roster
+   * stays selectable, marked as such, so opening a dashboard never changes it. */
+  function wireFacilitatorChips() {
+    var chips = [].slice.call(document.querySelectorAll('.lead-chip')).filter(function (c) {
+      var r = c.querySelector('.role');
+      return r && /^\s*facilitator\s*$/i.test(r.textContent);
+    });
+    if (!chips.length) return;
+    if (!document.getElementById('fac-pick-css')) {
+      var st = document.createElement('style');
+      st.id = 'fac-pick-css';
+      st.textContent =
+        'select.fac-pick{font:inherit;font-weight:700;color:inherit;background:transparent;border:1px dashed currentColor;' +
+        'border-radius:4px;padding:0 4px;margin:0 2px;max-width:220px;cursor:pointer}' +
+        'select.fac-pick option{color:#101B33;background:#fff}' +
+        'body:not(.locked) .lead-chip .name.fac-name{display:none}' +
+        'body.locked select.fac-pick{display:none}';
+      document.head.appendChild(st);
+    }
+    rosterLoad().then(function (names) {
+      chips.forEach(function (chip) {
+        var span = chip.querySelector('.name');
+        if (!span || chip.querySelector('select.fac-pick')) return;
+        span.classList.add('fac-name');
+        var sel = document.createElement('select');
+        sel.className = 'fac-pick';
+        sel.setAttribute('data-fac-pick', '');
+        sel.setAttribute('aria-label', 'Facilitator');
+        function fill() {
+          var cur = span.textContent.trim();
+          var opts = names.slice();
+          var html = '<option value="">Choose a facilitator</option>' + opts.map(function (n) {
+            return '<option>' + sanitizeText(n) + '</option>'; }).join('');
+          if (cur && opts.indexOf(cur) < 0) html += '<option value="' + sanitizeText(cur) + '">' + sanitizeText(cur) + ' (not on the list)</option>';
+          sel.innerHTML = html;
+          sel.value = cur;
+        }
+        fill();
+        sel.addEventListener('change', function () { span.textContent = sel.value; });
+        /* Saved data is applied to the span after this runs, so follow it. */
+        new MutationObserver(function () { if (span.textContent.trim() !== sel.value) fill(); })
+          .observe(span, { childList: true, characterData: true, subtree: true });
+        span.insertAdjacentElement('afterend', sel);
+      });
+    });
+  }
+  function sanitizeText(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireFacilitatorChips);
+  else wireFacilitatorChips();
+
   window.MismoStore = {
     facilitators: { get: facilitatorsGet, put: facilitatorsPut, generatePasscode: generatePasscode, sha256Hex: sha256Hex, pbkdf2Hash: pbkdf2Hash },
+    roster: { load: rosterLoad, publish: rosterPublish, path: ROSTER_PATH },
     /* The central access list: everyone, once, with a role per tool. Only a platform
        administrator may read or change it, and only through a signed-in session — the
        relay refuses it otherwise. */

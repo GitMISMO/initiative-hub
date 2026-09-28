@@ -910,7 +910,7 @@
   }
 </style>
 <script src="/assets/session.js"></script>
-  <script src="dashboard-data.js?v=c2b3c63251"></script>
+  <script src="dashboard-data.js?v=e441bfe43c"></script>
 </head>
 <body>
 
@@ -2067,7 +2067,7 @@
     const editable = {};
     editableEls.forEach(el => { editable[computeStableFieldKey(el, editableEls)] = el.innerHTML; });
 
-    const selectEls = [...document.querySelectorAll('select')].filter(el => !isExcluded(el));
+    const selectEls = [...document.querySelectorAll('select')].filter(el => !isExcluded(el) && !el.hasAttribute('data-fac-pick')); // the facilitator drop-down writes into the chip's name, which is saved; counting it here would shift every status below it
     const selects = {};
     selectEls.forEach(el => { selects[computeStableFieldKey(el, selectEls)] = el.value; });
 
@@ -2093,7 +2093,7 @@
       if (state.editable && state.editable[key] !== undefined) el.innerHTML = MismoStore.sanitizeHtml(state.editable[key]);
     });
 
-    const selectEls = [...document.querySelectorAll('select')].filter(el => !isExcluded(el));
+    const selectEls = [...document.querySelectorAll('select')].filter(el => !isExcluded(el) && !el.hasAttribute('data-fac-pick')); // the facilitator drop-down writes into the chip's name, which is saved; counting it here would shift every status below it
     selectEls.forEach(el => {
       const key = computeStableFieldKey(el, selectEls);
       if (state.selects && state.selects[key] !== undefined){

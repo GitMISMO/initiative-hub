@@ -239,6 +239,37 @@ comments, and it's the same tradeoff already live on all four real dashboards
   since the browser default (`middle`) looks fine on short rows but visibly
   misaligns content whenever a row's first cell wraps to two lines.
 
+## Facilitator names: one list, a drop-down everywhere (Sept 2026)
+
+Perry: "every time that a facilitator name is listed and is editable it should be from
+that drop down list." So a facilitator is never typed where it can be chosen.
+
+- **The list** is the Admin Panel's Facilitators section (`_internal/facilitators.json`,
+  admins excluded; admins are not facilitators). Saving it also publishes a names-only
+  copy, `data/facilitator-roster.json`, through `/commit` (`MismoStore.roster.publish`).
+  Pages read that file (`MismoStore.roster.load()`); `_internal/` is not served.
+  No emails, no hashes in the published file. Expired entries are left off.
+- **The panel warns before a save would drop names** that are on the drop-downs but not
+  in the list, with one click to add them. After a save whose publish failed it offers
+  "Update the drop-downs" instead (never "add back" a name that was just removed).
+- **Dashboards:** the Facilitator chip gets a `<select data-fac-pick>` beside its
+  `.name` span. The SPAN is still what is saved (generic save, by position); the select
+  only writes into it. Every capture/apply `selectEls` filter excludes `data-fac-pick`:
+  the chip sits at the top of the page, and an extra counted select there would shift
+  every saved status below it. Verified against the real `data/mcd.json`: a save with no
+  change round-trips byte for byte; changing the facilitator changes only `body::span::3`.
+  If you add a new select-counting loop anywhere, exclude `data-fac-pick` in it too.
+- **potential-edit.html:** `fFacilitator` is a select filled from the roster.
+- **Anywhere:** a saved name not on the list stays selectable, marked "(not on the
+  list)", so opening a page never changes data.
+- **Summit HQ** works in first names. It shortens roster names ("Kellie Stoll" to
+  "Kellie", or "Kellie S." if two share a first name), keeps its original pool order
+  (auto-assignment breaks ties by that order), and changes `FAC_POOL`/`FAC_CHOICES` in
+  place. Walk-ons (Perry: "kelly R came in to cover for a facilitator who had to miss the
+  summit") are typed in the picker ("Walk-on: type a name"), shown as "(walk-on)", never
+  added to the shared list, and never auto-assigned. "Kelly R." was already in the pool
+  and stays assignable so the current schedule does not reshuffle.
+
 ## Relay redeploy — done, Sept 2026
 
 IT deployed the relay at commit 88bfaa2: both security fixes (/commit restricted to

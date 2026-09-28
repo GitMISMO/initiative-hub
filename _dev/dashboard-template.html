@@ -1239,7 +1239,7 @@ silently; if a save cannot happen, the user must be told.
   <!-- Shared git-backed storage. Root-relative on purpose: this file is duplicated to the
        repo root before it becomes a dashboard. It will not resolve from inside _dev/. -->
   <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=c2b3c63251"></script>
+<script src="dashboard-data.js?v=e441bfe43c"></script>
 </head>
 <body>
 
@@ -2569,7 +2569,7 @@ silently; if a save cannot happen, the user must be told.
       .filter(el => !isExcluded(el) && el.hasAttribute('data-roster-field') === false)
       .filter(el => !el.parentElement || el.parentElement.closest('[contenteditable]') === null) // only outermost editable regions, skip nested spans
       .map(el => el.innerHTML);
-    const selects = [...document.querySelectorAll('select')].filter(el => !isExcluded(el)).map(el => el.value);
+    const selects = [...document.querySelectorAll('select')].filter(el => !isExcluded(el) && !el.hasAttribute('data-fac-pick')).map(el => el.value); // the facilitator drop-down is saved through the chip's name; counting it would shift every status below it
     const dates = [...document.querySelectorAll('input[type="date"]')].filter(el => !isExcluded(el)).map(el => el.value);
     return { editable, selects, dates };
   }
@@ -2584,7 +2584,7 @@ silently; if a save cannot happen, the user must be told.
     // else's browser. See sanitizeHtml in dashboard-data.js.
     editableEls.forEach((el, i) => { if (state.editable && state.editable[i] !== undefined) el.innerHTML = MismoStore.sanitizeHtml(state.editable[i]); });
 
-    const selectEls = [...document.querySelectorAll('select')].filter(el => !isExcluded(el));
+    const selectEls = [...document.querySelectorAll('select')].filter(el => !isExcluded(el) && !el.hasAttribute('data-fac-pick'));
     selectEls.forEach((el, i) => {
       if (state.selects && state.selects[i] !== undefined){
         el.value = state.selects[i];

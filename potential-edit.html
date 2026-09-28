@@ -21,7 +21,7 @@
   try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
-<script src="dashboard-data.js?v=c2b3c63251"></script>
+<script src="dashboard-data.js?v=e441bfe43c"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@700;800&display=swap" rel="stylesheet">
 <style>
   html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
@@ -100,7 +100,7 @@
       </div>
       <div class="row">
         <div><label for="fBroughtBy">Brought to MISMO by</label><input type="text" id="fBroughtBy"></div>
-        <div><label for="fFacilitator">MISMO facilitator</label><input type="text" id="fFacilitator" placeholder="Name of the MISMO staff member who owns this"></div>
+        <div><label for="fFacilitator">MISMO facilitator</label><select id="fFacilitator"><option value="">Choose a facilitator</option></select></div>
         <div><label for="fDate">Date logged</label><input type="date" id="fDate"></div>
       </div>
       <label for="fSummary">Summary</label><textarea id="fSummary"></textarea>
@@ -166,9 +166,22 @@
   function currentId(){ return editId || idOverride || P.slug($('fName').value); }
 
   /* ----- form <-> record ----- */
+  /* The facilitator comes from the shared roster (Admin panel > Facilitators), so the
+     same names are spelled the same way everywhere. A name already on the record that
+     is not on the roster stays selectable, so opening an old record never changes it. */
+  let roster = [];
+  const rosterReady = (window.MismoStore && MismoStore.roster) ? MismoStore.roster.load().then(n => { roster = n || []; }) : Promise.resolve();
+  function fillFacilitators(v){
+    const el = $('fFacilitator');
+    const opts = ['<option value="">Choose a facilitator</option>'].concat(roster.map(n => `<option value="${esc(n)}">${esc(n)}</option>`));
+    if (v && roster.indexOf(v) < 0) opts.push(`<option value="${esc(v)}">${esc(v)} (not on the list)</option>`);
+    el.innerHTML = opts.join('');
+    el.value = v;
+  }
+  rosterReady.then(() => { if (typeof rec !== 'undefined' && rec) fillFacilitators($('fFacilitator').value || rec.facilitator || ''); });
   function fill(){
     $('fName').value = rec.name || ''; $('fDomain').value = rec.domain || ''; $('fBroughtBy').value = rec.broughtBy || '';
-    $('fFacilitator').value = rec.facilitator || '';
+    fillFacilitators(rec.facilitator || '');
     $('fDate').value = rec.dateLogged || ''; $('fSummary').value = rec.summary || ''; $('fWhy').value = rec.whyRaised || '';
     $('fSolutions').value = (rec.potentialSolutions || []).join('\n');
     $('fStage').innerHTML = P.STAGES.map(s => `<option value="${s.key}" ${s.key === (rec.stage||'not-started') ? 'selected' : ''}>${esc(s.label)}</option>`).join('');
