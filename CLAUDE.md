@@ -555,8 +555,12 @@ Queued, roughly in order:
      "Sign in to edit" — telling a viewer to sign in sends them round a loop.
    - **The admin panel's TOOLS list must only contain keys registered in
      projects.json.** A tool listed before it is registered renders a control that
-     saves to access.json and governs nothing. Sponsorship was removed for this
-     reason and goes back when it is registered.
+     saves to access.json and governs nothing. The reverse matters as much: a tool
+     registered but missing from TOOLS cannot be granted through the panel at all.
+     Before removing anything from TOOLS, pull GitMISMO.github.io and check the
+     CURRENT projects.json, and look for the tool's own repository. Sept 2026:
+     Sponsorship Portal was removed as "unregistered" from a stale copy, while it
+     was live and was registered an hour later; it was restored the same day.
    - **The token proves WHO; permissions are read on every request.** A token
      carrying its own role would keep working until it expired, so removing someone
      would take up to 8 hours. Read per request against a 30-second cache, a change
