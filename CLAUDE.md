@@ -555,8 +555,9 @@ Queued, roughly in order:
      `prompt()` for a key, or "no access" banner. Gated pages call `requireAccess`;
      saves with no session call `MismoStore.signInToSave()` (the "Sign in to finish
      saving" window) and then save. The Hub's pages, the admin panel, Summit HQ, the
-     Sponsorship Portal and the Glossary console were all brought into line that day.
-     Service Orders was left alone pending a decision: its users are contractors.
+     Sponsorship Portal, the Glossary console and Service Orders were all brought into
+     line that day. For Service Orders' contractors the window's label became "Email"
+     (not "MISMO email"); its five company keys are checked with `refreshAccess`.
    - **Never refuse from the browser's copy of someone's access.** It is taken at sign-in
      and goes stale when a tool is granted later. `requireAccess` asks the relay first,
      with a save to the reserved name `facilitators`, which the relay turns away before
