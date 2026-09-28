@@ -561,7 +561,11 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
 {
   const { readFileSync } = await import('node:fs');
   const { createHash: ch } = await import('node:crypto');
-  const expected = ch('sha256').update(readFileSync(new URL('./index.mjs', import.meta.url))).digest('hex');
+  /* Worked out here independently of the relay's own fingerprint(): line endings made
+     Unix, trailing blank space at the end dropped. Calling the exported function instead
+     would only prove the function agrees with itself. */
+  const text = readFileSync(new URL('./index.mjs', import.meta.url), 'utf8');
+  const expected = ch('sha256').update(text.replace(/\r\n/g, '\n').replace(/\s+$/, ''), 'utf8').digest('hex');
   const v = await handler({ rawPath:'/version', requestContext:{http:{method:'GET'}}, headers:{} });
   ok('/version answers without credentials or a project', v.statusCode===200);
   ok('/version is the SHA-256 of the running source', J(v).sha256===expected);
@@ -849,4 +853,84 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
      r.statusCode===200 && JSON.stringify(J(r).access)==='{}');
 
   accessBust();
+}
+
+/* ---------- a broken projects.json, and the version fingerprint ----------
+   projects.json is edited by hand in GitHub's web editor. A trailing comma once made
+   it invalid (Sept 2026). These check that a broken edit is survivable, that a GitHub
+   outage still fails safely rather than guessing, and that the fingerprint no longer
+   depends on how the file was pasted. */
+{
+  const { fingerprint } = await import('./index.mjs');
+  const src = 'const a = 1;\nconst b = 2;\n';
+  const same = [src, src.replace(/\n/g, '\r\n'), src.replace(/\n/g, '\r\n').replace(/\r\n$/, ''), src + '\n\n', src.trimEnd()];
+  ok('fingerprint is the same however the file was pasted',
+     same.every(v => fingerprint(v) === fingerprint(src)));
+  ok('but a real change to the code still changes it', fingerprint(src.replace('2', '3')) !== fingerprint(src));
+
+  const good = { hub: { repo:'Org/Repo', branch:'main', origin:'https://org.github.io', writable:['data/'] } };
+  const b64txt = t => Buffer.from(t).toString('base64');
+  let head = { text: JSON.stringify(good) };          // what the branch holds now
+  let history = [];                                   // older versions, newest first: [{sha, text}]
+  let githubDown = false;
+  let historyCalls = 0;
+  const prev = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (opts.method === 'GET' && url.includes('/Org/SiteConfig/commits?path=')) {
+      historyCalls++;
+      if (githubDown) return { status: 502, json: async () => ({}) };
+      return { status: 200, json: async () => [{ sha: 'h'.repeat(40) }, ...history.map(h => ({ sha: h.sha }))] };
+    }
+    if (opts.method === 'GET' && url.includes('/Org/SiteConfig/contents/projects.json')) {
+      if (githubDown) return { status: 502, json: async () => ({}) };
+      const ref = decodeURIComponent((url.match(/ref=([^&]+)/) || [])[1] || 'main');
+      const hit = ref === 'main' ? head : history.find(h => h.sha === ref);
+      if (!hit) return { status: 404, json: async () => ({}) };
+      return { status: 200, json: async () => ({ sha: 'x'.repeat(40), content: b64txt(hit.text) }) };
+    }
+    return prev(url, opts);
+  };
+  process.env.PROJECTS_REPO = 'Org/SiteConfig';
+  const probe = () => handler({ rawPath:'/hub/data/mcd', requestContext:{ http:{ method:'GET' } },
+                                headers:{ origin:'https://org.github.io' } });
+  /* 401 means the tool was found and the request stopped at sign-in, which is right with
+     no credentials. 503 means the tool list could not be used at all. */
+  const resolved = r => r.statusCode === 401;
+
+  projectsCacheBust();
+  r = await probe();
+  ok('a good list resolves', resolved(r));
+
+  head = { text: JSON.stringify(good).replace(/}}$/, '},}') };     // the trailing comma
+  r = await probe();
+  ok('a running instance keeps working when the file breaks', resolved(r));
+
+  projectsCacheBust();
+  history = [{ sha: 'g'.repeat(40), text: JSON.stringify(good) }];
+  historyCalls = 0;
+  r = await probe();
+  ok('a FRESH instance with a broken file uses the last good version from history', resolved(r));
+  ok('and it looked in the history to find it', historyCalls === 1);
+
+  projectsCacheBust();
+  history = [{ sha: 'b'.repeat(40), text: '{ not json' }, { sha: 'c'.repeat(40), text: '[1,2]' }];
+  r = await probe();
+  ok('if no earlier version is usable either, it refuses rather than guesses',
+     r.statusCode === 503 && J(r).error === 'CONFIG_UNAVAILABLE');
+
+  projectsCacheBust();
+  githubDown = true; historyCalls = 0;
+  r = await probe();
+  ok('a GitHub outage on a fresh instance still gives a clean 503', r.statusCode === 503);
+  ok('and does not go looking through history it cannot reach', historyCalls === 0);
+  githubDown = false;
+
+  head = { text: JSON.stringify(good) };              // someone fixes the comma
+  projectsCacheBust();
+  r = await probe();
+  ok('once the file is fixed, it is used again', resolved(r));
+
+  globalThis.fetch = prev;
+  delete process.env.PROJECTS_REPO;
+  projectsCacheBust();
 }

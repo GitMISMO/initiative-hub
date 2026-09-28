@@ -74,8 +74,18 @@ import { fileURLToPath } from 'node:url';
  * SHA-256 of this very file, so "is the deployed relay current?" is answered by comparing
  * it with the same hash of index.mjs in the repository — no version number to remember
  * to bump, because the file fingerprints itself. */
+/* Normalised before hashing: Windows line endings become Unix ones and trailing blank
+ * space at the very end is dropped. Pasting through the Lambda console on Windows does
+ * both, and before this a correct deploy reported a different value from the one the
+ * request predicted, and looked for twenty minutes like a failed one (Sept 2026). The
+ * code is the same either way, so the fingerprint now is too. Compare with:
+ *   python3 -c "import hashlib,re; t=open('_dev/aws/index.mjs',encoding='utf-8').read(); \
+ *     print(hashlib.sha256(re.sub(r'\s+$','',t.replace('\r\n','\n')).encode()).hexdigest())" */
+export function fingerprint(text) {
+  return createHash('sha256').update(String(text).replace(/\r\n/g, '\n').replace(/\s+$/, ''), 'utf8').digest('hex');
+}
 let SOURCE_SHA256 = 'unknown';
-try { SOURCE_SHA256 = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex'); }
+try { SOURCE_SHA256 = fingerprint(readFileSync(fileURLToPath(import.meta.url), 'utf8')); }
 catch (e) { /* unreadable in some test harnesses; the route then reports 'unknown' */ }
 
 const GITHUB_API = 'https://api.github.com';
@@ -249,17 +259,68 @@ async function projects() {
   const branch = process.env.PROJECTS_BRANCH || 'main';
   const path = process.env.PROJECTS_PATH || 'projects.json';
   const file = await readFile(configRepo, branch, path);
-  if (file.status !== 200) {
-    // Serve the last good copy if we have one; a warm container should not start failing
-    // because of one bad minute at GitHub. A cold container has nothing, so it says so.
-    if (projectsCache.value) return projectsCache.value;
-    throw new Error(`CONFIG_UNAVAILABLE: ${path} in ${configRepo} returned ${file.status}`);
+  let value = null;
+  if (file.status === 200) {
+    try { value = parseProjects(JSON.stringify(file.data), `${path} in ${configRepo}`); }
+    catch (e) { console.error('projects list is the wrong shape:', e.message); }
   }
-  const value = parseProjects(JSON.stringify(file.data), `${path} in ${configRepo}`);
-  projectsCache.at = now;
-  projectsCache.value = value;
-  lastKnownOrigin = Object.values(value)[0]?.origin || lastKnownOrigin;
-  return value;
+  if (value) {
+    projectsCache.at = now;
+    projectsCache.value = value;
+    lastKnownOrigin = Object.values(value)[0]?.origin || lastKnownOrigin;
+    return value;
+  }
+
+  /* Unreadable or broken. Two different failures, handled differently:
+   *
+   *   GitHub did not answer          -> the last good copy if this container has one.
+   *   GitHub answered with a file    -> the same, and if this container is fresh, the
+   *   that is not valid                most recent version in the file's history that is.
+   *
+   * The second exists because projects.json is edited by hand in GitHub's web editor. A
+   * single trailing comma (Sept 2026) made it invalid, and every freshly started container
+   * would have refused every tool until someone noticed. The previous commit is a list an
+   * administrator already approved, so falling back to it is safe; the broken edit simply
+   * has no effect until it is fixed. A GitHub outage is NOT given the history fallback: the
+   * history would be unreachable too, and guessing would be worse than a clear 503.
+   *
+   * The time is updated in both cases so a broken file is re-checked once a minute, as a
+   * good one is, rather than on every request. */
+  const why = file.corrupt ? 'is not valid JSON' : file.status === 200 ? 'is the wrong shape' : `returned ${file.status}`;
+  if (projectsCache.value) {
+    console.error(`${path} in ${configRepo} ${why}; still using the last good copy`);
+    projectsCache.at = now;
+    return projectsCache.value;
+  }
+  if (file.status === 200 || file.corrupt) {
+    const good = await lastGoodProjects(configRepo, branch, path);
+    if (good) {
+      console.error(`${path} in ${configRepo} ${why}; using the version from ${good.sha.slice(0, 7)}`);
+      projectsCache.at = now;
+      projectsCache.value = good.value;
+      lastKnownOrigin = Object.values(good.value)[0]?.origin || lastKnownOrigin;
+      return good.value;
+    }
+  }
+  throw new Error(`CONFIG_UNAVAILABLE: ${path} in ${configRepo} ${why}`);
+}
+
+/* The newest earlier version of the project list that parses, or null. Looks back a
+ * short way only: this is for a mistake made in the last edit or two, not a history
+ * search, and each step is a round trip to GitHub on a request someone is waiting for. */
+const PROJECTS_HISTORY_DEPTH = 5;
+async function lastGoodProjects(repo, branch, path) {
+  const list = await github('GET',
+    `/repos/${repo}/commits?path=${encodeURIComponent(path)}&sha=${encodeURIComponent(branch)}&per_page=${PROJECTS_HISTORY_DEPTH + 1}`);
+  if (list.status !== 200 || !Array.isArray(list.json)) return null;
+  /* The first entry is the current, broken version; start from the one before it. */
+  for (const c of list.json.slice(1, PROJECTS_HISTORY_DEPTH + 1)) {
+    const f = await readFile(repo, c.sha, path);
+    if (f.status !== 200) continue;
+    try { return { sha: c.sha, value: parseProjects(JSON.stringify(f.data), `${path}@${c.sha}`) }; }
+    catch (e) { /* this one was broken too; keep looking */ }
+  }
+  return null;
 }
 
 /* Every project must live under the same owner as the config file itself. The token is

@@ -250,20 +250,20 @@ Followed through: the Glossary's relay-migration branch is merged, and Jonna Cri
 is an admin again in both repos via the `admins` array. Staff accounts may now be added
 through the admin panel.
 
-**The /version fingerprint will not match `sha256sum` directly.** The deployed file was
-pasted through the Lambda console on Windows, which converts line endings to CRLF and
-drops the trailing newline. The code is identical; only the bytes differ. To compare:
+**The /version fingerprint ignores how the file was pasted** (from the relay committed
+with this note onward). It hashes the source with Windows line endings made Unix and
+trailing blank space at the end removed, so LF, CRLF, and either with the final line
+break dropped all give ONE value. An IT request lists that single value. Compute it with:
 
-    python3 -c "import hashlib; d=open('_dev/aws/index.mjs','rb').read(); \
-      print(hashlib.sha256(d.replace(b'\n', b'\r\n').rstrip(b'\r\n')).hexdigest())"
+    python3 -c "import hashlib,re; t=open('_dev/aws/index.mjs',encoding='utf-8').read(); \
+      print(hashlib.sha256(re.sub(r'\s+$','',t.replace('\r\n','\n')).encode()).hexdigest())"
 
-**Any IT request must give THIS value as the Windows one**, not a plain CRLF conversion.
-Sept 2026: a request listed CRLF-with-newline (`9e1cb333…`), IT deployed correctly, got
-`4d22b63b…`, and a correct deploy looked like a failed one for twenty minutes.
-
-Pending, fold into the next relay deploy: make /version normalise line endings before
-hashing, so a faithful copy always matches without this workaround. Not changed now,
-because any edit to index.mjs puts the repository ahead of production again.
+Why: the older relay hashed raw bytes. A Windows paste converts to CRLF and drops the
+final newline, and a Sept 2026 request listed a plain CRLF value (`9e1cb333…`) where the
+deploy correctly gave `4d22b63b…`, so a correct deploy looked failed for twenty minutes.
+**Until IT deploys this version, the live relay still reports the raw-bytes hash**
+(`4d22b63b…` for the Sept 28 afternoon deploy); compare it with the Windows formula
+`d.replace(b'\n', b'\r\n').rstrip(b'\r\n')` on the bytes of that commit's file.
 
 ## What /commit may write
 
@@ -300,9 +300,9 @@ Two rules follow:
 - **A file-format change and the code that reads it ship together.** If the running relay
   cannot read the new format, the format change waits for the redeploy, not the other way
   round.
-- **Check which code is running before assuming.** `GET /version` returns the SHA-256 of the
-  deployed index.mjs. Compare it with `sha256sum _dev/aws/index.mjs` in the repository. If
-  they differ, the relay is behind. The file fingerprints itself, so there is no version
+- **Check which code is running before assuming.** `GET /version` returns the fingerprint of
+  the deployed index.mjs. Compare it with the formula above (not plain `sha256sum`, which
+  differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
 ## Reviewing designs
