@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-rs-gate>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -593,7 +593,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   const PANEL = 'the Initiative Hub admin panel';
   async function open(){
     if (!RS || !S) { $('siState').textContent = 'The sign-in could not load. Reload the page.'; return; }
-    try { await RS.requireAccess('hub', { toolName: PANEL }); }
+    try { await RS.requireAccess('hub', { toolName: PANEL, title: 'Admin Panel', eyebrow: 'Initiative Hub' }); }
     catch (e) {
       if (e && e.code === 'OFFLINE') $('siState').textContent = 'The admin panel could not reach the sign-in service. Check your connection, then reload.';
       return;
@@ -601,7 +601,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const r = await trySignIn();
     if (r === 'ADMIN_ONLY') {
       $('siState').textContent = 'This account is not an administrator of the Initiative Hub.';
-      RS.signIn({ reason: 'no-access', toolName: PANEL, gated: true }).catch(() => {});
+      RS.signIn({ reason: 'no-access', toolName: PANEL, title: 'Admin Panel', eyebrow: 'Initiative Hub', gated: true }).catch(() => {});
     }
   }
   if (RS) {
