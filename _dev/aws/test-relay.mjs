@@ -961,5 +961,21 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
   ok('access check: someone without gets NO_ACCESS', r.statusCode===403 && J(r).error==='NO_ACCESS');
   ok('access check reads nothing from the tool repository',
      !calls.slice(before).some(c => c.url.includes('/Org/Repo/')));
+
+  /* The same name with PUT tells Edit from View, and still writes nothing: the view-only
+     guard runs before any route, and the reserved-name check runs before any write. */
+  accessFile.people['edit@mismo.org'] = { name:'Can Edit', hash: mkHash('z'), access:{ hub:'staff' } };
+  accessBust();
+  const writesBefore = calls.filter(c => c.method === 'PUT' || c.method === 'POST').length;
+  const level = e => handler({ rawPath:'/hub/data/facilitators', requestContext:{http:{method:'PUT'}},
+    headers:{ origin:'https://org.github.io', authorization:'Bearer '+tok(e) } });
+  r = await level('edit@mismo.org');
+  ok('level check: Edit gets BAD_ID', r.statusCode===400 && J(r).error==='BAD_ID');
+  r = await level('has@mismo.org');
+  ok('level check: View gets VIEW_ONLY', r.statusCode===403 && J(r).error==='VIEW_ONLY');
+  r = await level('none@mismo.org');
+  ok('level check: no access gets NO_ACCESS', r.statusCode===403 && J(r).error==='NO_ACCESS');
+  ok('level check writes nothing, for anyone',
+     calls.filter(c => c.method === 'PUT' || c.method === 'POST').length === writesBefore);
   accessBust();
 }
