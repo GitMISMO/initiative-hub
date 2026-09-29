@@ -281,7 +281,24 @@ site: staff addresses only, which follow the guessable first-initial-surname pat
 If a later relay deploy adds a private config file, move it there. Nothing reads the list
 yet; Perry asked for the section, not for architect fields on the dashboards.
 
-## Relay redeploy — done, Sept 2026
+## Relay redeploy — request 7, 29 Sept 2026
+
+Deployed by IT: `/version` reads `93387499…` (commit `cb8350a`), Timeout 30 s, Memory 512 MB.
+It brought View access, Service Orders' read-only folders, `/commit` up to 5.5 MB, the
+projects.json fallback, per-person sections, and the GitHub-read changes above. Checked the
+same day: Service Orders loads every company's orders; one People & Access save wrote a
+`group` for all 11 people; the glossary console's too-large message was updated. View
+access is the one thing not yet checked (see pending items).
+
+Right after the deploy every request failed with `CONFIG_UNAVAILABLE`: GitHub answered
+`401` to the relay's token. **The token is a fine-grained token in Perry's GitHub account.**
+Perry regenerated it and IT pasted the new value; IT also set a new `AUTH_SECRET`, since
+both had appeared in a screenshot, which signed everyone out once. The log line
+`project config unavailable … returned N` names the cause: 401 token rejected or expired,
+403 allowance or access, 404 a repository missing from the token, 0 no connection.
+`/version` itself waits on the tool list, so a broken token hides the version too.
+
+## Relay redeploy — 88bfaa2, Sept 2026
 
 IT deployed the relay at commit 88bfaa2: both security fixes (/commit restricted to
 declared folders; the account-existence timing leak), four-hour sessions, multi-admin
@@ -303,7 +320,7 @@ break dropped all give ONE value. An IT request lists that single value. Compute
 Why: the older relay hashed raw bytes. A Windows paste converts to CRLF and drops the
 final newline, and a Sept 2026 request listed a plain CRLF value (`9e1cb333…`) where the
 deploy correctly gave `4d22b63b…`, so a correct deploy looked failed for twenty minutes.
-**Until IT deploys this version, the live relay still reports the raw-bytes hash.** On
+**Before request 7 the live relay reported the raw-bytes hash.** Until the afternoon of
 29 Sept `/version` read `a070cdee…`, which is commit `9fa7892` (22 Sept) pasted from
 Windows: the 28 Sept requests were never deployed, or were rolled back. Compare an old
 value with the Windows formula `d.replace(b'\n', b'\r\n').rstrip(b'\r\n')` on the bytes
@@ -498,14 +515,10 @@ personal access token in a plaintext file:
 
 Carried forward from earlier sessions, still outstanding as of this handoff:
 
-- **Relay update waiting on IT (request 7, check value `93387499…`).** Replaces request 6
-  and includes everything in it. Committed but not deployed: View access, Service Orders'
-  read-only folders, `/commit` up to 5.5 MB for the glossary, the projects.json fallback,
-  a `group` per person in `_internal/access.json` (`staff`, `contractor`, `process`), and
-  the GitHub-read changes above. The admin panel shows a Section control only when
-  `GET /access` returns `fields:["group"]`; until then People & Access uses the fixed
-  lists in `PEOPLE_GROUPS` in admin.html.
-
+- **Relay request 7 is deployed (29 Sept); one check left.** Ask Amy Moses to open the
+  Business Glossary Console with her View access: it should open read-only, with no Save.
+  Then remove the fallback email lists in `PEOPLE_GROUPS` in admin.html (every person's
+  `group` is now saved in `_internal/access.json`), keeping the three sections in order.
 - **Type-name convergence is now a rename away, except where it's a merge.**
   `Investors/Aggregators` (TPA) and `Aggregator/Investor` (LBDS) are two keys
   for one thing. The panel refuses two types with the same display name, so
