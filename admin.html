@@ -174,6 +174,12 @@
     background:var(--adm-bg);color:var(--adm-ink);border-radius:3px;padding:1px 6px;line-height:16px}
 
   /* the lists: one row per person or type, the same width however many tools there are */
+  /* People & Access in three sections: Staff, Contractors, Processes */
+  .plists{display:flex;flex-direction:column;gap:20px}
+  .pgh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+  .pgh h2{margin:0;font-size:16px;font-weight:700;color:var(--ink)}
+  .pgh .n{font-size:12px;font-weight:700;color:var(--ink-3)}
+  .pgh small{font-size:12.5px;color:var(--ink-3)}
   .list{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;box-shadow:var(--shadow);overflow:hidden}
   .lh,.row{display:grid;grid-template-columns:minmax(200px,1.1fr) minmax(0,1.5fr) 150px 300px;gap:10px 16px;align-items:center;padding:11px 16px}
   .lh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk);padding-block:8px}
@@ -409,7 +415,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         </div>
       </div>
 
-      <div class="list" id="accList"></div>
+      <div class="plists" id="accList"></div>
       <div class="note err" id="accErr" hidden></div>
       <div class="savebar"><span class="st" id="accStatus">No changes</span>
         <button class="btn" type="button" id="accReload">Discard</button>
@@ -674,6 +680,18 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' }
   ];
 
+  /* The sections People & Access is split into, in this order. Staff and Processes are named
+     here; everyone else, including anyone added in the panel, is a Contractor. The access
+     list itself has no place for this, so it is set here rather than per person. */
+  const PEOPLE_GROUPS = [
+    { key:'staff',       label:'Staff',       note:'MISMO staff.',
+      emails:['amoses@mismo.org', 'jcritchley@mismo.org', 'pwilliams@mba.org'] },
+    { key:'contractors', label:'Contractors', note:'Everyone else who signs in.' },
+    { key:'processes',   label:'Processes',   note:'Accounts used by automated processes, not by a person.',
+      emails:['sponsorship-mailer@mismo.org'] }
+  ];
+  const groupOf = email => (PEOPLE_GROUPS.find(g => g.emails && g.emails.includes(email)) || PEOPLE_GROUPS[1]).key;
+
   async function loadAccess(){
     try {
       const r = await S.access.get();
@@ -745,8 +763,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     $('nPeople').textContent = all.length;
     $('accSub').textContent = `${all.length} ${all.length === 1 ? 'account' : 'accounts'}. Changes take effect within about a minute, and nobody is signed out.`;
     const rows = all.filter(([email, p]) => matches(p.name, email));
-    $('accList').innerHTML = '<div class="lh"><span>Person</span><span>Access</span><span>Expires</span><span></span></div>' +
-      (rows.length ? rows.map(([email, p]) => {
+    const rowHTML = ([email, p]) => {
         const open = openDrawer === email;
         const cls = ['row', expiryNote(p.expires).soon ? 'soon' : '', freshRow === email ? 'fresh' : ''].filter(Boolean).join(' ');
         return `<div class="${cls}">` +
@@ -759,7 +776,16 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
             `<button class="btn sm" type="button" data-acc-reset="${esc(email)}">Reset password</button>` +
             `<button class="btn sm danger" type="button" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Administrators are removed in the repository"' : ''}>Remove</button></div>` +
           '</div>' + (open ? drawerFor(email, p) : '');
-      }).join('') : `<div class="empty">${query ? 'Nobody matches that search.' : 'No accounts yet.'}</div>`);
+      };
+    const head = g => `<div class="lh"><span>${g.key === 'processes' ? 'Account' : 'Person'}</span><span>Access</span><span>Expires</span><span></span></div>`;
+    const sections = PEOPLE_GROUPS.map(g => {
+      const inAll = all.filter(([email]) => groupOf(email) === g.key).length;
+      const mine = rows.filter(([email]) => groupOf(email) === g.key);
+      if (query && !mine.length) return '';
+      return `<section class="pgroup" aria-labelledby="pg-${g.key}"><div class="pgh"><h2 id="pg-${g.key}">${esc(g.label)}</h2><span class="n">${inAll}</span><small>${esc(g.note)}</small></div>` +
+        `<div class="list">${head(g)}${mine.length ? mine.map(rowHTML).join('') : '<div class="empty">Nobody here yet.</div>'}</div></section>`;
+    }).join('');
+    $('accList').innerHTML = sections || `<div class="list"><div class="empty">${query ? 'Nobody matches that search.' : 'No accounts yet.'}</div></div>`;
     $('accSave').disabled = !acc.dirty;
   }
   function markAcc(){ acc.dirty = true; setStatus('accStatus', 'dirty'); showErr('accErr'); renderAccess(); }
