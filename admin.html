@@ -221,6 +221,7 @@
   .seg button[aria-pressed="true"].lv-view{background:var(--accent-soft);color:var(--accent)}
   .seg button[aria-pressed="true"].lv-none{color:var(--ink);font-weight:700;background:var(--sunk)}
   .seg button:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .seg button[aria-pressed="true"].gp{background:var(--accent-soft);color:var(--accent)}
 
   /* adding someone or something: its own panel, opened from the button in the masthead */
   .addcard{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;box-shadow:var(--shadow)}
@@ -680,22 +681,30 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' }
   ];
 
-  /* The sections People & Access is split into, in this order. Staff and Processes are named
-     here; everyone else, including anyone added in the panel, is a Contractor. The access
-     list itself has no place for this, so it is set here rather than per person. */
+  /* The sections People & Access is split into, in this order. Each person's section is
+     saved with them (`group`) once the relay that keeps it is deployed; the relay says so in
+     `fields`. Until then, and for anyone not yet given one, it comes from the lists here, and
+     everyone else is a Contractor. */
   const PEOPLE_GROUPS = [
-    { key:'staff',       label:'Staff',       note:'MISMO staff.',
-      emails:['amoses@mismo.org', 'jcritchley@mismo.org', 'pwilliams@mba.org'] },
-    { key:'contractors', label:'Contractors', note:'Everyone else who signs in.' },
-    { key:'processes',   label:'Processes',   note:'Accounts used by automated processes, not by a person.',
+    { key:'staff',       stored:'staff',      label:'Staff',       one:'Staff',      note:'MISMO staff.',
+      emails:['amoses@mismo.org', 'jcritchley@mismo.org', 'kbradshaw@mismo.org', 'pwilliams@mba.org'] },
+    { key:'contractors', stored:'contractor', label:'Contractors', one:'Contractor', note:'Everyone else who signs in.' },
+    { key:'processes',   stored:'process',    label:'Processes',   one:'Process',    note:'Accounts used by automated processes, not by a person.',
       emails:['sponsorship-mailer@mismo.org'] }
   ];
-  const groupOf = email => (PEOPLE_GROUPS.find(g => g.emails && g.emails.includes(email)) || PEOPLE_GROUPS[1]).key;
+  const defaultGroup = email => (PEOPLE_GROUPS.find(g => g.emails && g.emails.includes(email)) || PEOPLE_GROUPS[1]).stored;
+  const groupOf = email => {
+    const st = (acc && acc.people[email] && acc.people[email].group) || defaultGroup(email);
+    return (PEOPLE_GROUPS.find(g => g.stored === st) || PEOPLE_GROUPS[1]).key;
+  };
 
   async function loadAccess(){
     try {
       const r = await S.access.get();
-      acc = { people: r.people || {}, sha: r.sha, dirty:false };
+      acc = { people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group') };
+      /* Once sections are kept, everyone starts in the one they are shown in, so the next
+         save writes them all rather than only the ones someone moved. */
+      if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
       $('accUnavailable').hidden = true;
       $('accReady').hidden = false;
       $('accAddOpen').hidden = false;
@@ -748,7 +757,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const a = p.access || {};
     const order = [], groups = {};
     TOOLS.forEach(t => { if (!groups[t.group]) { groups[t.group] = []; order.push(t.group); } groups[t.group].push(t); });
-    return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>every tool, grouped</small></div>` +
+    const section = acc && acc.groups ? `<div class="grp">Section</div><div class="trow"><span class="tname">Listed under</span>` +
+      `<span class="seg" role="group" aria-label="Section">` + PEOPLE_GROUPS.map(g =>
+        `<button type="button" class="gp" aria-pressed="${groupOf(email) === g.key}" data-acc-group="${esc(email)}" data-group="${g.stored}">${esc(g.one)}</button>`).join('') + '</span></div>' : '';
+    return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>every tool, grouped</small></div>` + section +
       order.map(g => `<div class="grp">${esc(g)}</div>` + groups[g].map(t => {
         /* Said out loud rather than shown as a fourth segment, so the control stays three
            wide while the extra permission is still visible to whoever is granting access. */
@@ -804,6 +816,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       const back = $('accList').querySelector(`[data-acc-manage="${CSS.escape(mg.dataset.accManage)}"]`); if (back) back.focus();
       return;
     }
+    const gp = e.target.closest('[data-acc-group]');
+    if (gp) {
+      acc.people[gp.dataset.accGroup].group = gp.dataset.group; markAcc();
+      const back = document.querySelector(`[data-acc-group="${CSS.escape(gp.dataset.accGroup)}"][data-group="${gp.dataset.group}"]`); if (back) back.focus();
+      return;
+    }
     const lv = e.target.closest('[data-acc-level]');
     if (lv) {
       /* The list is rebuilt on every change, which would otherwise drop focus on the
@@ -851,6 +869,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const code = S.facilitators.generatePasscode();
     const entry = { name, hash: await S.facilitators.pbkdf2Hash(code), access: { hub: 'staff' } };
     if ($('accExp').value) entry.expires = $('accExp').value;
+    if (acc.groups) entry.group = 'contractor';
     acc.people[email] = entry;
     $('accName').value = ''; $('accEmail').value = ''; $('accExp').value = '';
     $('accAddCard').hidden = true;

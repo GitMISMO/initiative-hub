@@ -98,6 +98,8 @@ const PBKDF2_ITERATIONS = 210000;        // OWASP's 2023 floor for PBKDF2-HMAC-S
 const PBKDF2_KEYLEN = 32;
 const TOKEN_TTL_SECONDS = 4 * 60 * 60;   // four hours; typical sessions run one to two
 const ACCESS_PATH_DEFAULT = '_internal/access.json';
+/* The sections of People & Access in the admin panel. Kept with each person, set by admins. */
+const PEOPLE_GROUPS = new Set(['staff', 'contractor', 'process']);
 const ACCESS_CACHE_MS = 30000;           // a permission change lands within half a minute
 const FACILITATORS_CACHE_MS = 30_000;              // revocation lands within half a minute
 const PROJECTS_CACHE_MS = 60_000;                  // a newly added tool is live within a minute
@@ -981,7 +983,9 @@ export async function handler(event) {
     if (method === 'GET') {
       const file = await readFile(configRepo, configBranch, accessPath);
       if (file.status !== 200) return respond(502, { error: 'GITHUB', status: file.status });
-      return respond(200, { people: file.data?.people || {}, sha: file.sha });
+      /* `fields` tells the admin panel which optional entries this relay keeps, so a control
+       * for one is only shown once the relay that saves it is deployed. */
+      return respond(200, { people: file.data?.people || {}, sha: file.sha, fields: ['group'] });
     }
 
     if (method === 'PUT') {
@@ -1019,6 +1023,11 @@ export async function handler(event) {
         }
         const entry = { name, hash: p.hash, access };
         if (p.platformAdmin === true) entry.platformAdmin = true;
+        /* The section the admin panel lists them in. Display only: it grants nothing. */
+        if (p.group !== undefined && p.group !== null && p.group !== '') {
+          if (!PEOPLE_GROUPS.has(p.group)) return respond(400, { error: 'BAD_GROUP', email, group: p.group });
+          entry.group = p.group;
+        }
         if (p.expires) {
           const d = String(p.expires).slice(0, 10);
           if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return respond(400, { error: 'BAD_DATE', email });

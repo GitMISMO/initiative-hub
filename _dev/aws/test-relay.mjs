@@ -803,6 +803,18 @@ ok('a non-admin cannot write the facilitator list', r.statusCode===403 || r.stat
   r = await call('PUT', 'boss@mismo.org', { people: { 'a@b.org': { name:'X', hash: mkHash('x'), access:{hub:'owner'} } } });
   ok('an unknown role is refused', r.statusCode===400 && J(r).error==='BAD_ROLE');
 
+  /* the section each person is listed in */
+  r = await call('GET', 'boss@mismo.org');
+  ok('the directory says it keeps a person\'s section', JSON.stringify(J(r).fields)==='["group"]');
+  const grouped = JSON.parse(JSON.stringify(next));
+  grouped['boss@mismo.org'].group = 'staff'; grouped['staff@mismo.org'].group = 'contractor';
+  r = await call('PUT', 'boss@mismo.org', { people: grouped, sha:'a'.repeat(40) });
+  ok('a section is saved with the person', r.statusCode===200 && written.people['boss@mismo.org'].group==='staff' && written.people['staff@mismo.org'].group==='contractor');
+  ok('and nobody gets one they were not given', written && !('group' in written.people['other@mismo.org']));
+  grouped['staff@mismo.org'].group = 'owner';
+  r = await call('PUT', 'boss@mismo.org', { people: grouped, sha:'a'.repeat(40) });
+  ok('an unknown section is refused', r.statusCode===400 && J(r).error==='BAD_GROUP');
+
   globalThis.fetch = prevFetch;
   accessBust();
 }

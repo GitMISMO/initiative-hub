@@ -444,6 +444,12 @@ personal access token in a plaintext file:
 
 Carried forward from earlier sessions, still outstanding as of this handoff:
 
+- **Relay update waiting on IT (request 6, check value `98140863…`).** Committed but not
+  deployed: `/commit` up to 5.5 MB for the glossary, the projects.json fallback, and a
+  `group` per person in `_internal/access.json` (`staff`, `contractor`, `process`). The
+  admin panel shows a Section control only when `GET /access` returns `fields:["group"]`;
+  until then People & Access uses the fixed lists in `PEOPLE_GROUPS` in admin.html.
+
 - **Type-name convergence is now a rename away, except where it's a merge.**
   `Investors/Aggregators` (TPA) and `Aggregator/Investor` (LBDS) are two keys
   for one thing. The panel refuses two types with the same display name, so
