@@ -102,6 +102,11 @@ const ACCESS_CACHE_MS = 30000;           // a permission change lands within hal
 const FACILITATORS_CACHE_MS = 30_000;              // revocation lands within half a minute
 const PROJECTS_CACHE_MS = 60_000;                  // a newly added tool is live within a minute
 const MAX_BODY_BYTES = 1_000_000;                  // dashboards are ~10 KB; 1 MB is generous
+/* /commit carries whole files. Publishing the glossary sends data/glossary.json, 2.8 MB
+ * and growing, plus the draft and reference files, all escaped inside a JSON body (about
+ * 3.5 MB today), so 1 MB made publishing impossible (Sept 28, 2026). A Function URL accepts
+ * at most 6 MB per request; this stays under that with room for the envelope. */
+const MAX_COMMIT_BYTES = 5_500_000;
 const DASHBOARD_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;   // data/<id>.json — no dots, no slashes
 const RESERVED_IDS = new Set(['facilitators', 'stakeholder-types']);   // never dashboards
 /* Global config files the admin may edit through /config/{name}, with a validator each. */
@@ -791,9 +796,9 @@ const respond = (status, body) => ({
   body: JSON.stringify(body)
 });
 
-function parseBody(event) {
+function parseBody(event, max = MAX_BODY_BYTES) {
   const text = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '');
-  if (Buffer.byteLength(text) > MAX_BODY_BYTES) return { error: respond(413, { error: 'TOO_LARGE' }) };
+  if (Buffer.byteLength(text) > max) return { error: respond(413, { error: 'TOO_LARGE', max }) };
   try { return { body: JSON.parse(text) }; } catch { return { error: respond(400, { error: 'BAD_JSON' }) }; }
 }
 
@@ -1122,7 +1127,7 @@ export async function handler(event) {
    * branch moved underneath, GitHub rejects it rather than discarding the other commit. */
   if (commitMatch) {
     if (method !== 'POST' && method !== 'PUT') return respond(405, { error: 'METHOD' });
-    const { body, error } = parseBody(event);
+    const { body, error } = parseBody(event, MAX_COMMIT_BYTES);
     if (error) return error;
     const files = Array.isArray(body?.files) ? body.files : null;
     if (!files || !files.length) return respond(400, { error: 'BAD_CONTENT' });

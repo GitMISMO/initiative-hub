@@ -214,6 +214,19 @@ ok('multi-file commit via Git Data API succeeds', r.statusCode===200 && J(r).com
 ok('commit attributed to the editor', J(r).savedBy==='Gloss Editor');
 ok('glossary request touched ONLY the glossary repo', reqRepos.every(u=>!u.includes('/Org/Repo/')) && reqRepos.some(u=>u.includes('/Org/Glossary/')));
 
+// Publishing sends the whole glossary (2.8 MB, escaped inside JSON): /commit must take it,
+// while every other route keeps the 1 MB limit.
+const bigGlossary = JSON.stringify({terms: Array.from({length: 8400}, (_, i) => ({id: String(i).padStart(36, '0'), term: 'Term "' + i + '"', definition: 'x'.repeat(300)}))});
+r = await handler(raw('POST','/glossary/commit','Gloss Editor:gloss-pass',
+  {files:[{path:'data/glossary.json',content:bigGlossary},{path:'.console/draft.json',content:'{}'}], message:'Publish version 5', parentSha:'a'.repeat(40)},
+  'https://glossary.example'));
+ok('a 3 MB+ publish commit is accepted', bigGlossary.length > 3_000_000 && r.statusCode===200);
+r = await handler(raw('POST','/glossary/commit','Gloss Editor:gloss-pass',
+  {files:[{path:'data/glossary.json',content:'y'.repeat(5_600_000)}], parentSha:'a'.repeat(40)}, 'https://glossary.example'));
+ok('a commit over 5.5 MB -> 413 TOO_LARGE', r.statusCode===413 && J(r).error==='TOO_LARGE');
+r = await handler(raw('PUT','/glossary/data/x','Gloss Editor:gloss-pass',{content:{big:'z'.repeat(1_100_000)}}, 'https://glossary.example'));
+ok('other routes keep the 1 MB limit', r.statusCode===413);
+
 r = await handler(raw('POST','/glossary/commit','Gloss Editor:gloss-pass',
   {files:[{path:'data/x.json',content:'{}'}], parentSha:'9'.repeat(40)}, 'https://glossary.example'));
 ok('stale parentSha -> CONFLICT (someone else committed)', r.statusCode===409 && J(r).error==='CONFLICT');

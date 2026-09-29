@@ -60,6 +60,9 @@ AWS Console → Lambda → Create function.
 - Author from scratch, name `mismo-save-relay`
 - Runtime **Node.js 22.x** (20.x also fine), architecture arm64
 - Default execution role. The function calls no AWS services.
+- Configuration → General configuration → Edit: **Timeout 30 seconds**, memory 256 MB.
+  The default 3 seconds is enough for saving a dashboard but not for publishing the
+  glossary, which uploads a ~3 MB file to GitHub in one request.
 
 In the **Code** tab, replace `index.mjs` with `_dev/aws/index.mjs` from the Hub
 repository, then **Deploy**.
