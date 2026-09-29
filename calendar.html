@@ -2,226 +2,333 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MISMO Workgroup Meeting Calendar</title>
+<script>
+  // Before any CSS paints: the Hub's saved theme, and whether the sections were narrowed.
+  (function(){
+    try {
+      if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      if (localStorage.getItem('resources:hub:rail') === 'mini') document.documentElement.classList.add('railmini');
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <style>
+  /* Summit HQ's own tokens, as the admin panel wears them. Every colour on the page comes
+     from here, so dark mode is a second block rather than a hunt through the rules. */
   :root{
-    --ink:#101B33;
-    --ink-soft:#4B5670;
-    --paper:#F1F3F9;
-    --card:#FFFFFF;
-    --line:#E2E6F0;
-    --brand:#125DAB;
-    --brand-soft:#E7EFF7;
-    --brand-text:#0E4680;
-    --success:#1D9A6C;
-    --success-soft:#E3F7EE;
-    --success-text:#0E7A54;
-    --amber:#F2A93B;
-    --amber-soft:#FDF2DF;
-    --amber-text:#9C6B0E;
-    --radius:12px;
-    --shadow:0 1px 2px rgba(16,27,51,.04), 0 4px 14px rgba(16,27,51,.05);
+    --navy:#0f314c; --navy-deep:#06202f; --navy-mid:#14486e; --sky:#50a4db; --sky-soft:#94c8e9;
+    --paper:#F1F6FA; --surface:#FFFFFF; --sunk:#E9F1F8;
+    --ink:#0f314c; --ink-2:#456179; --ink-3:#546F88;
+    --line:#E5EEF5; --line-2:#D5E2ED; --line-3:#ADC4D6;
+    --accent:#14486E; --accent-soft:#dcedf8;
+    --good:#0F7B5C; --good-soft:#E1F2EC;
+    --warn-ink:#8A5F16; --warn-soft:#F7EFE0;
+    --btn:#0f314c; --btn-ink:#FFFFFF;
+    --shadow-s:0 1px 2px rgba(15,49,76,.06);
+    --shadow:0 1px 2px rgba(15,49,76,.06), 0 10px 26px -18px rgba(15,49,76,.45);
+    --font:"Libre Franklin",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --hq-h:64px; --rail-w:240px; --rail-mini:62px;
+    /* the calendar's own */
+    --other-bg:#F6FAFD; --today-dot:#2C74A6; --today-dot-ink:#FFFFFF;
+    --chip-bg:#dcedf8; --chip-ink:#14486E; --chip-bar:#2C74A6; --chip-hover-ink:#FFFFFF;
+    --dash-bg:#E1F2EC; --dash-ink:#0F7B5C; --dash-bar:#0F7B5C;
+    color-scheme:light;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; background:var(--paper); color:var(--ink);
-    font-family:'Libre Franklin',sans-serif; -webkit-font-smoothing:antialiased;
+  html[data-theme="dark"]{
+    --paper:#061722; --surface:#0D2837; --sunk:#173C52;
+    --ink:#E9F4FB; --ink-2:#A6C5D9; --ink-3:#7A9DB4;
+    --line:#173547; --line-2:#1F4A63; --line-3:#2F6688;
+    --accent:#50a4db; --accent-soft:#123143;
+    --good:#4FC79B; --good-soft:#0C3128;
+    --warn-ink:#E0A83C; --warn-soft:#3A2E13;
+    --btn:#50a4db; --btn-ink:#06202f;
+    --shadow-s:0 1px 2px rgba(0,0,0,.4);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -18px rgba(0,0,0,.85);
+    --other-bg:#0A2130; --today-dot:#50a4db; --today-dot-ink:#06202f;
+    --chip-bg:#123143; --chip-ink:#94c8e9; --chip-bar:#50a4db; --chip-hover-ink:#06202f;
+    --dash-bg:#0C3128; --dash-ink:#4FC79B; --dash-bar:#4FC79B;
+    color-scheme:dark;
   }
-  .masthead{
-    background:var(--ink); padding:20px 24px;
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
-  }
-  .masthead-left{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
-  .masthead-title{font-family:'Libre Franklin',sans-serif; font-weight:700; font-size:19px; color:#fff;}
-  .masthead-sub{font-size:12.5px; color:rgba(255,255,255,.65);}
-  .back-to-hub{
-    font-family:'Libre Franklin',sans-serif; font-size:13px; font-weight:700;
-    color:#fff; text-decoration:none; white-space:nowrap;
-    padding:9px 18px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:rgba(255,255,255,.08);
-  }
-  .back-to-hub:hover{background:rgba(255,255,255,.16);}
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-top:calc(var(--hq-h) + env(safe-area-inset-top,0px));padding-left:var(--rail-w)}
+  html.railmini body{padding-left:var(--rail-mini)}
+  svg.i{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
-  .wrap{max-width:1280px; margin:0 auto; padding:26px 24px 70px;}
+  /* ───────── the masthead, as Summit HQ wears it ───────── */
+  .hqtop{position:fixed;top:0;left:0;right:0;z-index:30;height:calc(var(--hq-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 22px 0;background:var(--navy);color:#fff;display:flex;align-items:center;
+    box-shadow:0 1px 0 rgba(80,164,219,.28)}
+  .logoplate{background:#fff;border-radius:5px;padding:9px 13px;display:flex;align-items:center;line-height:0;
+    flex:0 0 auto;box-shadow:0 1px 0 rgba(80,164,219,.35)}
+  .logoplate svg{height:24px;width:auto;display:block}
+  .mastrule{display:block;width:2px;height:34px;flex:0 0 auto;margin-inline:20px;border-radius:1px;background:var(--sky)}
+  .hqname{font-size:15.5px;font-weight:700;letter-spacing:-.005em;color:var(--sky);white-space:nowrap;
+    min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hqtop-r{margin-left:auto;display:flex;align-items:center;gap:13px;flex:0 0 auto}
+  .eyebrow-m{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;white-space:nowrap}
 
-  .cal-toolbar{
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
-    margin-bottom:18px;
-  }
-  .cal-nav{display:flex; align-items:center; gap:10px;}
-  .cal-nav-btn{
-    display:flex; align-items:center; justify-content:center;
-    width:36px; height:36px; border-radius:999px; border:1px solid var(--line); background:var(--card);
-    cursor:pointer; color:var(--ink);
-  }
-  .cal-nav-btn:hover{background:var(--brand-soft); border-color:var(--brand);}
-  .cal-month-label{font-family:'Libre Franklin',sans-serif; font-size:21px; font-weight:700; min-width:200px; text-align:center;}
-  .cal-today-btn{
-    font-family:'Libre Franklin',sans-serif; font-size:12.5px; font-weight:700; color:var(--brand-text);
-    background:var(--brand-soft); border:1px solid var(--brand); border-radius:999px; padding:8px 16px; cursor:pointer;
-  }
-  .cal-today-btn:hover{background:var(--brand); color:#fff;}
-  .cal-legend{display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft);}
-  .legend-dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle;}
+  /* ───────── the sections, down the left ───────── */
+  .rail{position:fixed;left:0;bottom:0;top:calc(var(--hq-h) + env(safe-area-inset-top,0px));width:var(--rail-w);z-index:20;
+    background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow:hidden auto;
+    box-shadow:1px 0 0 rgba(80,164,219,.22), 4px 0 18px rgba(6,32,47,.14)}
+  html.railmini .rail{width:var(--rail-mini)}
+  .rail-top{display:flex;align-items:center;gap:8px;padding:11px 10px 9px;border-bottom:1px solid rgba(80,164,219,.2)}
+  .rail-lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.55);padding-left:3px}
+  .railhide{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:5px;
+    color:rgba(255,255,255,.75);width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+  .railhide svg{width:16px;height:16px}
+  .railhide:hover{background:rgba(255,255,255,.14);color:#fff}
+  .railfind{position:relative;padding:11px 12px 3px}
+  .railfind svg{position:absolute;left:21px;top:20px;width:14px;height:14px;stroke:rgba(255,255,255,.5);pointer-events:none}
+  .railfind input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+    border-radius:6px;color:#fff;font:inherit;font-size:12.5px;padding:6px 10px 6px 30px}
+  .railfind input::placeholder{color:rgba(255,255,255,.5)}
+  .railfind input:focus{outline:2px solid var(--sky);outline-offset:-1px;background:rgba(255,255,255,.16)}
+  .rail nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 4px}
+  .rail nav button,.rail nav a,.theme-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+    border-radius:6px;color:rgba(255,255,255,.76);padding:8px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    white-space:nowrap;text-decoration:none}
+  .rail nav button svg,.rail nav a svg,.theme-btn svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .rail nav button:hover,.rail nav a:hover,.theme-btn:hover{color:#fff;background:rgba(255,255,255,.09)}
+  .rail nav button[aria-current],.rail nav a[aria-current]{color:#fff;font-weight:600;background:var(--navy-mid);box-shadow:inset 3px 0 0 var(--sky)}
+  .rail nav button[aria-current] svg,.rail nav a[aria-current] svg{opacity:1;stroke:var(--sky)}
+  .rail nav button:focus-visible,.rail nav a:focus-visible,.theme-btn:focus-visible,.railhide:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .rail nav .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px}
+  .rail nav .count:empty{display:none}
+  .rail .foot{margin-top:auto;padding:8px 8px 10px;border-top:1px solid rgba(80,164,219,.2);display:flex;flex-direction:column;gap:1px}
+  /* narrowed: icons only, the chevron turned round to open it again */
+  html.railmini .rail-top{justify-content:center;padding-inline:0}
+  html.railmini .railhide{margin:0}
+  html.railmini .railhide svg{transform:scaleX(-1)}
+  html.railmini .rail-lbl,html.railmini .railfind,html.railmini .rail nav span,html.railmini .rail nav .count,
+  html.railmini .theme-btn span{display:none}
+  html.railmini .rail nav{padding-inline:6px;align-items:center}
+  html.railmini .rail nav button,html.railmini .rail nav a,html.railmini .theme-btn{justify-content:center;padding:10px 0;width:42px}
+  html.railmini .rail .foot{align-items:center}
 
-  .cal-toolbar-right{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  /* ───────── the page ───────── */
+  main{max-width:1180px;padding:22px 24px 48px;min-width:0}
+  .view{display:flex;flex-direction:column;gap:14px}
+  .mast{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .mast > div{min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .mast h1{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.05;margin:2px 0 0;text-wrap:balance}
+  .mast .sub{color:var(--ink-2);font-size:13px;margin-top:5px;max-width:78ch}
+  .btn{font:inherit;font-size:13px;font-weight:600;border-radius:4px;padding:7px 14px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line-2);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center}
+  .btn:hover{border-color:var(--line-3)}
+  .btn.p{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
 
-  .wg-filter{position:relative;}
-  .wg-filter-btn{
-    display:flex; align-items:center; gap:8px;
-    font-family:'Libre Franklin',sans-serif; font-size:12.5px; font-weight:700; color:var(--ink);
-    background:var(--card); border:1px solid var(--line); border-radius:999px; padding:9px 16px; cursor:pointer;
-  }
-  .wg-filter-btn:hover{border-color:var(--brand); color:var(--brand-text);}
-  .wg-filter-btn.has-filter{border-color:var(--brand); background:var(--brand-soft); color:var(--brand-text);}
-  .wg-filter-chevron{transition:transform .15s ease;}
-  .wg-filter.open .wg-filter-chevron{transform:rotate(180deg);}
 
-  .wg-filter-panel{
-    display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:50;
-    width:330px; max-height:420px; overflow-y:auto;
-    background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 28px rgba(16,27,51,.14);
-    padding:12px;
-  }
-  .wg-filter.open .wg-filter-panel{display:block;}
+  /* ───────── the workgroup filter, in the sidebar ───────── */
+  .railgrp{border-top:1px solid rgba(80,164,219,.16);margin-top:4px;padding-top:7px}
+  .railgrp-h{display:flex;align-items:center;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);
+    font-weight:700;padding:4px 14px 2px 20px}
+  .railgrp-h button{margin-left:auto;background:none;border:0;padding:2px 4px;border-radius:4px;font:inherit;font-size:10.5px;letter-spacing:0;
+    text-transform:none;font-weight:600;color:var(--sky-soft);cursor:pointer}
+  .railgrp-h button:hover{color:#fff}
+  .wgf{display:flex;flex-direction:column;padding:4px 8px 8px}
+  .wgf-row{display:flex;align-items:center;gap:9px;padding:0 4px 0 10px;border-radius:6px;color:rgba(255,255,255,.8);font-size:12.5px}
+  .wgf-row:hover,.wgf-item:hover{background:rgba(255,255,255,.07)}
+  .wgf input{accent-color:var(--sky);margin:0;flex:0 0 auto;cursor:pointer;width:14px;height:14px}
+  .wgf-all{font-weight:600;color:#fff}
+  .wgf-all label{flex:1;display:flex;align-items:center;gap:9px;padding:6px 0;cursor:pointer;min-width:0}
+  .wgf-exp{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:0;padding:5px 2px 5px 0;
+    font:inherit;color:inherit;cursor:pointer;text-align:left}
+  .wgf-exp .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wgf .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px;flex:0 0 auto}
+  .wgf-exp svg{width:13px;height:13px;flex:0 0 auto;opacity:.55;transition:transform .15s ease}
+  .wgf-exp[aria-expanded="true"] svg{transform:rotate(90deg);opacity:.85}
+  .wgf-items{display:flex;flex-direction:column;padding:0 0 4px 22px}
+  .wgf-item{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;font-size:12px;color:rgba(255,255,255,.72);cursor:pointer;min-width:0}
+  .wgf-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wgf-hold{margin-left:auto;flex:0 0 auto;font-style:normal;font-size:10px;color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.25);
+    border-radius:999px;padding:0 6px;line-height:15px}
+  .wgf-none{font-size:12px;color:rgba(255,255,255,.55);padding:6px 10px}
+  .wgf input:focus-visible,.wgf-exp:focus-visible,.railgrp-h button:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+  html.railmini .railgrp{display:none}
+  /* With the sidebar narrowed, or on a phone, the same filter opens above the calendar. */
+  .wgf-page{display:none}
+  html.railmini .wgf-page{display:block}
+  .wgf-page > summary{list-style:none;width:fit-content}
+  .wgf-page > summary::-webkit-details-marker{display:none}
+  .wgf-page > summary svg{width:15px;height:15px;margin-right:7px}
+  .wgf-panel{background:var(--navy);border-radius:8px;margin-top:8px;max-height:60vh;overflow:auto;padding-top:2px}
 
-  .wg-filter-actions{
-    display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700;
-    padding:2px 6px 10px; border-bottom:1px solid var(--line); margin-bottom:8px;
-  }
-  .wg-filter-actions button{
-    background:none; border:none; padding:0; color:var(--brand-text); font-weight:700; font-size:12px; cursor:pointer; font-family:inherit;
-  }
-  .wg-filter-actions button:hover{text-decoration:underline;}
-  .wg-filter-divider{color:var(--line);}
-
-  .wg-domain-group{margin-bottom:12px;}
-  .wg-domain-group:last-child{margin-bottom:0;}
-  .wg-domain-label{
-    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-    color:var(--ink-soft); padding:2px 6px 6px;
-  }
-  .wg-checkbox-row{
-    display:flex; align-items:center; gap:9px; padding:6px 6px; border-radius:7px; cursor:pointer; font-size:13px; color:var(--ink);
-  }
-  .wg-checkbox-row:hover{background:var(--paper);}
-  .wg-checkbox-row input{margin:0; flex:0 0 auto; cursor:pointer;}
-  .wg-checkbox-row label{cursor:pointer; flex:1;}
-
-  .cal-grid-wrap{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
-    overflow:hidden;
-  }
-  .cal-weekday-row{display:grid; grid-template-columns:repeat(7,1fr); background:var(--ink);}
-  .cal-weekday-row span{
-    padding:10px 0; text-align:center; font-size:11px; font-weight:700; color:rgba(255,255,255,.75);
-    text-transform:uppercase; letter-spacing:.05em;
-  }
-  .cal-body{display:grid; grid-template-columns:repeat(7,1fr);}
-  .cal-day{
-    min-height:118px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);
-    padding:7px 7px 8px; display:flex; flex-direction:column; gap:3px;
-  }
-  .cal-day:nth-child(7n){border-right:none;}
-  .cal-day.other-month{background:#FAFBFD;}
-  .cal-day.other-month .cal-date-num{color:#C4CAD8;}
-  .cal-day.is-today{background:var(--brand-soft);}
-  .cal-date-num{
-    font-family:'Libre Franklin',sans-serif; font-size:13px; font-weight:700; color:var(--ink);
-    margin-bottom:2px;
-  }
-  .cal-day.is-today .cal-date-num{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:22px; height:22px; border-radius:50%; background:var(--brand); color:#fff;
-  }
-  .cal-meetings{display:flex; flex-direction:column; gap:2px; overflow-y:auto; max-height:88px;}
-  .meeting-chip{
-    display:flex; flex-direction:column; gap:1px; font-size:10px; line-height:1.25; padding:3px 5px; border-radius:4px;
-    background:var(--brand-soft); color:var(--brand-text); text-decoration:none;
-    border-left:2.5px solid var(--brand);
-  }
-  .meeting-chip:hover{background:var(--brand); color:#fff;}
-  .chip-time{display:block; font-size:8.5px; font-weight:700; opacity:.7; letter-spacing:.01em;}
-  .chip-name{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .meeting-chip.has-dashboard{
-    background:var(--success-soft); color:var(--success-text); border-left-color:var(--success); font-weight:700;
-  }
-  .meeting-chip.has-dashboard:hover{background:var(--success); color:#fff;}
-
-  .cal-footnote{
-    margin-top:18px; font-size:12px; color:var(--ink-soft); max-width:820px; line-height:1.6;
-  }
-  .cal-footnote a{color:var(--brand-text);}
-
+  /* ───────── the month ───────── */
+  .cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap}
+  .cal-nav{display:flex;align-items:center;gap:8px}
+  .cal-month-label{font-size:18px;font-weight:700;letter-spacing:-.01em;min-width:150px;text-align:center}
+  .btn.icon{padding:7px 9px}
+  .btn svg{width:15px;height:15px;flex:0 0 auto}
+  .cal-legend{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .cal-legend span{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2)}
+  .legend-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .cal-grid-wrap{background:var(--surface);border:1px solid var(--line-2);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-s)}
+  .cal-weekday-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--navy)}
+  .cal-weekday-row span{padding:10px 0;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.75);
+    text-transform:uppercase;letter-spacing:.05em}
+  .cal-body{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+  /* Each week is as tall as its busiest day, so no day has to scroll. */
+  .cal-day{min-height:96px;min-width:0;padding:7px 7px 8px;display:flex;flex-direction:column;gap:3px;
+    border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .cal-day:nth-child(7n){border-right:0}
+  .cal-day.other-month{background:var(--other-bg)}
+  .cal-day.other-month .cal-date-num{color:var(--line-3)}
+  .cal-day.is-today{background:var(--accent-soft)}
+  .cal-date-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+    font-size:13px;font-weight:700;margin-bottom:2px}
+  .cal-day.is-today .cal-date-num{background:var(--today-dot);color:var(--today-dot-ink)}
+  .cal-meetings{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .meeting-chip{display:flex;align-items:baseline;gap:5px;font-size:11px;line-height:1.3;padding:3px 6px;border-radius:4px;
+    text-decoration:none;overflow:hidden;font-weight:500;
+    background:var(--chip-bg);color:var(--chip-ink);border-left:3px solid var(--chip-bar)}
+  .meeting-chip:hover{background:var(--chip-bar);color:var(--chip-hover-ink)}
+  .meeting-chip.has-dashboard{background:var(--dash-bg);color:var(--dash-ink);border-left-color:var(--dash-bar);font-weight:700}
+  .meeting-chip.has-dashboard:hover{background:var(--dash-bar);color:var(--chip-hover-ink)}
+  .meeting-chip:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+  .chip-time{font-weight:700;flex:0 0 auto;font-size:10.5px}
+  .chip-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-footnote{margin:4px 0 0;font-size:12px;color:var(--ink-2);max-width:820px;line-height:1.6}
+  .cal-footnote a{color:var(--accent)}
   @media (max-width:760px){
-    .cal-day{min-height:84px; padding:5px;}
-    .cal-meetings{max-height:56px;}
-    .cal-weekday-row span{font-size:9.5px;}
+    .wgf-page{display:block}
+    .rail .railgrp{display:none}
+    .cal-day{min-height:72px;padding:4px}
+    .chip-time{display:none}
+    .meeting-chip{font-size:9.5px;padding:2px 3px;border-left-width:2px}
+    .cal-weekday-row span{font-size:9.5px}
+    .cal-month-label{min-width:0;font-size:16px}
   }
+
+  /* phone width: the sections shrink to icons, as Summit HQ's do */
+  @media (max-width:760px){
+    :root{--hq-h:55px;--rail-w:58px;--rail-mini:58px}
+    .hqtop{padding-inline:12px}
+    .logoplate{padding:7px 10px}
+    .logoplate svg{height:18px}
+    .mastrule{height:30px;margin-inline:10px}
+    .hqname{font-size:13px}
+    .eyebrow-m{display:none}
+    .railhide{display:none}
+    .rail-lbl,.railfind,.rail nav span,.rail nav .count,.theme-btn span{display:none}
+    .rail-top{justify-content:center;padding-inline:0;min-height:12px}
+    .rail nav{padding-inline:6px;align-items:center}
+    .rail nav button,.rail nav a,.theme-btn{justify-content:center;padding:10px 0;width:42px}
+    .rail .foot{align-items:center}
+    main{padding:16px 16px 28px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
+0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
+355 253 355 520 0 270 -132 459 -361 520 -74 20 -730 20 -802 0z m692 -320
+c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
+-297 0 -307 2 -346 83 -30 61 -31 198 -2 262 41 93 68 100 368 97 219 -2 243
+-4 274 -22z M0 545 l0 -515 225 0 225 0 2 296 3 296 116 -294 116 -293 197 0 198
+0 119 295 118 295 1 -297 0 -298 225 0 225 0 0 515 0 515 -337 -2 -338 -3
+-104 -264 c-80 -204 -107 -260 -113 -245 -5 10 -52 129 -106 264 l-98 245
+-337 3 -337 2 0 -515z M1892 1044 l-22 -15 0 -483 c0 -455 1 -484 18 -499 16 -15 48 -17
+246 -17 128 0 235 4 246 10 32 17 34 57 4 95 -33 44 -64 143 -64 206 l0 49
+203 0 c191 0 205 -1 222 -20 10 -11 34 -24 54 -30 49 -13 586 -13 612 0 22 12
+26 62 7 78 -8 6 -174 15 -413 21 -502 15 -549 23 -628 110 -43 48 -57 93 -57
+187 0 82 19 156 55 208 30 44 32 77 7 99 -27 25 -456 25 -490 1z M3716 1044 c-23 -22 -20 -31 19 -77 43 -49 78 -155 73 -218 l-3 -44
+-204 -3 c-194 -2 -205 -1 -218 17 -24 35 -78 41 -355 41 -255 0 -269 -1 -288
+-20 -27 -27 -26 -58 3 -70 12 -5 202 -14 422 -19 421 -12 476 -18 555 -62 92
+-51 132 -159 111 -299 -12 -77 -34 -129 -77 -179 -23 -28 -25 -36 -16 -57 l12
+-24 215 0 215 0 2 306 3 306 120 -303 120 -304 197 -3 196 -2 118 296 119 297
+3 -296 2 -297 225 0 225 0 0 515 0 515 -338 0 -337 0 -104 -265 c-58 -146
+-106 -263 -108 -261 -2 2 -50 120 -107 262 l-104 259 -340 3 c-300 2 -342 0
+-356 -14z"/></g><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-s, #50a4db)"><path d="M2485 1046 c-44 -20 -111 -94 -136 -151 -27 -60 -37 -198 -20 -263
+13 -48 68 -115 114 -138 64 -34 162 -43 562 -55 239 -6 405 -15 413 -21 19
+-16 15 -66 -7 -78 -26 -13 -563 -13 -612 0 -20 6 -44 19 -54 30 -17 19 -31 20
+-222 20 l-203 0 0 -49 c0 -81 34 -172 86 -230 78 -87 31 -81 672 -81 l568 0
+46 29 c79 50 122 121 139 231 21 140 -19 248 -111 299 -79 44 -134 50 -555 62
+-220 5 -410 14 -422 19 -29 12 -30 43 -3 70 19 19 33 20 288 20 277 0 331 -6
+355 -41 13 -18 24 -19 218 -17 l204 3 3 44 c4 60 -31 168 -70 215 -17 21 -52
+52 -77 67 l-45 29 -550 0 c-440 -1 -557 -3 -581 -14z"/></g></symbol>
+</defs></svg>
 
-<div class="masthead">
-  <div class="masthead-left">
-    <span class="masthead-title">MISMO Workgroup Meeting Calendar</span>
-    <span class="masthead-sub">All active workgroups &amp; communities of practice</span>
+<header class="hqtop">
+  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <span class="mastrule"></span>
+  <span class="hqname">Initiative Hub</span>
+  <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
+    <!-- The shared account bubble every tool shows in this spot (session.js fills it). -->
+    <div id="rs-account"></div></span>
+</header>
+
+<aside class="rail" id="rail">
+  <div class="rail-top">
+    <span class="rail-lbl">Sections</span>
+    <button class="railhide" id="railHide" type="button" aria-label="Narrow the sections" title="Narrow the sections (backslash)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
   </div>
+  <div class="railfind">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 11a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0 M16 16l4.5 4.5"/></svg>
+    <input type="search" id="railQ" autocomplete="off" spellcheck="false" placeholder="Search" aria-label="Search workgroups">
+  </div>
+  <nav aria-label="Initiative Hub">
+    <a href="index.html" title="MISMO Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg><span>MISMO Initiatives</span></a>
+    <a href="index.html#potential" title="Potential Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><span>Potential Initiatives</span></a>
+    <a href="calendar.html" aria-current="page" title="Meeting Calendar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M8 3v4 M16 3v4 M3 10h18"/></svg><span>Meeting Calendar</span></a>
+  </nav>
+  <div class="railgrp" data-wgf aria-label="Workgroups"></div>
+  <div class="foot">
+    <button type="button" class="theme-btn" id="themeToggleBtn"></button>
+  </div>
+</aside>
 
-  <div id="rs-account"></div>  <a class="back-to-hub" href="index.html">← Back to Initiative Hub</a>
-</div>
+<main>
+  <section class="view">
+    <header class="mast"><div>
+      <div class="eyebrow">Meeting Calendar</div>
+      <h1>MISMO Workgroup Meeting Calendar</h1>
+      <div class="sub">All active workgroups &amp; communities of practice</div>
+    </div></header>
 
-<div class="wrap">
-
-  <div class="cal-toolbar">
-    <div class="cal-nav">
-      <button type="button" class="cal-nav-btn" id="prevMonthBtn" aria-label="Previous month">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
-      <span class="cal-month-label" id="monthLabel"></span>
-      <button type="button" class="cal-nav-btn" id="nextMonthBtn" aria-label="Next month">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-      </button>
-      <button type="button" class="cal-today-btn" id="todayBtn">Today</button>
-    </div>
-    <div class="cal-toolbar-right">
-      <div class="wg-filter">
-        <button type="button" class="wg-filter-btn" id="wgFilterBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-          <span id="wgFilterLabel">All workgroups</span>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="wg-filter-chevron"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="wg-filter-panel" id="wgFilterPanel">
-          <div class="wg-filter-actions">
-            <button type="button" id="wgSelectAll">Select all</button>
-            <span class="wg-filter-divider">·</span>
-            <button type="button" id="wgClearAll">Clear all</button>
-          </div>
-          <div class="wg-filter-groups" id="wgFilterGroups"></div>
-        </div>
+    <div class="cal-toolbar">
+      <div class="cal-nav">
+        <button type="button" class="btn icon" id="prevMonthBtn" aria-label="Previous month"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span class="cal-month-label" id="monthLabel" aria-live="polite"></span>
+        <button type="button" class="btn icon" id="nextMonthBtn" aria-label="Next month"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+        <button type="button" class="btn" id="todayBtn">Today</button>
       </div>
       <div class="cal-legend">
-        <span><span class="legend-dot" style="background:var(--success);"></span>Has a dashboard on this hub</span>
-        <span><span class="legend-dot" style="background:var(--brand);"></span>Other MISMO workgroup</span>
+        <span><span class="legend-dot" style="background:var(--dash-bar);"></span>Has a dashboard on this hub</span>
+        <span><span class="legend-dot" style="background:var(--chip-bar);"></span>Other MISMO workgroup</span>
       </div>
     </div>
-  </div>
+    <details class="wgf-page">
+      <summary class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span id="wgfSummary">All workgroups</span></summary>
+      <div class="wgf-panel" data-wgf></div>
+    </details>
 
-  <div class="cal-grid-wrap">
-    <div class="cal-weekday-row">
-      <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+    <div class="cal-grid-wrap">
+      <div class="cal-weekday-row">
+        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+      </div>
+      <div class="cal-body" id="calBody"></div>
     </div>
-    <div class="cal-body" id="calBody"></div>
-  </div>
 
-  <p class="cal-footnote">
-    Schedules sourced from MISMO's own <a href="https://www.mismo.org/get-involved/workgroups-schedule" target="_blank" rel="noopener">Workgroup Meeting Schedule</a> page. Click any meeting to open its Zoom link (or its dashboard, for the three workgroups tracked on this hub). Times are as published by MISMO and shown in Eastern Time; day-of-month occurrences (e.g. "2nd &amp; 4th Wednesday") are computed automatically for whichever month you're viewing, so a date shown here may shift if MISMO changes a workgroup's cadence.
-  </p>
-
-</div>
+    <p class="cal-footnote">Schedules sourced from MISMO's own <a href="https://www.mismo.org/get-involved/workgroups-schedule" target="_blank" rel="noopener">Workgroup Meeting Schedule</a> page. Click any meeting to open its Zoom link (or its dashboard, for the three workgroups tracked on this hub). Times are as published by MISMO and shown in Eastern Time; day-of-month occurrences (e.g. "2nd &amp; 4th Wednesday") are computed automatically for whichever month you're viewing, so a date shown here may shift if MISMO changes a workgroup's cadence.</p>
+  </section>
+</main>
 
 <script src="/assets/session.js"></script>
 <script>
@@ -247,7 +354,7 @@
     {name:'Information Management', domain:'Governance', day:1, occurrences:'weekly', time:'2–3pm ET', zoom:'https://mba-org.zoom.us/j/83911697957'},
     {name:'Loan Application Data Exchange DWG', domain:'Originations', day:2, occurrences:[4], time:'1–2pm ET', zoom:'https://mba-org.zoom.us/j/88023232957'},
     {name:'MI Claim Submission DWG', domain:'Mortgage Insurance', day:2, occurrences:[1,3], time:'3–4pm ET', zoom:'https://mba-org.zoom.us/j/82404935190'},
-    {name:'Mortgage Compliance Dataset DWG', domain:'Compliance', day:4, occurrences:[1,3], time:'3–4pm ET', zoom:'https://mba-org.zoom.us/j/88042907892', dashboard:'mcd-dashboard.html'},
+    {name:'Mortgage Compliance Dataset DWG', domain:'Mortgage Compliance', day:4, occurrences:[1,3], time:'3–4pm ET', zoom:'https://mba-org.zoom.us/j/88042907892', dashboard:'mcd-dashboard.html'},
     {name:'Mortgage Insurance CoP', domain:'Mortgage Insurance', day:1, occurrences:[3], time:'1–2pm ET', zoom:'https://mba-org.zoom.us/j/87976028176'},
     {name:'Origination CoP', domain:'Originations', day:3, occurrences:[1], time:'3–4pm ET', zoom:'https://mba-org.zoom.us/j/85990267275'},
     {name:'Property &amp; Valuation Services CoP', domain:'Valuation', day:5, occurrences:[2,4], time:'1–2pm ET', zoom:'https://mba-org.zoom.us/j/86087635705'},
@@ -264,7 +371,11 @@
     {name:'Verifiable Profile SMART Doc DWG', domain:'eMortgage', day:3, occurrences:[1], time:'11am–12pm ET', zoom:'https://mba-org.zoom.us/j/86383676148'}
   ];
 
-  // --- Workgroup filter (multi-select, grouped by domain) ---
+
+  // --- The workgroup filter, grouped by domain, in the sidebar ---
+  // The same list is drawn in two places: the sidebar, and a panel above the calendar that
+  // is shown instead when the sidebar is narrowed or on a phone. Both read and write one
+  // selection, which is remembered in this browser as before.
   const FILTER_STORAGE_KEY = 'resources:hub:calendar-filter';
   const allWgNames = workgroups.map(wg => wg.name);
   let selectedWgNames = new Set(allWgNames);
@@ -287,74 +398,82 @@
     catch(e) { /* storage unavailable - filter still works for this session */ }
   }
 
-  function updateFilterLabel(){
-    const label = document.getElementById('wgFilterLabel');
-    const btn = document.getElementById('wgFilterBtn');
-    const n = selectedWgNames.size;
-    const total = allWgNames.length;
-    if (n === total){ label.textContent = 'All workgroups'; btn.classList.remove('has-filter'); }
-    else if (n === 0){ label.textContent = 'No workgroups selected'; btn.classList.add('has-filter'); }
-    else { label.textContent = n + ' of ' + total + ' selected'; btn.classList.add('has-filter'); }
-  }
+  const plainName = s => s.replace(/&amp;/g, '&');
+  const escAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const byDomain = {};
+  workgroups.forEach((wg, i) => { (byDomain[wg.domain] = byDomain[wg.domain] || []).push(i); });
+  const domainNames = Object.keys(byDomain).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  domainNames.forEach(d => byDomain[d].sort((a, b) => workgroups[a].name.localeCompare(workgroups[b].name, undefined, { sensitivity: 'base' })));
+  const openDomains = new Set();
+  let wgQuery = '';
+  const CHEV = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
-  function buildFilterPanel(){
-    const groupsEl = document.getElementById('wgFilterGroups');
-    const byDomain = {};
-    workgroups.forEach(wg => {
-      if (!byDomain[wg.domain]) byDomain[wg.domain] = [];
-      byDomain[wg.domain].push(wg);
-    });
-    const domainNames = Object.keys(byDomain).sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}));
-    groupsEl.innerHTML = domainNames.map(domain => {
-      const items = byDomain[domain].slice().sort((a,b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base'}));
-      const rows = items.map(wg => {
-        const safeId = 'wg-' + wg.name.replace(/[^a-zA-Z0-9]/g, '-');
-        const checked = selectedWgNames.has(wg.name) ? 'checked' : '';
-        const displayName = wg.name.replace(/&amp;/g, '&');
-        return '<div class="wg-checkbox-row"><input type="checkbox" id="' + safeId + '" data-wg-name="' + encodeURIComponent(wg.name) + '" ' + checked + '><label for="' + safeId + '">' + displayName + '</label></div>';
-      }).join('');
-      return '<div class="wg-domain-group"><div class="wg-domain-label">' + domain + '</div>' + rows + '</div>';
+  function countLabel(n, total){ return n === total ? String(total) : n + '/' + total; }
+
+  function filterHTML(prefix){
+    const n = selectedWgNames.size, total = allWgNames.length;
+    const rows = domainNames.map((domain, di) => {
+      const idx = byDomain[domain];
+      const shown = wgQuery ? idx.filter(i => plainName(workgroups[i].name).toLowerCase().includes(wgQuery)) : idx;
+      if (wgQuery && !shown.length) return '';
+      const sel = idx.filter(i => selectedWgNames.has(workgroups[i].name)).length;
+      const open = !!wgQuery || openDomains.has(domain);
+      const id = prefix + '-d' + di;
+      return `<div class="wgf-dom">
+        <div class="wgf-row"><input type="checkbox" data-di="${di}" ${sel === idx.length ? 'checked' : ''} data-mixed="${sel > 0 && sel < idx.length ? 1 : ''}" aria-label="Every workgroup in ${escAttr(domain)}">
+          <button type="button" class="wgf-exp" data-exp="${di}" aria-expanded="${open}" aria-controls="${id}"><span class="nm">${escAttr(domain)}</span><b class="count">${countLabel(sel, idx.length)}</b>${CHEV}</button></div>
+        <div class="wgf-items" id="${id}"${open ? '' : ' hidden'}>${shown.map(i => {
+          const wg = workgroups[i];
+          return `<label class="wgf-item"><input type="checkbox" data-wi="${i}" ${selectedWgNames.has(wg.name) ? 'checked' : ''}><span>${wg.name}</span>${wg.onHold ? '<em class="wgf-hold">On hold</em>' : ''}</label>`;
+        }).join('')}</div>
+      </div>`;
     }).join('');
-
-    groupsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener('change', () => {
-        const name = decodeURIComponent(cb.dataset.wgName);
-        if (cb.checked) selectedWgNames.add(name); else selectedWgNames.delete(name);
-        updateFilterLabel();
-        saveFilterState();
-        render();
-      });
-    });
+    return `<div class="railgrp-h">Workgroups<button type="button" data-toggle-all>${n === total ? 'Clear all' : 'Select all'}</button></div>
+      <div class="wgf">
+        <div class="wgf-row wgf-all"><label><input type="checkbox" data-all ${n === total ? 'checked' : ''} data-mixed="${n > 0 && n < total ? 1 : ''}">All workgroups</label><b class="count">${countLabel(n, total)}</b></div>
+        ${rows || '<div class="wgf-none">No workgroups match.</div>'}
+      </div>`;
   }
 
-  document.getElementById('wgSelectAll').addEventListener('click', () => {
-    selectedWgNames = new Set(allWgNames);
-    buildFilterPanel();
-    updateFilterLabel();
-    saveFilterState();
-    render();
-  });
-  document.getElementById('wgClearAll').addEventListener('click', () => {
-    selectedWgNames = new Set();
-    buildFilterPanel();
-    updateFilterLabel();
-    saveFilterState();
-    render();
-  });
+  const filterHosts = [...document.querySelectorAll('[data-wgf]')];
+  function buildFilter(){
+    filterHosts.forEach((host, h) => {
+      host.innerHTML = filterHTML('wgf' + h);
+      host.querySelectorAll('input[data-mixed="1"]').forEach(cb => { cb.indeterminate = true; });
+    });
+    const n = selectedWgNames.size, total = allWgNames.length;
+    document.getElementById('wgfSummary').textContent =
+      n === total ? 'All workgroups' : n === 0 ? 'No workgroups selected' : n + ' of ' + total + ' selected';
+  }
+  // Redrawing the list would drop keyboard focus, so it is put back on the same control.
+  function keyOf(el){
+    for (const a of ['data-all', 'data-di', 'data-wi', 'data-exp', 'data-toggle-all'])
+      if (el.hasAttribute(a)) return el.getAttribute(a) === '' ? `[${a}]` : `[${a}="${el.getAttribute(a)}"]`;
+    return null;
+  }
+  function refocus(host, key){ const el = key && host.querySelector(key); if (el) el.focus(); }
 
-  const wgFilterEl = document.querySelector('.wg-filter');
-  document.getElementById('wgFilterBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    wgFilterEl.classList.toggle('open');
+  filterHosts.forEach(host => {
+    host.addEventListener('change', e => {
+      const t = e.target; if (!t.matches('input[type="checkbox"]')) return;
+      const key = keyOf(t);
+      if (t.hasAttribute('data-all')) selectedWgNames = t.checked ? new Set(allWgNames) : new Set();
+      else if (t.hasAttribute('data-di')) byDomain[domainNames[+t.dataset.di]].forEach(i => t.checked ? selectedWgNames.add(workgroups[i].name) : selectedWgNames.delete(workgroups[i].name));
+      else if (t.hasAttribute('data-wi')) { const name = workgroups[+t.dataset.wi].name; if (t.checked) selectedWgNames.add(name); else selectedWgNames.delete(name); }
+      saveFilterState(); buildFilter(); render(); refocus(host, key);
+    });
+    host.addEventListener('click', e => {
+      const exp = e.target.closest('[data-exp]'), all = e.target.closest('[data-toggle-all]');
+      if (exp) {
+        const d = domainNames[+exp.dataset.exp];
+        if (openDomains.has(d)) openDomains.delete(d); else openDomains.add(d);
+        buildFilter(); refocus(host, keyOf(exp));
+      } else if (all) {
+        selectedWgNames = selectedWgNames.size === allWgNames.length ? new Set() : new Set(allWgNames);
+        saveFilterState(); buildFilter(); render(); refocus(host, '[data-toggle-all]');
+      }
+    });
   });
-  document.addEventListener('click', (e) => {
-    if (wgFilterEl.classList.contains('open') && !wgFilterEl.contains(e.target)){
-      wgFilterEl.classList.remove('open');
-    }
-  });
-
-  buildFilterPanel();
-  updateFilterLabel();
 
   function getWeekdayDatesInMonth(year, month, dayOfWeek){
     const dates = [];
@@ -421,6 +540,13 @@
 
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+
+  // The start of a meeting's time, for a one-line chip: "3–4pm ET" reads "3pm".
+  function startLabel(timeStr){
+    const m = startTimeToMinutes(timeStr), h = Math.floor(m / 60), min = m % 60;
+    return (h % 12 || 12) + (min ? ':' + String(min).padStart(2, '0') : '') + (h >= 12 ? 'pm' : 'am');
+  }
+
   function render(){
     document.getElementById('monthLabel').textContent = monthNames[viewMonth] + ' ' + viewYear;
     const body = document.getElementById('calBody');
@@ -473,13 +599,14 @@
         a.target = wg.dashboard ? '_self' : '_blank';
         if (!wg.dashboard) a.rel = 'noopener';
         a.title = wg.name.replace(/&amp;/g, '&') + ' — ' + wg.time;
-        a.innerHTML = '<span class="chip-time">' + wg.time + '</span><span class="chip-name">' + wg.name + '</span>';
+        a.innerHTML = '<span class="chip-time">' + startLabel(wg.time) + '</span><span class="chip-name">' + wg.name + '</span>';
         meetingsWrap.appendChild(a);
       });
       cell.appendChild(meetingsWrap);
       body.appendChild(cell);
     }
   }
+
 
   document.getElementById('prevMonthBtn').addEventListener('click', () => {
     viewMonth--;
@@ -497,6 +624,47 @@
     render();
   });
 
+
+  // --- Search, from the sidebar: it narrows the workgroup list, and opens the domains it finds ---
+  const railQ = document.getElementById('railQ');
+  railQ.addEventListener('input', () => { wgQuery = railQ.value.trim().toLowerCase(); buildFilter(); });
+
+  // --- Narrowing the sections to icons: the button, or the backslash key (shared with the home page) ---
+  const railHide = document.getElementById('railHide');
+  function setMini(on){
+    document.documentElement.classList.toggle('railmini', on);
+    railHide.setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
+    railHide.title = (on ? 'Widen the sections' : 'Narrow the sections') + ' (backslash)';
+    try { localStorage.setItem('resources:hub:rail', on ? 'mini' : 'full'); } catch (e) {}
+  }
+  railHide.addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
+  document.addEventListener('keydown', e => {
+    if (e.key !== '\\' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); setMini(!document.documentElement.classList.contains('railmini'));
+  });
+  if (document.documentElement.classList.contains('railmini')) setMini(true);
+
+  // --- Dark mode: the same saved choice as the rest of the Hub ---
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const MOON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>';
+  const SUN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    const dark = theme === 'dark';
+    themeToggleBtn.innerHTML = (dark ? SUN : MOON) + `<span>${dark ? 'Light Mode' : 'Dark Mode'}</span>`;
+    themeToggleBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+  let savedTheme = 'light';
+  try { savedTheme = localStorage.getItem('resources:hub:theme') || 'light'; } catch (e) {}
+  applyTheme(savedTheme);
+  themeToggleBtn.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem('resources:hub:theme', next); } catch (e) {}
+  });
+
+  buildFilter();
   render();
 </script>
 

@@ -25,7 +25,7 @@ edits are committed to `data/<id>.json` through the GitHub contents API. See
 |---|---|
 | `index.html` | The hub homepage, in the Summit HQ look (navy masthead, Sections sidebar) but in Libre Franklin, not IBM Plex (Perry's choice, 29 Sept; keep it). MISMO Initiatives (domain tiles, then a domain's cards) and Potential Initiatives are sidebar sections; `#potential` opens the second. The sidebar also has Meeting Calendar, search, the Color Tour and Dark Mode |
 | `mcd-dashboard.html`, `lbds-dashboard.html`, `ccs-dashboard.html`, `tpa-dashboard.html` | The four live, real workgroup dashboards |
-| `calendar.html` | Meeting calendar with a workgroup filter dropdown |
+| `calendar.html` | Meeting calendar, in the Summit HQ look with Libre Franklin. The workgroup filter is in the sidebar, grouped by domain (above the calendar instead when the sidebar is narrowed or on a phone); one-line meeting chips; each week is as tall as its busiest day. Dark mode follows the Hub's saved theme |
 | `dashboard-data.js` | Shared git-backed storage used by every dashboard: reads the committed data file, sends saves to the relay, holds the conflict lock, sanitises shared HTML. Read its header comment before touching persistence. |
 | `potential.html` | One page that renders ANY potential initiative from `data/potential/<id>.json` (`?id=`). Approved section order: stage rail, Overview (facts card sized to its own content, not stretched; potential solutions folded in as a "What it could produce" subsection, no separate card), Status Updates (timeline), Potential Leadership (flat list — everyone interested, role as a tag, no seat structure, collapsed behind a "+ Add" link when empty), Stakeholder Engagement. Week-to-week edits happen here with the same Save/lock as the dashboards. |
 | `potential-edit.html` | The wizard. Create: drop a JSON file in the initiative format (or start blank), review every field, Save. Edit (`?id=`): same form, prefilled. Validation mirrors the relay's; Download JSON returns the draft for another pass in chat. |
@@ -522,7 +522,6 @@ Carried forward from earlier sessions, still outstanding as of this handoff:
 - LBDS's resource links are placeholders — need real URLs.
 - The hub's brand color (`--brand: #2A4DFF`) doesn't match the four
   dashboards' brand color (`#125DAB`) — never reconciled.
-- The calendar page (`calendar.html`) doesn't have full dark-mode styling.
 - TPA's Governance section leadership tag was left blank deliberately —
   workgroup hasn't started meeting yet, no real leadership to show.
 
