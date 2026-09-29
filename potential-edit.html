@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>New potential initiative — MISMO Initiative Hub</title>
 <!--
   The wizard. Two ways in:
@@ -17,63 +17,308 @@
   a draft goes back to the chat for another pass.
 -->
 <script>
-  // Follow the hub's theme choice before first paint, same key the hub uses.
-  try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
+  // Before any CSS paints: the Hub's saved theme, and whether the sections were narrowed.
+  try {
+    if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    if (localStorage.getItem('resources:hub:rail') === 'mini') document.documentElement.classList.add('railmini');
+  } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
 <script src="dashboard-data.js?v=cfca585774"></script>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <style>
-  html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
-         --slate:#64748B; --slate-soft:#1F2740; --slate-text:#8B94A7; --warnbg:#2a1d10; --warnline:#5a3a1a; --warn:#f5c08a; }
-  html[data-theme="dark"] .modal, html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea{ background:var(--card); color:var(--ink); border-color:var(--line); }
-  html[data-theme="dark"] .btn.secondary{ background:var(--card); color:var(--ink); border-color:var(--line); }
-  html[data-theme="dark"] .btn{ background:var(--brand); border-color:var(--brand); }
-  html[data-theme="dark"] .note{ background:var(--slate-soft); }
-  html[data-theme="dark"] .note.ok{ background:#123024; border-color:#1f5a3a; color:#4ADE80; }
-  html[data-theme="dark"] .note.warn{ background:#2a1d10; border-color:#5a3a1a; color:#f5c08a; }
-  html[data-theme="dark"] .note.err{ background:#3a1212; border-color:#7a2a2a; color:#fca5a5; }
-  :root{ --ink:#101B33; --ink-soft:#4B5670; --paper:#F1F3F9; --card:#FFFFFF; --line:#E1E4EC; --brand:#2A4DFF; --brand-soft:#EAF0FF; --brand-text:#1E3ACC; --navy:#101B33;
-         --slate-text:#5B6478; --gold:#D97706; --radius:14px; --shadow:0 1px 2px rgba(16,27,51,.04), 0 4px 14px rgba(16,27,51,.05); }
-  *{box-sizing:border-box;} body{margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--paper); font-size:14px;}
-  .wrap{max-width:900px; margin:0 auto; padding:18px 18px 80px;}
-  .topbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
-  .back{font-size:13px; font-weight:700; color:var(--brand-text); text-decoration:none;}
-  h1{font-family:'Libre Franklin',sans-serif; font-size:22px; margin:0 0 4px;}
-  .sub{color:var(--ink-soft); margin:0 0 16px;}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; margin-bottom:14px;}
-  .card h2{font-size:15px; margin:0 0 4px;}
-  .hint{color:var(--ink-soft); font-size:13px; margin:0 0 12px; line-height:1.45;}
-  label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-text); margin:12px 0 4px;}
-  input[type=text], input[type=date], select, textarea{width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff;}
-  textarea{min-height:88px; resize:vertical; line-height:1.45;}
-  .row{display:flex; gap:12px;} .row > div{flex:1;}
-  .btn{font:inherit; font-size:13px; font-weight:700; padding:8px 14px; border-radius:8px; border:1px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;}
-  .btn.secondary{background:#fff; color:var(--navy);} .btn.small{padding:5px 9px; font-size:12px;} .btn.danger{background:#fff; color:#991b1b; border-color:#fca5a5;}
-  .btn:disabled{opacity:.45; cursor:default;}
-  .drop{border:2px dashed var(--line); border-radius:12px; padding:28px; text-align:center; color:var(--ink-soft); cursor:pointer; transition:border-color .15s, background .15s;}
-  .drop.over{border-color:var(--brand); background:var(--brand-soft);}
-  .drop strong{display:block; color:var(--ink); margin-bottom:4px;}
-  .or{text-align:center; color:var(--slate-text); font-size:12px; margin:12px 0;}
-  .chips{display:flex; flex-wrap:wrap; gap:8px;}
-  .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; font-size:12.5px; cursor:pointer; user-select:none;}
-  .chip input{margin:0;} .chip.on{background:var(--brand-soft); border-color:var(--brand); color:var(--brand-text); font-weight:700;}
-  table{width:100%; border-collapse:collapse; font-size:13px;} th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--slate-text); padding:6px 6px; border-bottom:1px solid var(--line);}
-  td{padding:6px 6px; border-bottom:1px solid var(--line); vertical-align:top;} td input, td select{padding:6px 8px;}
-  .note{padding:10px 12px; border-radius:8px; font-size:13px; margin-top:10px; border:1px solid; line-height:1.45;}
-  .note.ok{background:#e7f7ee; border-color:#bbf7d0; color:#157a44;} .note.warn{background:#fff7ed; border-color:#fed7aa; color:#7c2d12;} .note.err{background:#fee2e2; border-color:#fca5a5; color:#991b1b;}
-  .note ul{margin:6px 0 0; padding-left:18px;}
-  .idline{font-size:12px; color:var(--slate-text); margin-top:6px;} .idline code{background:var(--paper); padding:2px 6px; border-radius:4px;}
-  .savebar{display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:16px;}
-  .savebar .st{font-size:13px; color:var(--slate-text);}
-  .hidden{display:none !important;}
+  /* Summit HQ's own tokens, as the admin panel wears them. Every colour on the page comes
+     from here, so dark mode is a second block rather than a hunt through the rules. */
+  :root{
+    --navy:#0f314c; --navy-deep:#06202f; --navy-mid:#14486e; --sky:#50a4db; --sky-soft:#94c8e9;
+    --paper:#F1F6FA; --surface:#FFFFFF; --sunk:#E9F1F8;
+    --ink:#0f314c; --ink-2:#456179; --ink-3:#546F88;
+    --line:#E5EEF5; --line-2:#D5E2ED; --line-3:#ADC4D6;
+    --accent:#14486E; --accent-soft:#dcedf8;
+    --good:#0F7B5C; --good-soft:#E1F2EC;
+    --warn-ink:#8A5F16; --warn-soft:#F7EFE0;
+    --btn:#0f314c; --btn-ink:#FFFFFF;
+    --bad:#B3372C; --bad-soft:#FBE9E7; --scrim:rgba(6,32,47,.55); --input-bg:#FFFFFF;
+    --shadow-s:0 1px 2px rgba(15,49,76,.06);
+    --shadow:0 1px 2px rgba(15,49,76,.06), 0 10px 26px -18px rgba(15,49,76,.45);
+    --font:"Libre Franklin",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --hq-h:64px; --rail-w:240px; --rail-mini:62px;
+    /* The domains keep their own colours (the color tour depends on them). */
+    --brand:#2A4DFF; --teal:#0E9488; --gold:#D97706; --rose:#C2255C; --violet:#7C3AED; --fuchsia:#C026D3;
+    --graphite:#475569; --emerald:#059669; --cyan:#0891B2; --indigo:#4F46E5; --crimson:#9F1239;
+    /* A potential initiative's stage, one colour each, in this palette */
+    --s-not-started:#546F88; --s-in-progress:#2C74A6; --s-in-approvals:#8A5F16; --s-kickoff-set:#14486E; --s-launched:#0F7B5C;
+    color-scheme:light;
+  }
+  html[data-theme="dark"]{
+    --paper:#061722; --surface:#0D2837; --sunk:#173C52;
+    --ink:#E9F4FB; --ink-2:#A6C5D9; --ink-3:#7A9DB4;
+    --line:#173547; --line-2:#1F4A63; --line-3:#2F6688;
+    --accent:#50a4db; --accent-soft:#123143;
+    --good:#4FC79B; --good-soft:#0C3128;
+    --warn-ink:#E0A83C; --warn-soft:#3A2E13;
+    --btn:#50a4db; --btn-ink:#06202f;
+    --bad:#F08579; --bad-soft:#3A1C19; --scrim:rgba(0,0,0,.6); --input-bg:#0A2130;
+    --shadow-s:0 1px 2px rgba(0,0,0,.4);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -18px rgba(0,0,0,.85);
+    --brand:#5B85FF; --teal:#14B8A6; --gold:#F0930D; --rose:#E0417A; --violet:#9660F5; --fuchsia:#D946E4;
+    --graphite:#64748B; --emerald:#22C55E; --cyan:#22D3EE; --indigo:#818CF8; --crimson:#FB7185;
+    --s-not-started:#7A9DB4; --s-in-progress:#50a4db; --s-in-approvals:#E0A83C; --s-kickoff-set:#94c8e9; --s-launched:#4FC79B;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-top:calc(var(--hq-h) + env(safe-area-inset-top,0px));padding-left:var(--rail-w)}
+  html.railmini body{padding-left:var(--rail-mini)}
+  svg.i{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ───────── the masthead, as Summit HQ wears it ───────── */
+  .hqtop{position:fixed;top:0;left:0;right:0;z-index:30;height:calc(var(--hq-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 22px 0;background:var(--navy);color:#fff;display:flex;align-items:center;
+    box-shadow:0 1px 0 rgba(80,164,219,.28)}
+  .logoplate{background:#fff;border-radius:5px;padding:9px 13px;display:flex;align-items:center;line-height:0;
+    flex:0 0 auto;box-shadow:0 1px 0 rgba(80,164,219,.35)}
+  .logoplate svg{height:24px;width:auto;display:block}
+  .mastrule{display:block;width:2px;height:34px;flex:0 0 auto;margin-inline:20px;border-radius:1px;background:var(--sky)}
+  .hqname{font-size:15.5px;font-weight:700;letter-spacing:-.005em;color:var(--sky);white-space:nowrap;
+    min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hqtop-r{margin-left:auto;display:flex;align-items:center;gap:13px;flex:0 0 auto}
+  .eyebrow-m{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;white-space:nowrap}
+
+  /* ───────── the sections, down the left ───────── */
+  .rail{position:fixed;left:0;bottom:0;top:calc(var(--hq-h) + env(safe-area-inset-top,0px));width:var(--rail-w);z-index:20;
+    background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow:hidden auto;
+    box-shadow:1px 0 0 rgba(80,164,219,.22), 4px 0 18px rgba(6,32,47,.14)}
+  html.railmini .rail{width:var(--rail-mini)}
+  .rail-top{display:flex;align-items:center;gap:8px;padding:11px 10px 9px;border-bottom:1px solid rgba(80,164,219,.2)}
+  .rail-lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.55);padding-left:3px}
+  .railhide{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:5px;
+    color:rgba(255,255,255,.75);width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+  .railhide svg{width:16px;height:16px}
+  .railhide:hover{background:rgba(255,255,255,.14);color:#fff}
+  .railfind{position:relative;padding:11px 12px 3px}
+  .railfind svg{position:absolute;left:21px;top:20px;width:14px;height:14px;stroke:rgba(255,255,255,.5);pointer-events:none}
+  .railfind input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+    border-radius:6px;color:#fff;font:inherit;font-size:12.5px;padding:6px 10px 6px 30px}
+  .railfind input::placeholder{color:rgba(255,255,255,.5)}
+  .railfind input:focus{outline:2px solid var(--sky);outline-offset:-1px;background:rgba(255,255,255,.16)}
+  .rail nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 4px}
+  .rail nav button,.rail nav a,.theme-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+    border-radius:6px;color:rgba(255,255,255,.76);padding:8px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    white-space:nowrap;text-decoration:none}
+  .rail nav button svg,.rail nav a svg,.theme-btn svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .rail nav button:hover,.rail nav a:hover,.theme-btn:hover{color:#fff;background:rgba(255,255,255,.09)}
+  .rail nav button[aria-current],.rail nav a[aria-current]{color:#fff;font-weight:600;background:var(--navy-mid);box-shadow:inset 3px 0 0 var(--sky)}
+  .rail nav button[aria-current] svg,.rail nav a[aria-current] svg{opacity:1;stroke:var(--sky)}
+  .rail nav button:focus-visible,.rail nav a:focus-visible,.theme-btn:focus-visible,.railhide:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .rail nav .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px}
+  .rail nav .count:empty{display:none}
+  .rail .foot{margin-top:auto;padding:8px 8px 10px;border-top:1px solid rgba(80,164,219,.2);display:flex;flex-direction:column;gap:1px}
+  /* narrowed: icons only, the chevron turned round to open it again */
+  html.railmini .rail-top{justify-content:center;padding-inline:0}
+  html.railmini .railhide{margin:0}
+  html.railmini .railhide svg{transform:scaleX(-1)}
+  html.railmini .rail-lbl,html.railmini .railfind,html.railmini .rail nav span,html.railmini .rail nav .count,
+  html.railmini .theme-btn span{display:none}
+  html.railmini .rail nav{padding-inline:6px;align-items:center}
+  html.railmini .rail nav button,html.railmini .rail nav a,html.railmini .theme-btn{justify-content:center;padding:10px 0;width:42px}
+  html.railmini .rail .foot{align-items:center}
+
+  /* ───────── the page ───────── */
+  main{max-width:1180px;padding:22px 24px 48px;min-width:0}
+  .view{display:flex;flex-direction:column;gap:14px}
+  .mast{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .mast > div{min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .mast h1{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.05;margin:2px 0 0;text-wrap:balance}
+  .mast .sub{color:var(--ink-2);font-size:13px;margin-top:5px;max-width:78ch}
+  .btn{font:inherit;font-size:13px;font-weight:600;border-radius:4px;padding:7px 14px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line-2);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center}
+  .btn:hover{border-color:var(--line-3)}
+  .btn.p{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+
+
+  /* ───────── On This Page: the record's own sections, under the Hub's ───────── */
+  .onp{border-top:1px solid rgba(80,164,219,.16);margin-top:4px;padding-top:7px}
+  .onp > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 2px}
+  .rail .onp nav{padding:4px 8px}
+  .rail .onp nav a{gap:10px;padding:7px 10px 7px 12px;font-size:12.5px;color:rgba(255,255,255,.72);font-weight:500;box-shadow:none;background:none}
+  .rail .onp nav a::before{content:'';width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);flex:0 0 auto}
+  .rail .onp nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .rail .onp nav a[aria-current]{color:#fff;font-weight:600;background:rgba(255,255,255,.08);box-shadow:none}
+  .rail .onp nav a[aria-current]::before{background:var(--sky)}
+  html.railmini .onp{display:none}
+
+  /* ───────── the record's page header ───────── */
+  .mast-eyebrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .mast h1{font-size:clamp(22px,3vw,30px);line-height:1.1;margin-top:6px}
+  .mast-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:2px}
+  .st{font-size:12.5px;color:var(--ink-3)}
+  .back{font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap}
+  .back:hover{text-decoration:underline}
+  .dom{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-2);border:1px solid var(--line-2);
+    background:var(--surface);border-radius:999px;padding:2px 11px 2px 9px}
+  .dom::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--dom-color,var(--line-3));flex:0 0 auto}
+  .dom.tbd{font-style:italic;color:var(--ink-3)} .dom.tbd::before{display:none}
+
+  /* This page's buttons keep its own names: .btn is the filled one, .btn.secondary the outline. */
+  .btn{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn.secondary{background:var(--surface);border-color:var(--line-2);color:var(--ink)}
+  .btn.small{font-size:12px;padding:5px 10px}
+  .btn.danger{background:var(--surface);border-color:var(--line-2);color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+
+  /* ───────── cards and their parts ───────── */
+  .card{background:var(--surface);border:1px solid var(--line-2);border-radius:8px;box-shadow:var(--shadow-s);
+    scroll-margin-top:calc(var(--hq-h) + 16px)}
+  .muted{color:var(--ink-3);font-style:italic}
+  .note{padding:10px 12px;border-radius:6px;font-size:13px;margin-top:10px;border:1px solid var(--line-2);background:var(--sunk);color:var(--ink-2);line-height:1.45}
+  .note.ok{background:var(--good-soft);border-color:transparent;color:var(--good)}
+  .note.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn-ink)}
+  .note.err{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+  .note ul{margin:6px 0 0;padding-left:18px}
+  .hidden{display:none !important}
+  input[type=text],input[type=date],input[type=search],select,textarea{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-2);
+    border-radius:4px;background:var(--input-bg);color:var(--ink)}
+  input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+  .overlay{position:fixed;inset:0;z-index:40;background:var(--scrim);display:none;align-items:center;justify-content:center;padding:16px}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:8px;padding:20px;max-width:440px;width:100%;box-shadow:var(--shadow)}
+  .modal h3{margin:0 0 4px;font-size:16px}
+  .modal label{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:12px 0 4px}
+  .modal input,.modal select{width:100%}
+  .modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  @media (max-width:760px){ .onp{display:none} }
+
+  /* ───────── the editor ───────── */
+  #form{display:flex;flex-direction:column;gap:14px}
+  .card{padding:18px 20px}
+  .card h2{font-size:15px;font-weight:700;letter-spacing:-.005em;margin:0 0 4px}
+  .hint{color:var(--ink-2);font-size:13px;margin:0 0 12px;line-height:1.45}
+  .card label:not(.chip){display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:12px 0 4px}
+  .card input[type=text],.card input[type=date],.card select,.card textarea{width:100%}
+  textarea{min-height:88px;resize:vertical;line-height:1.5}
+  .row{display:flex;gap:12px} .row > div{flex:1;min-width:0}
+  .drop{border:2px dashed var(--line-3);border-radius:8px;padding:28px;text-align:center;color:var(--ink-2);cursor:pointer;transition:border-color .15s, background .15s}
+  .drop.over{border-color:var(--sky);background:var(--accent-soft)}
+  .drop strong{display:block;color:var(--ink);margin-bottom:4px}
+  .or{text-align:center;color:var(--ink-3);font-size:12px;margin:12px 0}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line-2);border-radius:999px;font-size:12.5px;
+    font-weight:500;color:var(--ink);background:var(--surface);cursor:pointer;user-select:none}
+  .chip input{margin:0;accent-color:var(--accent)}
+  .chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:6px;border-bottom:1px solid var(--line-2)}
+  td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top} td input,td select{width:100%;padding:6px 8px}
+  .idline{font-size:12px;color:var(--ink-3);margin-top:6px} .idline code{background:var(--sunk);padding:2px 6px;border-radius:4px}
+  .savebar{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+  .savebar .st{font-size:13px;color:var(--ink-3)}
+  @media (max-width:760px){ .row{flex-direction:column;gap:0} .card{overflow-x:auto} }
+
+  /* phone width: the sections shrink to icons, as Summit HQ's do */
+  @media (max-width:760px){
+    :root{--hq-h:55px;--rail-w:58px;--rail-mini:58px}
+    .hqtop{padding-inline:12px}
+    .logoplate{padding:7px 10px}
+    .logoplate svg{height:18px}
+    .mastrule{height:30px;margin-inline:10px}
+    .hqname{font-size:13px}
+    .eyebrow-m{display:none}
+    .railhide{display:none}
+    .rail-lbl,.railfind,.rail nav span,.rail nav .count,.theme-btn span{display:none}
+    .rail-top{justify-content:center;padding-inline:0;min-height:12px}
+    .rail nav{padding-inline:6px;align-items:center}
+    .rail nav button,.rail nav a,.theme-btn{justify-content:center;padding:10px 0;width:42px}
+    .rail .foot{align-items:center}
+    main{padding:16px 16px 28px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="topbar"><a class="back" id="back" href="index.html#potential">← Back to Potential Initiatives</a><span class="st" id="who"></span><div id="rs-account" style="margin-left:auto"></div></div>
-  <h1 id="title">New potential initiative</h1>
-  <p class="sub" id="subtitle">Upload a file in the initiative format, review every field, then save.</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
+0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
+355 253 355 520 0 270 -132 459 -361 520 -74 20 -730 20 -802 0z m692 -320
+c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
+-297 0 -307 2 -346 83 -30 61 -31 198 -2 262 41 93 68 100 368 97 219 -2 243
+-4 274 -22z M0 545 l0 -515 225 0 225 0 2 296 3 296 116 -294 116 -293 197 0 198
+0 119 295 118 295 1 -297 0 -298 225 0 225 0 0 515 0 515 -337 -2 -338 -3
+-104 -264 c-80 -204 -107 -260 -113 -245 -5 10 -52 129 -106 264 l-98 245
+-337 3 -337 2 0 -515z M1892 1044 l-22 -15 0 -483 c0 -455 1 -484 18 -499 16 -15 48 -17
+246 -17 128 0 235 4 246 10 32 17 34 57 4 95 -33 44 -64 143 -64 206 l0 49
+203 0 c191 0 205 -1 222 -20 10 -11 34 -24 54 -30 49 -13 586 -13 612 0 22 12
+26 62 7 78 -8 6 -174 15 -413 21 -502 15 -549 23 -628 110 -43 48 -57 93 -57
+187 0 82 19 156 55 208 30 44 32 77 7 99 -27 25 -456 25 -490 1z M3716 1044 c-23 -22 -20 -31 19 -77 43 -49 78 -155 73 -218 l-3 -44
+-204 -3 c-194 -2 -205 -1 -218 17 -24 35 -78 41 -355 41 -255 0 -269 -1 -288
+-20 -27 -27 -26 -58 3 -70 12 -5 202 -14 422 -19 421 -12 476 -18 555 -62 92
+-51 132 -159 111 -299 -12 -77 -34 -129 -77 -179 -23 -28 -25 -36 -16 -57 l12
+-24 215 0 215 0 2 306 3 306 120 -303 120 -304 197 -3 196 -2 118 296 119 297
+3 -296 2 -297 225 0 225 0 0 515 0 515 -338 0 -337 0 -104 -265 c-58 -146
+-106 -263 -108 -261 -2 2 -50 120 -107 262 l-104 259 -340 3 c-300 2 -342 0
+-356 -14z"/></g><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-s, #50a4db)"><path d="M2485 1046 c-44 -20 -111 -94 -136 -151 -27 -60 -37 -198 -20 -263
+13 -48 68 -115 114 -138 64 -34 162 -43 562 -55 239 -6 405 -15 413 -21 19
+-16 15 -66 -7 -78 -26 -13 -563 -13 -612 0 -20 6 -44 19 -54 30 -17 19 -31 20
+-222 20 l-203 0 0 -49 c0 -81 34 -172 86 -230 78 -87 31 -81 672 -81 l568 0
+46 29 c79 50 122 121 139 231 21 140 -19 248 -111 299 -79 44 -134 50 -555 62
+-220 5 -410 14 -422 19 -29 12 -30 43 -3 70 19 19 33 20 288 20 277 0 331 -6
+355 -41 13 -18 24 -19 218 -17 l204 3 3 44 c4 60 -31 168 -70 215 -17 21 -52
+52 -77 67 l-45 29 -550 0 c-440 -1 -557 -3 -581 -14z"/></g></symbol>
+</defs></svg>
+
+<header class="hqtop">
+  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <span class="mastrule"></span>
+  <span class="hqname">Initiative Hub</span>
+  <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
+    <!-- The shared account bubble every tool shows in this spot (session.js fills it). -->
+    <div id="rs-account"></div></span>
+</header>
+
+<aside class="rail" id="rail">
+  <div class="rail-top">
+    <span class="rail-lbl">Sections</span>
+    <button class="railhide" id="railHide" type="button" aria-label="Narrow the sections" title="Narrow the sections (backslash)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+  </div>
+  <nav aria-label="Initiative Hub">
+    <a href="index.html" title="MISMO Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg><span>MISMO Initiatives</span></a>
+    <a href="index.html#potential" aria-current="page" title="Potential Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><span>Potential Initiatives</span></a>
+    <a href="calendar.html" title="Meeting Calendar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M8 3v4 M16 3v4 M3 10h18"/></svg><span>Meeting Calendar</span></a>
+  </nav>
+  <div class="onp" id="onPage" hidden><span>On This Page</span>
+    <nav aria-label="On this page">
+      <a href="#sec-overview" id="onpOverview"><span>Overview</span></a>
+      <a href="#sec-types" id="onpTypes"><span>Stakeholder Types</span><b class="count" id="nTypes"></b></a>
+      <a href="#sec-leaders" id="onpLeaders"><span>Potential Leadership</span><b class="count" id="nLead"></b></a>
+      <a href="#sec-orgs" id="onpOrgs"><span>Organizations</span><b class="count" id="nOrgs"></b></a>
+      <a href="#sec-updates" id="onpUpdates"><span>Status Updates</span><b class="count" id="nUpd"></b></a>
+    </nav>
+  </div>
+  <div class="foot">
+    <button type="button" class="theme-btn" id="themeToggleBtn"></button>
+  </div>
+</aside>
+
+<main>
+  <section class="view">
+    <header class="mast"><div>
+      <div class="mast-eyebrow"><span class="eyebrow">Potential Initiative</span></div>
+      <h1 id="title">New potential initiative</h1>
+      <div class="sub" id="subtitle">Upload a file in the initiative format, review every field, then save.</div>
+    </div><div class="mast-acts">
+      <span class="st" id="who"></span>
+      <a class="back" id="back" href="index.html#potential">← Back to Potential Initiatives</a>
+    </div></header>
 
   <!-- step 1: upload (create only) -->
   <section class="card" id="upload">
@@ -90,7 +335,7 @@
     <div class="note ok hidden" id="loadedNote"></div>
     <div class="note warn hidden" id="problems"></div>
 
-    <section class="card">
+    <section class="card" id="sec-overview">
       <h2>Overview</h2>
       <label for="fName">Name</label><input type="text" id="fName">
       <div class="idline" id="idLine"></div>
@@ -108,27 +353,27 @@
       <label for="fSolutions">Potential solutions — one per line</label><textarea id="fSolutions" placeholder="What the initiative might produce: templates, standards, guidance…"></textarea>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-types">
       <h2>Relevant stakeholder types</h2>
       <p class="hint">From the global list. Organizations of a type that isn't selected stay in the record but are hidden on the initiative's page.</p>
       <div class="chips" id="typeChips"></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-leaders">
       <h2>Potential leadership</h2>
       <p class="hint">People who might lead the workgroup if it's chartered.</p>
       <table id="leadTable"><thead><tr><th style="width:26%">Name</th><th style="width:24%">Title</th><th style="width:22%">Company</th><th>Role</th><th></th></tr></thead><tbody></tbody></table>
       <div style="margin-top:10px"><button class="btn secondary small" id="leadAdd">+ Add person</button></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-orgs">
       <h2>Organizations</h2>
       <p class="hint">Who's been approached, and where they stand.</p>
       <table id="orgTable"><thead><tr><th style="width:24%">Organization</th><th style="width:20%">Type</th><th style="width:16%">Engagement</th><th>Contact</th><th>Barrier</th><th></th></tr></thead><tbody></tbody></table>
       <div style="margin-top:10px"><button class="btn secondary small" id="orgAdd">+ Add organization</button></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-updates">
       <h2>Status updates</h2>
       <p class="hint">Newest first. You can also log updates from the initiative's page after it's created.</p>
       <table id="updTable"><thead><tr><th>What changed</th><th style="width:18%">Recorded by</th><th style="width:22%">When</th><th></th></tr></thead><tbody></tbody></table>
@@ -142,8 +387,42 @@
       <button class="btn" id="save">Save</button>
     </div>
   </div>
-</div>
+  </section>
+</main>
 
+<script>
+  /* On This Page: the record's own sections, listed in the sidebar under the Hub's.
+     A link scrolls to its section; the highlight follows whichever section is at the top
+     as you scroll. The counts are set by the page itself each time it redraws. */
+  function OnThisPage(pairs){
+    const get = id => document.getElementById(id);
+    const barH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hq-h')) || 64;
+    const shown = el => el && el.offsetParent !== null;
+    function mark(lid){ pairs.forEach(([, l]) => { const a = get(l); if (!a) return; if (l === lid) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); }); }
+    function spy(){
+      let cur = pairs[0][1];
+      for (const [sid, lid] of pairs){ const el = get(sid); if (shown(el) && el.getBoundingClientRect().top <= barH() + 28) cur = lid; }
+      // At the very bottom the last section is the one being read, even if it is too short to reach the top.
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2)
+        for (let i = pairs.length - 1; i >= 0; i--) if (shown(get(pairs[i][0]))) { cur = pairs[i][1]; break; }
+      mark(cur);
+    }
+    let queued = false;
+    addEventListener('scroll', () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; spy(); }); }, { passive: true });
+    addEventListener('resize', spy);
+    pairs.forEach(([sid, lid]) => { const a = get(lid); if (a) a.addEventListener('click', e => {
+      const el = get(sid); if (!shown(el)) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      mark(lid);
+    }); });
+    return {
+      spy,
+      show(on){ const g = get('onPage'); if (g) g.hidden = !on; if (on) spy(); },
+      count(id, n){ const b = get(id); if (b) b.textContent = n; }
+    };
+  }
+</script>
 <script>
 (function(){
   'use strict';
@@ -312,6 +591,64 @@
    }
   })();
 })();
+</script>
+<script>
+/* The editor's own sections in the sidebar, with counts read from the form as it is filled
+   in: a row added or a type ticked shows at once. Hidden while the page is still on
+   "Start from a file", when there is nothing yet to go to. */
+(function(){
+  const onp = OnThisPage([['sec-overview', 'onpOverview'], ['sec-types', 'onpTypes'], ['sec-leaders', 'onpLeaders'], ['sec-orgs', 'onpOrgs'], ['sec-updates', 'onpUpdates']]);
+  const form = document.getElementById('form');
+  const rows = id => document.querySelectorAll('#' + id + ' tbody tr').length;
+  function recount(){
+    const open = !form.classList.contains('hidden');
+    onp.show(open);
+    if (!open) return;
+    onp.count('nTypes', document.querySelectorAll('#typeChips input:checked').length);
+    onp.count('nLead', rows('leadTable'));
+    onp.count('nOrgs', rows('orgTable'));
+    onp.count('nUpd', rows('updTable'));
+  }
+  new MutationObserver(recount).observe(form, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+  form.addEventListener('change', recount);
+  recount();
+})();
+</script>
+<script>
+  // --- Narrowing the sections to icons: the button, or the backslash key (shared with the home page) ---
+  const railHide = document.getElementById('railHide');
+  function setMini(on){
+    document.documentElement.classList.toggle('railmini', on);
+    railHide.setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
+    railHide.title = (on ? 'Widen the sections' : 'Narrow the sections') + ' (backslash)';
+    try { localStorage.setItem('resources:hub:rail', on ? 'mini' : 'full'); } catch (e) {}
+  }
+  railHide.addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
+  document.addEventListener('keydown', e => {
+    if (e.key !== '\\' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); setMini(!document.documentElement.classList.contains('railmini'));
+  });
+  if (document.documentElement.classList.contains('railmini')) setMini(true);
+
+  // --- Dark mode: the same saved choice as the rest of the Hub ---
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const MOON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>';
+  const SUN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    const dark = theme === 'dark';
+    themeToggleBtn.innerHTML = (dark ? SUN : MOON) + `<span>${dark ? 'Light Mode' : 'Dark Mode'}</span>`;
+    themeToggleBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+  let savedTheme = 'light';
+  try { savedTheme = localStorage.getItem('resources:hub:theme') || 'light'; } catch (e) {}
+  applyTheme(savedTheme);
+  themeToggleBtn.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem('resources:hub:theme', next); } catch (e) {}
+  });
 </script>
 </body>
 </html>

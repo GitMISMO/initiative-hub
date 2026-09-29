@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Potential Initiative — MISMO Initiative Hub</title>
 <!--
   One page renders every potential initiative from data/potential/<id>.json (?id=…).
@@ -18,153 +18,363 @@
   dashboards.
 -->
 <script>
-  // Follow the hub's theme choice before first paint, same key the hub uses.
-  try { if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme','dark'); } catch (e) {}
+  // Before any CSS paints: the Hub's saved theme, and whether the sections were narrowed.
+  try {
+    if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    if (localStorage.getItem('resources:hub:rail') === 'mini') document.documentElement.classList.add('railmini');
+  } catch (e) {}
 </script>
 <script src="/assets/session.js"></script>
 <script src="dashboard-data.js?v=cfca585774"></script>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <style>
-  html[data-theme="dark"]{ --ink:#E8EAF0; --ink-soft:#A0A8C0; --paper:#0B0F1C; --card:#161C30; --line:#2A3150; --brand:#5B85FF; --brand-soft:#1A2745; --brand-text:#9AB8FF;
-         --slate:#64748B; --slate-soft:#1F2740; --slate-text:#8B94A7; --warnbg:#2a1d10; --warnline:#5a3a1a; --warn:#f5c08a; }
-  html[data-theme="dark"] .modal, html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea{ background:var(--card); color:var(--ink); border-color:var(--line); }
-  html[data-theme="dark"] .btn.secondary{ background:var(--card); color:var(--ink); border-color:var(--line); }
-  html[data-theme="dark"] .btn{ background:var(--brand); border-color:var(--brand); }
-  html[data-theme="dark"] .note{ background:var(--slate-soft); }
-  html[data-theme="dark"] .note.ok{ background:#123024; border-color:#1f5a3a; color:#4ADE80; }
-  html[data-theme="dark"] .note.warn{ background:#2a1d10; border-color:#5a3a1a; color:#f5c08a; }
-  html[data-theme="dark"] .note.err{ background:#3a1212; border-color:#7a2a2a; color:#fca5a5; }
-  :root{ --ink:#101B33; --ink-soft:#4B5670; --paper:#F1F3F9; --card:#FFFFFF; --line:#E1E4EC; --brand:#2A4DFF; --brand-soft:#EAF0FF; --brand-text:#1E3ACC;
-         --navy:#101B33; --slate:#8B94A7; --slate-soft:#EEF0F4; --slate-text:#5B6478; --gold:#D97706; --violet:#7C3AED; --emerald:#059669; --rose:#C2255C;
-         --warnbg:#fff7ed; --warnline:#fed7aa; --warn:#7c2d12; --radius:14px; --shadow:0 1px 2px rgba(16,27,51,.04), 0 4px 14px rgba(16,27,51,.05); }
-  *{box-sizing:border-box;} body{margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--paper); font-size:14px;}
-  .wrap{max-width:1040px; margin:0 auto; padding:18px 18px 60px;}
-  .topbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
-  .back{font-size:13px; font-weight:700; color:var(--brand-text); text-decoration:none;}
-  .btn{font:inherit; font-size:13px; font-weight:700; padding:8px 14px; border-radius:8px; border:1px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;}
-  .btn.secondary{background:var(--card); color:var(--navy);}
-  .btn.small{padding:5px 10px; font-size:12px;}
-  .btn:disabled{opacity:.45; cursor:default;}
-  .btn.dirty{background:var(--gold); border-color:var(--gold);}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px;}
-  .head{padding:20px 22px 16px;}
-  .ptop{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
-  .ptop h1{margin:0; font-family:'Libre Franklin',sans-serif; font-size:24px; font-weight:800;}
-  .dom{flex:0 0 auto; font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px; background:var(--brand-soft); color:var(--brand-text);}
-  .dom.tbd{background:var(--slate-soft); color:var(--slate-text); font-style:italic;}
-  .steps{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:14px;}
-  .step{font-size:11px; font-weight:700; text-align:center; color:var(--slate); line-height:1.2;}
-  .step::before{content:''; display:block; height:5px; border-radius:3px; background:var(--slate-soft); margin-bottom:6px;}
-  .step.on{color:var(--brand-text);} .step.on::before{background:var(--brand);}
-  .step.on.s-in-approvals{color:var(--gold);} .step.on.s-in-approvals::before{background:var(--gold);}
-  .step.on.s-kickoff-set{color:var(--violet);} .step.on.s-kickoff-set::before{background:var(--violet);}
-  .step.on.s-launched{color:var(--emerald);} .step.on.s-launched::before{background:var(--emerald);}
-  .step.on.s-not-started{color:var(--slate-text);} .step.on.s-not-started::before{background:var(--slate);}
-  .sec{background:var(--navy); color:#fff; font-family:'Libre Franklin',sans-serif; font-weight:700; font-size:13px; letter-spacing:.06em; text-transform:uppercase; padding:12px 22px; border-radius:var(--radius) var(--radius) 0 0;}
-  .body{padding:18px 22px;}
-  .lbl{font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--slate-text); margin:0 0 5px;}
-  .ov{display:grid; grid-template-columns:1fr 240px; gap:22px;}
-  .ov p{margin:0 0 14px; line-height:1.55;}
-  .muted{color:var(--slate-text); font-style:italic;}
-  /* Facts card: sized to its own content (align-self:start), not stretched to match the
-     narrative column beside it — stretching was leaving visible dead space in the card. */
-  /* Same mark as the chip on the hub cards, sized for the facts card. Initials come from
-     the one shared helper so a name can never render as DK here and D there. */
-  .fac-row{display:inline-flex; align-items:center; gap:8px;}
-  .fac-av{
-    width:24px; height:24px; border-radius:50%; flex:0 0 auto;
-    display:inline-flex; align-items:center; justify-content:center;
-    font-size:9.5px; font-weight:700; background:var(--brand); color:#fff;
+  /* Summit HQ's own tokens, as the admin panel wears them. Every colour on the page comes
+     from here, so dark mode is a second block rather than a hunt through the rules. */
+  :root{
+    --navy:#0f314c; --navy-deep:#06202f; --navy-mid:#14486e; --sky:#50a4db; --sky-soft:#94c8e9;
+    --paper:#F1F6FA; --surface:#FFFFFF; --sunk:#E9F1F8;
+    --ink:#0f314c; --ink-2:#456179; --ink-3:#546F88;
+    --line:#E5EEF5; --line-2:#D5E2ED; --line-3:#ADC4D6;
+    --accent:#14486E; --accent-soft:#dcedf8;
+    --good:#0F7B5C; --good-soft:#E1F2EC;
+    --warn-ink:#8A5F16; --warn-soft:#F7EFE0;
+    --btn:#0f314c; --btn-ink:#FFFFFF;
+    --bad:#B3372C; --bad-soft:#FBE9E7; --scrim:rgba(6,32,47,.55); --input-bg:#FFFFFF;
+    --shadow-s:0 1px 2px rgba(15,49,76,.06);
+    --shadow:0 1px 2px rgba(15,49,76,.06), 0 10px 26px -18px rgba(15,49,76,.45);
+    --font:"Libre Franklin",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --hq-h:64px; --rail-w:240px; --rail-mini:62px;
+    /* The domains keep their own colours (the color tour depends on them). */
+    --brand:#2A4DFF; --teal:#0E9488; --gold:#D97706; --rose:#C2255C; --violet:#7C3AED; --fuchsia:#C026D3;
+    --graphite:#475569; --emerald:#059669; --cyan:#0891B2; --indigo:#4F46E5; --crimson:#9F1239;
+    /* A potential initiative's stage, one colour each, in this palette */
+    --s-not-started:#546F88; --s-in-progress:#2C74A6; --s-in-approvals:#8A5F16; --s-kickoff-set:#14486E; --s-launched:#0F7B5C;
+    color-scheme:light;
   }
-  .factcard{border:1px solid var(--line); border-radius:12px; background:var(--paper); padding:16px; align-self:start;}
-  .factcard .lbl:not(:first-child){margin-top:12px;}
-  .factcard .fv{line-height:1.4;}
-  ul.sol{margin:0; padding-left:20px; line-height:1.7;} ul.sol li{margin:2px 0;}
-  /* Leadership: a flat list of everyone interested, not a seat grid — role is shown as a
-     tag (still an editable select) next to each person rather than segmenting the list. */
-  .lead-rows{display:flex; flex-direction:column; margin-bottom:14px;}
-  .lrow{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line);}
-  .lrow:last-child{border-bottom:none;}
-  .av{width:34px; height:34px; border-radius:50%; background:var(--brand-soft); color:var(--brand-text); font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
-  .linfo{flex:1; min-width:0;} .lname{font-weight:700;} .lmeta{font-size:12.5px; color:var(--slate-text);}
-  select.rtag{font:inherit; font-size:11.5px; font-weight:700; color:var(--brand-text); background:var(--brand-soft); border:1px solid var(--brand-soft); padding:5px 10px; border-radius:999px; flex:0 0 auto;}
-  .lead-add{margin-bottom:0; flex-wrap:wrap;} .lead-add input{flex:1 1 150px;} .lead-add select{flex:1 1 200px; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px;}
-  /* Collapsed "add" affordance — a link, not a permanent form, so an empty leadership
-     list doesn't show a wall of blank inputs. Expands into .lead-add on click. */
-  .add{color:var(--brand-text); font-weight:700; font-size:13px; cursor:pointer; display:inline-block;}
-  .add:hover{text-decoration:underline;}
-  .addrow{display:flex; gap:8px; margin-bottom:14px;}
-  .addrow input{flex:1; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px;}
-  .addrow input.by{flex:0 0 180px;}
-  /* Files live in a private repository and are only ever shown to someone signed in
-     with access to it, so this block is absent entirely for everyone else. */
-  .files{margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);}
-  .files .lbl2{font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-    color:var(--slate-text); margin-bottom:8px;}
-  .chips{display:flex; flex-wrap:wrap; gap:7px; align-items:center;}
-  .chip{display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 4px 0 10px; border-radius:999px;
-    border:1px solid var(--line); background:var(--card); font-size:11.5px; font-weight:600; color:var(--ink);
-    white-space:nowrap; max-width:300px; cursor:pointer;}
-  .chip .dot{width:7px; height:7px; border-radius:2px; flex:0 0 auto;}
-  .chip .nm{overflow:hidden; text-overflow:ellipsis;}
-  .chip .sz{font-weight:500; color:var(--slate-text); flex:0 0 auto;}
-  .chip .x{border:none; background:none; color:var(--slate-text); cursor:pointer; font-size:13px; padding:0 4px;}
-  .chip.add{border-style:dashed; color:var(--slate-text); font-weight:500; padding:0 12px;}
-  .files .note{font-size:11.5px; color:var(--slate-text); margin-top:8px;}
+  html[data-theme="dark"]{
+    --paper:#061722; --surface:#0D2837; --sunk:#173C52;
+    --ink:#E9F4FB; --ink-2:#A6C5D9; --ink-3:#7A9DB4;
+    --line:#173547; --line-2:#1F4A63; --line-3:#2F6688;
+    --accent:#50a4db; --accent-soft:#123143;
+    --good:#4FC79B; --good-soft:#0C3128;
+    --warn-ink:#E0A83C; --warn-soft:#3A2E13;
+    --btn:#50a4db; --btn-ink:#06202f;
+    --bad:#F08579; --bad-soft:#3A1C19; --scrim:rgba(0,0,0,.6); --input-bg:#0A2130;
+    --shadow-s:0 1px 2px rgba(0,0,0,.4);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -18px rgba(0,0,0,.85);
+    --brand:#5B85FF; --teal:#14B8A6; --gold:#F0930D; --rose:#E0417A; --violet:#9660F5; --fuchsia:#D946E4;
+    --graphite:#64748B; --emerald:#22C55E; --cyan:#22D3EE; --indigo:#818CF8; --crimson:#FB7185;
+    --s-not-started:#7A9DB4; --s-in-progress:#50a4db; --s-in-approvals:#E0A83C; --s-kickoff-set:#94c8e9; --s-launched:#4FC79B;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-top:calc(var(--hq-h) + env(safe-area-inset-top,0px));padding-left:var(--rail-w)}
+  html.railmini body{padding-left:var(--rail-mini)}
+  svg.i{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
-  /* Status updates: a timeline, newest first. */
-  .tl{border-left:2px solid var(--line); margin-left:6px; padding-left:16px;}
-  .tl-i{position:relative; padding-bottom:14px;} .tl-i:last-child{padding-bottom:0;}
-  .tl-i::before{content:''; position:absolute; left:-21px; top:3px; width:10px; height:10px; border-radius:50%; background:var(--card); border:2px solid var(--brand);}
-  .tl-d{font-size:11px; font-weight:700; color:var(--brand-text);}
-  .tl-t{font-size:13.5px; line-height:1.5; margin:2px 0;}
-  .tl-w{font-size:12px; color:var(--slate-text);}
-  .tl-i.pending .tl-w{color:var(--gold); font-weight:700;}
-  .eng{display:grid; grid-template-columns:200px 1fr; gap:14px;}
-  .engtop{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
-  .engtop h3{margin:0; font-size:15px;}
-  .engtop input{font:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:8px; width:220px;}
-  .side{border:1px solid var(--line); border-radius:10px; padding:12px; align-self:start;}
-  .side .lbl{margin-bottom:8px;}
-  .trow{padding:8px 8px; border-radius:8px; cursor:pointer; margin-bottom:2px;}
-  .trow:hover{background:var(--paper);} .trow.on{background:var(--brand-soft);}
-  .trow .n{display:flex; justify-content:space-between; font-weight:700; font-size:12.5px;}
-  .trow .n span:last-child{color:var(--slate-text); font-weight:600;}
-  .bar{display:flex; height:5px; border-radius:3px; overflow:hidden; background:var(--slate-soft); margin-top:5px;}
-  .bar div{height:100%;}
-  .legend{margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:11.5px; color:var(--slate-text);}
-  .legend div{display:flex; align-items:center; gap:6px; margin:3px 0;} .legend i{width:8px; height:8px; border-radius:2px; display:inline-block;}
-  .orow{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px;}
-  .orow .on{font-weight:700; flex:1;} .orow .on small{font-weight:600; color:var(--gold); margin-left:8px;}
-  .orow .ct{font-size:12.5px; color:var(--slate-text);}
-  .orow select{font:inherit; font-size:12.5px; font-weight:700; padding:5px 8px; border-radius:999px; border:1px solid var(--line);}
-  .sum{margin-top:12px; padding:10px 14px; border-radius:10px; background:var(--warnbg); border:1px solid var(--warnline); color:var(--warn); font-size:13px; line-height:1.45;}
-  .sum strong{font-weight:800;}
-  .note{padding:10px 12px; border-radius:8px; font-size:13px; margin-top:10px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft);}
-  .note.err{background:#fee2e2; border-color:#fca5a5; color:#991b1b;}
-  .hidden{display:none !important;}
-  .overlay{position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px;} .overlay.open{display:flex;}
-  .modal{background:#fff; border-radius:12px; padding:20px; max-width:440px; width:100%;}
-  .modal h3{margin:0 0 4px;} .modal label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-text); margin:12px 0 4px;}
-  .modal input, .modal select{width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px;}
-  .modal .acts{display:flex; justify-content:flex-end; gap:8px; margin-top:16px;}
-  @media (max-width:760px){ .ov,.eng{grid-template-columns:1fr;} }
+  /* ───────── the masthead, as Summit HQ wears it ───────── */
+  .hqtop{position:fixed;top:0;left:0;right:0;z-index:30;height:calc(var(--hq-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 22px 0;background:var(--navy);color:#fff;display:flex;align-items:center;
+    box-shadow:0 1px 0 rgba(80,164,219,.28)}
+  .logoplate{background:#fff;border-radius:5px;padding:9px 13px;display:flex;align-items:center;line-height:0;
+    flex:0 0 auto;box-shadow:0 1px 0 rgba(80,164,219,.35)}
+  .logoplate svg{height:24px;width:auto;display:block}
+  .mastrule{display:block;width:2px;height:34px;flex:0 0 auto;margin-inline:20px;border-radius:1px;background:var(--sky)}
+  .hqname{font-size:15.5px;font-weight:700;letter-spacing:-.005em;color:var(--sky);white-space:nowrap;
+    min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hqtop-r{margin-left:auto;display:flex;align-items:center;gap:13px;flex:0 0 auto}
+  .eyebrow-m{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;white-space:nowrap}
+
+  /* ───────── the sections, down the left ───────── */
+  .rail{position:fixed;left:0;bottom:0;top:calc(var(--hq-h) + env(safe-area-inset-top,0px));width:var(--rail-w);z-index:20;
+    background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow:hidden auto;
+    box-shadow:1px 0 0 rgba(80,164,219,.22), 4px 0 18px rgba(6,32,47,.14)}
+  html.railmini .rail{width:var(--rail-mini)}
+  .rail-top{display:flex;align-items:center;gap:8px;padding:11px 10px 9px;border-bottom:1px solid rgba(80,164,219,.2)}
+  .rail-lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.55);padding-left:3px}
+  .railhide{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:5px;
+    color:rgba(255,255,255,.75);width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+  .railhide svg{width:16px;height:16px}
+  .railhide:hover{background:rgba(255,255,255,.14);color:#fff}
+  .railfind{position:relative;padding:11px 12px 3px}
+  .railfind svg{position:absolute;left:21px;top:20px;width:14px;height:14px;stroke:rgba(255,255,255,.5);pointer-events:none}
+  .railfind input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+    border-radius:6px;color:#fff;font:inherit;font-size:12.5px;padding:6px 10px 6px 30px}
+  .railfind input::placeholder{color:rgba(255,255,255,.5)}
+  .railfind input:focus{outline:2px solid var(--sky);outline-offset:-1px;background:rgba(255,255,255,.16)}
+  .rail nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 4px}
+  .rail nav button,.rail nav a,.theme-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+    border-radius:6px;color:rgba(255,255,255,.76);padding:8px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    white-space:nowrap;text-decoration:none}
+  .rail nav button svg,.rail nav a svg,.theme-btn svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .rail nav button:hover,.rail nav a:hover,.theme-btn:hover{color:#fff;background:rgba(255,255,255,.09)}
+  .rail nav button[aria-current],.rail nav a[aria-current]{color:#fff;font-weight:600;background:var(--navy-mid);box-shadow:inset 3px 0 0 var(--sky)}
+  .rail nav button[aria-current] svg,.rail nav a[aria-current] svg{opacity:1;stroke:var(--sky)}
+  .rail nav button:focus-visible,.rail nav a:focus-visible,.theme-btn:focus-visible,.railhide:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .rail nav .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px}
+  .rail nav .count:empty{display:none}
+  .rail .foot{margin-top:auto;padding:8px 8px 10px;border-top:1px solid rgba(80,164,219,.2);display:flex;flex-direction:column;gap:1px}
+  /* narrowed: icons only, the chevron turned round to open it again */
+  html.railmini .rail-top{justify-content:center;padding-inline:0}
+  html.railmini .railhide{margin:0}
+  html.railmini .railhide svg{transform:scaleX(-1)}
+  html.railmini .rail-lbl,html.railmini .railfind,html.railmini .rail nav span,html.railmini .rail nav .count,
+  html.railmini .theme-btn span{display:none}
+  html.railmini .rail nav{padding-inline:6px;align-items:center}
+  html.railmini .rail nav button,html.railmini .rail nav a,html.railmini .theme-btn{justify-content:center;padding:10px 0;width:42px}
+  html.railmini .rail .foot{align-items:center}
+
+  /* ───────── the page ───────── */
+  main{max-width:1180px;padding:22px 24px 48px;min-width:0}
+  .view{display:flex;flex-direction:column;gap:14px}
+  .mast{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .mast > div{min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .mast h1{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.05;margin:2px 0 0;text-wrap:balance}
+  .mast .sub{color:var(--ink-2);font-size:13px;margin-top:5px;max-width:78ch}
+  .btn{font:inherit;font-size:13px;font-weight:600;border-radius:4px;padding:7px 14px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line-2);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center}
+  .btn:hover{border-color:var(--line-3)}
+  .btn.p{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+
+
+  /* ───────── On This Page: the record's own sections, under the Hub's ───────── */
+  .onp{border-top:1px solid rgba(80,164,219,.16);margin-top:4px;padding-top:7px}
+  .onp > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 2px}
+  .rail .onp nav{padding:4px 8px}
+  .rail .onp nav a{gap:10px;padding:7px 10px 7px 12px;font-size:12.5px;color:rgba(255,255,255,.72);font-weight:500;box-shadow:none;background:none}
+  .rail .onp nav a::before{content:'';width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);flex:0 0 auto}
+  .rail .onp nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .rail .onp nav a[aria-current]{color:#fff;font-weight:600;background:rgba(255,255,255,.08);box-shadow:none}
+  .rail .onp nav a[aria-current]::before{background:var(--sky)}
+  html.railmini .onp{display:none}
+
+  /* ───────── the record's page header ───────── */
+  .mast-eyebrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .mast h1{font-size:clamp(22px,3vw,30px);line-height:1.1;margin-top:6px}
+  .mast-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:2px}
+  .st{font-size:12.5px;color:var(--ink-3)}
+  .back{font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap}
+  .back:hover{text-decoration:underline}
+  .dom{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-2);border:1px solid var(--line-2);
+    background:var(--surface);border-radius:999px;padding:2px 11px 2px 9px}
+  .dom::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--dom-color,var(--line-3));flex:0 0 auto}
+  .dom.tbd{font-style:italic;color:var(--ink-3)} .dom.tbd::before{display:none}
+
+  /* This page's buttons keep its own names: .btn is the filled one, .btn.secondary the outline. */
+  .btn{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn.secondary{background:var(--surface);border-color:var(--line-2);color:var(--ink)}
+  .btn.small{font-size:12px;padding:5px 10px}
+  .btn.danger{background:var(--surface);border-color:var(--line-2);color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+
+  /* ───────── cards and their parts ───────── */
+  .card{background:var(--surface);border:1px solid var(--line-2);border-radius:8px;box-shadow:var(--shadow-s);
+    scroll-margin-top:calc(var(--hq-h) + 16px)}
+  .muted{color:var(--ink-3);font-style:italic}
+  .note{padding:10px 12px;border-radius:6px;font-size:13px;margin-top:10px;border:1px solid var(--line-2);background:var(--sunk);color:var(--ink-2);line-height:1.45}
+  .note.ok{background:var(--good-soft);border-color:transparent;color:var(--good)}
+  .note.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn-ink)}
+  .note.err{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+  .note ul{margin:6px 0 0;padding-left:18px}
+  .hidden{display:none !important}
+  input[type=text],input[type=date],input[type=search],select,textarea{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-2);
+    border-radius:4px;background:var(--input-bg);color:var(--ink)}
+  input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+  .overlay{position:fixed;inset:0;z-index:40;background:var(--scrim);display:none;align-items:center;justify-content:center;padding:16px}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:8px;padding:20px;max-width:440px;width:100%;box-shadow:var(--shadow)}
+  .modal h3{margin:0 0 4px;font-size:16px}
+  .modal label{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:12px 0 4px}
+  .modal input,.modal select{width:100%}
+  .modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  @media (max-width:760px){ .onp{display:none} }
+
+  /* ───────── the potential initiative's page ───────── */
+  .steps{list-style:none;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:2px 0 0}
+  .step{font-size:11.5px;font-weight:600;text-align:center;color:var(--ink-3);line-height:1.2}
+  .step::before{content:'';display:block;height:5px;border-radius:3px;background:var(--line-2);margin-bottom:6px}
+  .step.on{font-weight:700;color:var(--s-in-progress)} .step.on::before{background:var(--s-in-progress)}
+  .step.on.s-not-started{color:var(--s-not-started)} .step.on.s-not-started::before{background:var(--s-not-started)}
+  .step.on.s-in-approvals{color:var(--s-in-approvals)} .step.on.s-in-approvals::before{background:var(--s-in-approvals)}
+  .step.on.s-kickoff-set{color:var(--s-kickoff-set)} .step.on.s-kickoff-set::before{background:var(--s-kickoff-set)}
+  .step.on.s-launched{color:var(--s-launched)} .step.on.s-launched::before{background:var(--s-launched)}
+  #app{display:flex;flex-direction:column;gap:14px}
+  .sec{margin:0;padding:18px 20px 0;font-size:15px;font-weight:700;letter-spacing:-.005em;color:var(--ink)}
+  .body{padding:12px 20px 18px}
+  .lbl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:0 0 3px}
+  .ov{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px}
+  .ov p{margin:0 0 14px;line-height:1.55;color:var(--ink-2);font-size:13.5px}
+  .ov p.muted{color:var(--ink-3)}
+  .factcard{background:var(--sunk);border-radius:8px;padding:14px 16px;align-self:start}
+  .factcard .lbl:not(:first-child){margin-top:12px}
+  .factcard .fv{font-size:13.5px;font-weight:500;color:var(--ink);line-height:1.45}
+  .fac-row{display:inline-flex;align-items:center;gap:8px}
+  .fac-av{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+    font-size:9.5px;font-weight:700;background:var(--accent-soft);color:var(--accent)}
+  ul.sol{margin:0;padding-left:18px;line-height:1.6;color:var(--ink-2);font-size:13.5px} ul.sol li{margin:2px 0}
+  .lead-rows{display:flex;flex-direction:column;margin-bottom:12px}
+  .lrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .lrow:last-child{border-bottom:none}
+  .av{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12.5px;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .linfo{flex:1;min-width:0} .lname{font-weight:700} .lmeta{font-size:12.5px;color:var(--ink-3)}
+  select.rtag{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-color:transparent;padding:4px 10px;border-radius:999px;flex:0 0 auto}
+  .lead-add{margin-bottom:0;flex-wrap:wrap} .lead-add input{flex:1 1 150px} .lead-add select{flex:1 1 200px}
+  .add{color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;display:inline-block}
+  .add:hover{text-decoration:underline}
+  .addrow{display:flex;gap:8px;margin-bottom:14px}
+  .addrow input{flex:1} .addrow input.by{flex:0 0 190px}
+  .files{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .files .lbl2{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 4px 0 10px;border-radius:999px;border:1px solid var(--line-2);
+    background:var(--surface);font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;max-width:300px;cursor:pointer}
+  .chip .dot{width:7px;height:7px;border-radius:2px;flex:0 0 auto}
+  .chip .nm{overflow:hidden;text-overflow:ellipsis}
+  .chip .sz{font-weight:500;color:var(--ink-3);flex:0 0 auto}
+  .chip .x{border:none;background:none;color:var(--ink-3);cursor:pointer;font-size:13px;padding:0 4px}
+  .chip.add{border-style:dashed;border-color:var(--line-3);color:var(--accent);font-weight:600;padding:0 12px}
+  .files .note{font-size:12px;color:var(--ink-3);margin-top:8px;padding:0;border:0;background:none}
+  .tl{border-left:2px solid var(--line-2);margin-left:6px;padding-left:16px}
+  .tl-i{position:relative;padding-bottom:14px} .tl-i:last-child{padding-bottom:0}
+  .tl-i::before{content:'';position:absolute;left:-22px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+  .tl-d{font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .tl-t{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:2px 0}
+  .tl-w{font-size:12px;color:var(--ink-3);font-weight:600}
+  .tl-i.pending .tl-w{color:var(--warn-ink);font-weight:700}
+  .engtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .engtop h3{margin:0;font-size:14px;font-weight:700}
+  .engtop input{width:220px}
+  .eng{display:grid;grid-template-columns:250px minmax(0,1fr);gap:20px}
+  .side{background:var(--sunk);border-radius:8px;padding:10px;align-self:start}
+  .side .lbl{margin:0 0 6px;padding:0 4px}
+  .trow{padding:8px 10px;border-radius:6px;border:1px solid transparent;cursor:pointer;margin-bottom:2px}
+  .trow:hover{background:var(--surface)}
+  .trow.on{background:var(--surface);border-color:var(--line-2);box-shadow:var(--shadow-s)}
+  .trow .n{display:flex;justify-content:space-between;font-size:13px;font-weight:500}
+  .trow.on .n{font-weight:700}
+  .trow .n span:last-child{color:var(--ink-3);font-weight:600}
+  .bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--line-2);margin-top:6px}
+  .bar div{height:100%}
+  .legend{margin-top:10px;padding:10px 4px 2px;border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 12px}
+  .legend div{display:flex;align-items:center;gap:6px} .legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .orow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .orow .on{font-weight:600;flex:1;font-size:13.5px} .orow .on small{font-weight:600;color:var(--warn-ink);margin-left:8px}
+  .orow .ct{font-size:12.5px;color:var(--ink-2)}
+  .orow select{width:150px;padding:5px 8px}
+  .sum{margin-top:12px;padding:10px 12px;border-radius:6px;background:var(--sunk);color:var(--ink-2);font-size:13px;line-height:1.55}
+  .sum strong{color:var(--ink);font-weight:700}
+  @media (max-width:760px){ .ov,.eng{grid-template-columns:1fr} .addrow{flex-wrap:wrap} .addrow input.by{flex:1 1 100%} }
+
+  /* phone width: the sections shrink to icons, as Summit HQ's do */
+  @media (max-width:760px){
+    :root{--hq-h:55px;--rail-w:58px;--rail-mini:58px}
+    .hqtop{padding-inline:12px}
+    .logoplate{padding:7px 10px}
+    .logoplate svg{height:18px}
+    .mastrule{height:30px;margin-inline:10px}
+    .hqname{font-size:13px}
+    .eyebrow-m{display:none}
+    .railhide{display:none}
+    .rail-lbl,.railfind,.rail nav span,.rail nav .count,.theme-btn span{display:none}
+    .rail-top{justify-content:center;padding-inline:0;min-height:12px}
+    .rail nav{padding-inline:6px;align-items:center}
+    .rail nav button,.rail nav a,.theme-btn{justify-content:center;padding:10px 0;width:42px}
+    .rail .foot{align-items:center}
+    main{padding:16px 16px 28px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="topbar">
-    <a class="back" href="index.html#potential">← Back to Potential Initiatives</a>
-    <div style="display:flex; gap:8px; align-items:center">
-      <div id="rs-account"></div>
-      <span id="status" style="font-size:12.5px; color:var(--slate-text)"></span>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
+0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
+355 253 355 520 0 270 -132 459 -361 520 -74 20 -730 20 -802 0z m692 -320
+c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
+-297 0 -307 2 -346 83 -30 61 -31 198 -2 262 41 93 68 100 368 97 219 -2 243
+-4 274 -22z M0 545 l0 -515 225 0 225 0 2 296 3 296 116 -294 116 -293 197 0 198
+0 119 295 118 295 1 -297 0 -298 225 0 225 0 0 515 0 515 -337 -2 -338 -3
+-104 -264 c-80 -204 -107 -260 -113 -245 -5 10 -52 129 -106 264 l-98 245
+-337 3 -337 2 0 -515z M1892 1044 l-22 -15 0 -483 c0 -455 1 -484 18 -499 16 -15 48 -17
+246 -17 128 0 235 4 246 10 32 17 34 57 4 95 -33 44 -64 143 -64 206 l0 49
+203 0 c191 0 205 -1 222 -20 10 -11 34 -24 54 -30 49 -13 586 -13 612 0 22 12
+26 62 7 78 -8 6 -174 15 -413 21 -502 15 -549 23 -628 110 -43 48 -57 93 -57
+187 0 82 19 156 55 208 30 44 32 77 7 99 -27 25 -456 25 -490 1z M3716 1044 c-23 -22 -20 -31 19 -77 43 -49 78 -155 73 -218 l-3 -44
+-204 -3 c-194 -2 -205 -1 -218 17 -24 35 -78 41 -355 41 -255 0 -269 -1 -288
+-20 -27 -27 -26 -58 3 -70 12 -5 202 -14 422 -19 421 -12 476 -18 555 -62 92
+-51 132 -159 111 -299 -12 -77 -34 -129 -77 -179 -23 -28 -25 -36 -16 -57 l12
+-24 215 0 215 0 2 306 3 306 120 -303 120 -304 197 -3 196 -2 118 296 119 297
+3 -296 2 -297 225 0 225 0 0 515 0 515 -338 0 -337 0 -104 -265 c-58 -146
+-106 -263 -108 -261 -2 2 -50 120 -107 262 l-104 259 -340 3 c-300 2 -342 0
+-356 -14z"/></g><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-s, #50a4db)"><path d="M2485 1046 c-44 -20 -111 -94 -136 -151 -27 -60 -37 -198 -20 -263
+13 -48 68 -115 114 -138 64 -34 162 -43 562 -55 239 -6 405 -15 413 -21 19
+-16 15 -66 -7 -78 -26 -13 -563 -13 -612 0 -20 6 -44 19 -54 30 -17 19 -31 20
+-222 20 l-203 0 0 -49 c0 -81 34 -172 86 -230 78 -87 31 -81 672 -81 l568 0
+46 29 c79 50 122 121 139 231 21 140 -19 248 -111 299 -79 44 -134 50 -555 62
+-220 5 -410 14 -422 19 -29 12 -30 43 -3 70 19 19 33 20 288 20 277 0 331 -6
+355 -41 13 -18 24 -19 218 -17 l204 3 3 44 c4 60 -31 168 -70 215 -17 21 -52
+52 -77 67 l-45 29 -550 0 c-440 -1 -557 -3 -581 -14z"/></g></symbol>
+</defs></svg>
+
+<header class="hqtop">
+  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <span class="mastrule"></span>
+  <span class="hqname">Initiative Hub</span>
+  <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
+    <!-- The shared account bubble every tool shows in this spot (session.js fills it). -->
+    <div id="rs-account"></div></span>
+</header>
+
+<aside class="rail" id="rail">
+  <div class="rail-top">
+    <span class="rail-lbl">Sections</span>
+    <button class="railhide" id="railHide" type="button" aria-label="Narrow the sections" title="Narrow the sections (backslash)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+  </div>
+  <nav aria-label="Initiative Hub">
+    <a href="index.html" title="MISMO Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg><span>MISMO Initiatives</span></a>
+    <a href="index.html#potential" aria-current="page" title="Potential Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><span>Potential Initiatives</span></a>
+    <a href="calendar.html" title="Meeting Calendar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M8 3v4 M16 3v4 M3 10h18"/></svg><span>Meeting Calendar</span></a>
+  </nav>
+  <div class="onp" id="onPage" hidden><span>On This Page</span>
+    <nav aria-label="On this page">
+      <a href="#sec-overview" id="onpOverview"><span>Overview</span></a>
+      <a href="#sec-updates" id="onpUpdates"><span>Status Updates</span><b class="count" id="nUpd"></b></a>
+      <a href="#sec-leaders" id="onpLeaders"><span>Potential Leadership</span><b class="count" id="nLead"></b></a>
+      <a href="#sec-engagement" id="onpEngagement"><span>Stakeholder Engagement</span><b class="count" id="nOrg"></b></a>
+    </nav>
+  </div>
+  <div class="foot">
+    <button type="button" class="theme-btn" id="themeToggleBtn"></button>
+  </div>
+</aside>
+
+<main>
+  <section class="view">
+    <header class="mast"><div>
+      <div class="mast-eyebrow"><span class="eyebrow">Potential Initiative</span><span id="pDomain"></span></div>
+      <h1 id="pName">Potential initiative</h1>
+    </div><div class="mast-acts">
+      <span class="st" id="status"></span>
       <a class="btn secondary" id="editLink" href="#">Edit details</a>
       <button class="btn" id="saveBtn" disabled>Save</button>
-    </div>
-  </div>
-  <div id="app"><div class="card"><div class="body muted">Loading…</div></div></div>
-  <div class="note err hidden" id="err"></div>
-</div>
+    </div></header>
+    <ol class="steps" id="pSteps" aria-label="Stage"></ol>
+    <div id="app"><div class="card"><div class="body muted">Loading…</div></div></div>
+    <div class="note err hidden" id="err"></div>
+  </section>
+</main>
 
 <div class="overlay" id="addOrg">
   <div class="modal">
@@ -178,10 +388,48 @@
 </div>
 
 <script>
+  /* On This Page: the record's own sections, listed in the sidebar under the Hub's.
+     A link scrolls to its section; the highlight follows whichever section is at the top
+     as you scroll. The counts are set by the page itself each time it redraws. */
+  function OnThisPage(pairs){
+    const get = id => document.getElementById(id);
+    const barH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hq-h')) || 64;
+    const shown = el => el && el.offsetParent !== null;
+    function mark(lid){ pairs.forEach(([, l]) => { const a = get(l); if (!a) return; if (l === lid) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); }); }
+    function spy(){
+      let cur = pairs[0][1];
+      for (const [sid, lid] of pairs){ const el = get(sid); if (shown(el) && el.getBoundingClientRect().top <= barH() + 28) cur = lid; }
+      // At the very bottom the last section is the one being read, even if it is too short to reach the top.
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2)
+        for (let i = pairs.length - 1; i >= 0; i--) if (shown(get(pairs[i][0]))) { cur = pairs[i][1]; break; }
+      mark(cur);
+    }
+    let queued = false;
+    addEventListener('scroll', () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; spy(); }); }, { passive: true });
+    addEventListener('resize', spy);
+    pairs.forEach(([sid, lid]) => { const a = get(lid); if (a) a.addEventListener('click', e => {
+      const el = get(sid); if (!shown(el)) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      mark(lid);
+    }); });
+    return {
+      spy,
+      show(on){ const g = get('onPage'); if (g) g.hidden = !on; if (on) spy(); },
+      count(id, n){ const b = get(id); if (b) b.textContent = n; }
+    };
+  }
+</script>
+<script>
 (function(){
   'use strict';
   const S = window.MismoStore, P = S.potential;
   const $ = id => document.getElementById(id);
+  const onp = OnThisPage([['sec-overview', 'onpOverview'], ['sec-updates', 'onpUpdates'], ['sec-leaders', 'onpLeaders'], ['sec-engagement', 'onpEngagement']]);
+  /* The domain's colour, as on the home page's tiles. A domain typed in by hand that is not one of these gets no colour. */
+  const DOMAIN_COLOR = { 'Artificial Intelligence':'var(--fuchsia)', 'Credit Reporting':'var(--crimson)', 'eMortgage':'var(--gold)', 'Governance':'var(--graphite)',
+    'Mortgage Compliance':'var(--teal)', 'Mortgage Insurance':'var(--emerald)', 'Originations':'var(--rose)', 'Secondary':'var(--indigo)',
+    'Servicing':'var(--brand)', 'Title & Closing':'var(--cyan)', 'Valuation':'var(--violet)' };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id = new URLSearchParams(location.search).get('id') || '';
   let rec = null, sha = null, dirty = false, activeType = null, search = '';
@@ -249,13 +497,14 @@
     const noCommit = types.filter(t => !typesWithCommit.has(t));
     const updates = rec.updates || [];
 
-    $('app').innerHTML = `
-      <div class="card head">
-        <div class="ptop"><h1>${esc(rec.name)}</h1>${rec.domain ? `<span class="dom">${esc(rec.domain)}</span>` : `<span class="dom tbd">Domain: TBD</span>`}</div>
-        <div class="steps">${P.STAGES.map(s => `<div class="step ${s.key === rec.stage ? 'on s-' + s.key : ''}">${esc(s.label)}</div>`).join('')}</div>
-      </div>
+    $('pName').textContent = rec.name;
+    $('pDomain').innerHTML = rec.domain
+      ? `<span class="dom" style="--dom-color:${DOMAIN_COLOR[rec.domain] || 'var(--line-3)'}">${esc(rec.domain)}</span>`
+      : `<span class="dom tbd">Domain: TBD</span>`;
+    $('pSteps').innerHTML = P.STAGES.map(s => `<li class="step ${s.key === rec.stage ? 'on s-' + s.key : ''}">${esc(s.label)}</li>`).join('');
 
-      <div class="card"><div class="sec">Overview</div><div class="body ov">
+    $('app').innerHTML = `
+      <div class="card" id="sec-overview"><h2 class="sec">Overview</h2><div class="body ov">
         <div>
           <div class="lbl">Summary</div>${rec.summary ? `<p>${esc(rec.summary)}</p>` : `<p class="muted">Not recorded.</p>`}
           <div class="lbl">Why it was raised</div>${rec.whyRaised ? `<p>${esc(rec.whyRaised)}</p>` : `<p class="muted">Not recorded.</p>`}
@@ -273,7 +522,7 @@
         </div>
       </div></div>
 
-      <div class="card"><div class="sec">Status updates</div><div class="body">
+      <div class="card" id="sec-updates"><h2 class="sec">Status updates</h2><div class="body">
         <div class="addrow">
           <input type="text" class="by" id="updBy" placeholder="Recorded by…" value="${esc(S.keyName())}">
           <input type="text" id="updText" placeholder="What changed?">
@@ -283,7 +532,7 @@
         ${filesBlock()}
       </div></div>
 
-      <div class="card"><div class="sec">Potential leadership</div><div class="body">
+      <div class="card" id="sec-leaders"><h2 class="sec">Potential leadership</h2><div class="body">
         ${(rec.leadership || []).length ? `<div class="lead-rows">${rec.leadership.map((l, i) => {
           const initials = ((n) => n.split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join(''))(l.name || '?');
           return `<div class="lrow"><div class="av">${esc(initials)}</div><div class="linfo"><div class="lname">${esc(l.name)}</div><div class="lmeta">${[l.title, l.company].filter(Boolean).map(esc).join(' · ') || '<span class="muted">No title or company recorded</span>'}</div></div><select class="rtag" data-role="${i}">${P.LEADERSHIP_ROLES.map(r => `<option ${r === l.role ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select><button class="btn secondary small" data-rm-lead="${i}" title="Remove">×</button></div>`;
@@ -297,7 +546,7 @@
         </div>` : `<div class="add" id="ldAddToggle">+ Add a potential leader</div>`}
       </div></div>
 
-      <div class="card"><div class="sec">Stakeholder engagement</div><div class="body">
+      <div class="card" id="sec-engagement"><h2 class="sec">Stakeholder engagement</h2><div class="body">
         ${types.length ? `
         <div class="engtop"><h3>${esc(activeType ? S.typeName(activeType) : '')}</h3><div style="display:flex;gap:8px"><input type="text" id="search" placeholder="Search org or contact…" value="${esc(search)}"><button class="btn" id="orgAdd" title="Add an organization">+</button></div></div>
         <div class="eng">
@@ -313,6 +562,11 @@
         ${hiddenCount ? `<div class="note">${hiddenCount} organization${hiddenCount === 1 ? ' is' : 's are'} hidden because their stakeholder type isn't selected for this initiative. Use <em>Edit details</em> to change which types are relevant.</div>` : ''}
         ` : `<div class="muted">No stakeholder types selected yet. Use <em>Edit details</em> to choose which types are relevant to this initiative.</div>`}
       </div></div>`;
+
+    onp.show(true);
+    onp.count('nUpd', updates.length);
+    onp.count('nLead', (rec.leadership || []).length);
+    onp.count('nOrg', visible.length);
 
     document.querySelectorAll('.trow').forEach(r => r.addEventListener('click', () => { activeType = r.dataset.type; render(); }));
     const s = $('search'); if (s) s.addEventListener('input', () => { search = s.value; render(); const n = $('search'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); });
@@ -431,6 +685,42 @@
    }
   })();
 })();
+</script>
+<script>
+  // --- Narrowing the sections to icons: the button, or the backslash key (shared with the home page) ---
+  const railHide = document.getElementById('railHide');
+  function setMini(on){
+    document.documentElement.classList.toggle('railmini', on);
+    railHide.setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
+    railHide.title = (on ? 'Widen the sections' : 'Narrow the sections') + ' (backslash)';
+    try { localStorage.setItem('resources:hub:rail', on ? 'mini' : 'full'); } catch (e) {}
+  }
+  railHide.addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
+  document.addEventListener('keydown', e => {
+    if (e.key !== '\\' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); setMini(!document.documentElement.classList.contains('railmini'));
+  });
+  if (document.documentElement.classList.contains('railmini')) setMini(true);
+
+  // --- Dark mode: the same saved choice as the rest of the Hub ---
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const MOON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>';
+  const SUN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    const dark = theme === 'dark';
+    themeToggleBtn.innerHTML = (dark ? SUN : MOON) + `<span>${dark ? 'Light Mode' : 'Dark Mode'}</span>`;
+    themeToggleBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+  let savedTheme = 'light';
+  try { savedTheme = localStorage.getItem('resources:hub:theme') || 'light'; } catch (e) {}
+  applyTheme(savedTheme);
+  themeToggleBtn.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem('resources:hub:theme', next); } catch (e) {}
+  });
 </script>
 </body>
 </html>
