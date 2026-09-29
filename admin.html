@@ -221,6 +221,7 @@
   .seg button[aria-pressed="true"].lv-view{background:var(--accent-soft);color:var(--accent)}
   .seg button[aria-pressed="true"].lv-none{color:var(--ink);font-weight:700;background:var(--sunk)}
   .seg button:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .seg.locked button[disabled]{cursor:default;opacity:1}
   .seg button[aria-pressed="true"].gp{background:var(--accent-soft);color:var(--accent)}
 
   /* adding someone or something: its own panel, opened from the button in the masthead */
@@ -706,6 +707,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     return (PEOPLE_GROUPS.find(g => g.stored === st) || PEOPLE_GROUPS[1]).key;
   };
 
+  const adminHasAll = p => TOOLS.every(t => (p.access || {})[t.key] === 'admin');
+  function giveAll(p){ p.access = p.access || {}; TOOLS.forEach(t => { p.access[t.key] = 'admin'; }); }
+
   async function loadAccess(){
     try {
       const r = await S.access.get();
@@ -713,6 +717,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       /* Once sections are kept, everyone starts in the one they are shown in, so the next
          save writes them all rather than only the ones someone moved. */
       if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
+      /* Administrators have every tool, including any added to TOOLS later: filled in here,
+         and written on the next save. Nothing in the panel can lower it. */
+      if (Object.values(acc.people).some(p => p.platformAdmin && !adminHasAll(p))) {
+        for (const p of Object.values(acc.people)) if (p.platformAdmin) giveAll(p);
+        acc.dirty = true; setTimeout(() => setStatus('accStatus', 'dirty', 'Administrators given every tool. Save to keep it.'), 0);
+      }
       $('accUnavailable').hidden = true;
       $('accReady').hidden = false;
       $('accAddOpen').hidden = false;
@@ -768,13 +778,14 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const section = acc && acc.groups ? `<div class="grp">Section</div><div class="trow"><span class="tname">Listed under</span>` +
       `<span class="seg" role="group" aria-label="Section">` + PEOPLE_GROUPS.map(g =>
         `<button type="button" class="gp" aria-pressed="${groupOf(email) === g.key}" data-acc-group="${esc(email)}" data-group="${g.stored}">${esc(g.one)}</button>`).join('') + '</span></div>' : '';
-    return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>every tool, grouped</small></div>` + section +
+    return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>${p.platformAdmin ? 'an administrator: every tool, and each tool’s settings' : 'every tool, grouped'}</small></div>` + section +
       order.map(g => `<div class="grp">${esc(g)}</div>` + groups[g].map(t => {
         /* Said out loud rather than shown as a fourth segment, so the control stays three
            wide while the extra permission is still visible to whoever is granting access. */
-        const note = a[t.key] === 'admin' ? ' <small>&middot; also manages this tool’s settings</small>' : '';
+        const note = p.platformAdmin ? '' : a[t.key] === 'admin' ? ' <small>&middot; also manages this tool’s settings</small>' : '';
         return `<div class="trow"><span class="tname"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${note}</span>` +
-          seg(email, t.key, t.sum || t.label, a[t.key]) + '</div>';
+          (p.platformAdmin ? '<span class="seg locked" title="Administrators have every tool"><button type="button" class="lv-edit" aria-pressed="true" disabled>Edit</button></span>'
+            : seg(email, t.key, t.sum || t.label, a[t.key])) + '</div>';
       }).join('')).join('') + '</div>';
   }
   function renderAccess(){
