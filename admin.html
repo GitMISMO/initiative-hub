@@ -678,7 +678,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     { key:'glossary',    label:'Business Glossary Console', colour:'#0F9D77', group:'Standards' },
     { key:'hub-files',   label:'Files',              colour:'#7F5AF0', group:'Standards' },
     { key:'summit-hq',   label:'Summit HQ',          colour:'#B45309', group:'Events' },
-    { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' }
+    { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' },
+    /* Service Orders and Agreements: one key per contracting company, each with its own
+       private repository. A company's account holds its own key; MISMO staff who approve
+       or administer hold every key. The names are from each key's data folder. */
+    { key:'so-phoenix',    label:'Phoenix Team', sum:'Service Orders (Phoenix Team)', colour:'#E11D48', group:'Service Orders and Agreements' },
+    { key:'so-actualize',  label:'Actualize',    sum:'Service Orders (Actualize)',    colour:'#E11D48', group:'Service Orders and Agreements' },
+    { key:'so-trex',       label:'T-Rex',        sum:'Service Orders (T-Rex)',        colour:'#E11D48', group:'Service Orders and Agreements' },
+    { key:'so-falcon',     label:'Falcon',       sum:'Service Orders (Falcon)',       colour:'#E11D48', group:'Service Orders and Agreements' },
+    { key:'so-trudigital', label:'TruDigital',   sum:'Service Orders (TruDigital)',   colour:'#E11D48', group:'Service Orders and Agreements' }
   ];
 
   /* The sections People & Access is split into, in this order. Each person's section is
@@ -749,7 +757,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (vw.length) bits.push(`<span class="pill p-view">View &middot; ${vw.length}</span>`);
     if (!bits.length) bits.push('<span class="pill p-none">No tools yet</span>');
     const named = edit.concat(vw);
-    const first = named.slice(0, 3).map(t => esc(t.label)).join(', ');
+    const first = named.slice(0, 3).map(t => esc(t.sum || t.label)).join(', ');
     const extra = named.length - 3;
     return bits.join('') + (first ? `<small>${first}${extra > 0 ? ` and ${extra} more` : ''}</small>` : '');
   }
@@ -766,7 +774,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
            wide while the extra permission is still visible to whoever is granting access. */
         const note = a[t.key] === 'admin' ? ' <small>&middot; also manages this tool’s settings</small>' : '';
         return `<div class="trow"><span class="tname"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${note}</span>` +
-          seg(email, t.key, t.label, a[t.key]) + '</div>';
+          seg(email, t.key, t.sum || t.label, a[t.key]) + '</div>';
       }).join('')).join('') + '</div>';
   }
   function renderAccess(){
