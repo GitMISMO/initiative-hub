@@ -377,6 +377,11 @@ Two rules follow:
 
 ## Reviewing designs
 
+**Initiative Hub pages keep Libre Franklin.** As each Hub page moves to the Summit HQ look
+(navy masthead, Sections sidebar, Summit HQ's colours), it uses Libre Franklin rather than
+Summit HQ's IBM Plex Sans: Perry's choice, 29 Sept, starting with `index.html`. Load it from
+Google Fonts at 400, 500, 600 and 700. The admin panel still uses IBM Plex.
+
 **Always show a design in BOTH themes, side by side, in the same file.** Not a toggle —
 two panes. A toggle only ever shows one at a time, and the reviewer sees whichever their
 own setting produces.
