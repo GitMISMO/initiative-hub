@@ -35,7 +35,7 @@ edits are committed to `data/<id>.json` through the GitHub contents API. See
 | `facilitators.json` | Who can save: one admin, N facilitators, as name + SHA-256 of a generated passcode. Public; hashes only. Edited by the admin panel (or by hand on GitHub). |
 | `stakeholder-types.json` | The global stakeholder-type list: `types` = `{key, name}` (key immutable, name is what people see) and `usage` = which dashboards use which keys. Every dashboard reads it at boot for display names. `usage` is maintained by `_dev/check-types.py`, never by the panel. |
 | `_dev/check-types.py` | Verifies `stakeholder-types.json` matches each dashboard's `ROSTER_TYPE_TO_LANE`; `--write` rebuilds `usage`. Run after any type change in a dashboard and before pushing. |
-| `_dev/aws/index.mjs`, `_dev/aws/SETUP.md`, `_dev/aws/TESTING.md`, `_dev/aws/test-relay.mjs`, `key-helper.html` | The shared save relay (Lambda), the phased setup for both projects, the manual test checklist, 58 automated cases, and the offline passcode generator. |
+| `_dev/aws/index.mjs`, `_dev/aws/SETUP.md`, `_dev/aws/TESTING.md`, `_dev/aws/test-relay.mjs`, `_dev/aws/test-readable.mjs`, `_dev/aws/test-github-reads.mjs`, `key-helper.html` | The shared save relay (Lambda), the phased setup for both projects, the manual test checklist, the automated suites, and the offline passcode generator. |
 | `data/<id>.json` | One committed data file per dashboard, created by the first save. Absent until then; a missing file means "use the built-in defaults". |
 | `_dev/dashboard-template.html` | Starting point for building a **new** dashboard — see below |
 | `_dev/validate_nesting.py` | HTML nesting validator used before every deploy |
@@ -303,9 +303,37 @@ break dropped all give ONE value. An IT request lists that single value. Compute
 Why: the older relay hashed raw bytes. A Windows paste converts to CRLF and drops the
 final newline, and a Sept 2026 request listed a plain CRLF value (`9e1cb333…`) where the
 deploy correctly gave `4d22b63b…`, so a correct deploy looked failed for twenty minutes.
-**Until IT deploys this version, the live relay still reports the raw-bytes hash**
-(`4d22b63b…` for the Sept 28 afternoon deploy); compare it with the Windows formula
-`d.replace(b'\n', b'\r\n').rstrip(b'\r\n')` on the bytes of that commit's file.
+**Until IT deploys this version, the live relay still reports the raw-bytes hash.** On
+29 Sept `/version` read `a070cdee…`, which is commit `9fa7892` (22 Sept) pasted from
+Windows: the 28 Sept requests were never deployed, or were rolled back. Compare an old
+value with the Windows formula `d.replace(b'\n', b'\r\n').rstrip(b'\r\n')` on the bytes
+of that commit's file.
+
+## GitHub reads: asked, retried, last good copy
+
+Every tool reads and saves through the relay's one GitHub token, which has 5,000 requests
+an hour. On 29 Sept it ran out during the day and every tool failed at once: Summit HQ,
+and the admin panel's first read (`GET /hub/facilitators` answered 502, shown as "The save
+relay returned an error"). The load is polling: Summit HQ re-reads its busy files every
+30 s per open tab, the Sponsorship Portal every 20 s, and each container re-reads the
+access list and project list every 30 to 60 s.
+
+So `github()` in the relay now treats reads differently from writes (comment above it):
+
+- **Asked, not fetched.** Each read is kept with its ETag and the next one sends
+  `If-None-Match`. An unchanged file comes back 304, which GitHub does not count.
+- **One retry** on a 5xx or a dropped connection. Not on a rate-limit refusal.
+- **The last good copy** when GitHub still refuses (5xx, no connection, rate limit), if
+  it was confirmed within the hour. Never after a 401 or a permission 403 (a wrong token
+  must surface), never for a 404, and never for the branch head read before a commit.
+- **A low allowance is logged** (`GitHub allowance low: N requests left until …`) so IT
+  can see it coming in CloudWatch.
+
+Writes are unchanged: never retried, never kept, and still carry the SHA the page read.
+Copies last only as long as the container, so a freshly started one pays for its first
+read of each file. If the allowance still runs out after this is deployed, the next lever
+is the polling itself (`POLL_MS` in `summit-hq/index.html` and `sponsorship/index.html`),
+which is Jonna's call as well as Perry's. Tests: `node _dev/aws/test-github-reads.mjs`.
 
 ## What /commit may write
 
@@ -444,11 +472,13 @@ personal access token in a plaintext file:
 
 Carried forward from earlier sessions, still outstanding as of this handoff:
 
-- **Relay update waiting on IT (request 6, check value `98140863…`).** Committed but not
-  deployed: `/commit` up to 5.5 MB for the glossary, the projects.json fallback, and a
-  `group` per person in `_internal/access.json` (`staff`, `contractor`, `process`). The
-  admin panel shows a Section control only when `GET /access` returns `fields:["group"]`;
-  until then People & Access uses the fixed lists in `PEOPLE_GROUPS` in admin.html.
+- **Relay update waiting on IT (request 7, check value `93387499…`).** Replaces request 6
+  and includes everything in it. Committed but not deployed: View access, Service Orders'
+  read-only folders, `/commit` up to 5.5 MB for the glossary, the projects.json fallback,
+  a `group` per person in `_internal/access.json` (`staff`, `contractor`, `process`), and
+  the GitHub-read changes above. The admin panel shows a Section control only when
+  `GET /access` returns `fields:["group"]`; until then People & Access uses the fixed
+  lists in `PEOPLE_GROUPS` in admin.html.
 
 - **Type-name convergence is now a rename away, except where it's a merge.**
   `Investors/Aggregators` (TPA) and `Aggregator/Investor` (LBDS) are two keys

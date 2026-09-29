@@ -9,8 +9,15 @@ every serious bug on this project so far.
 ## Automated — run before any push that touches the relay
 
 ```
-cd _dev/aws && node test-relay.mjs
+cd _dev/aws && node test-relay.mjs && node test-readable.mjs && node test-github-reads.mjs
 ```
+
+`test-github-reads.mjs` covers how the relay reads GitHub: `If-None-Match` and 304s, the
+one retry, answering from the last good copy when GitHub refuses (and when it must not:
+401, a permission 403, a 404, a copy over an hour old, the branch head before a commit),
+and the admin panel opening while the allowance is spent. It simulates GitHub's headers,
+so like the others it never leaves the machine. The rest of this section is about
+`test-relay.mjs`.
 
 58 cases, GitHub mocked. Everything must pass. The suite covers:
 

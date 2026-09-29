@@ -240,7 +240,7 @@ let lastKnownOrigin = null;   // see corsHeaders
 /* Test hook only. Lambda never calls this — a real container simply ages out after
  * PROJECTS_CACHE_MS. It exists so the suite can simulate a cold start, which is the
  * only way to exercise the "list unreadable and nothing cached" path. */
-export function __resetProjectsCache() { projectsCache.at = 0; projectsCache.value = null; lastKnownOrigin = null; }
+export function __resetProjectsCache() { projectsCache.at = 0; projectsCache.value = null; lastKnownOrigin = null; __resetGithubCache(); }
 
 function parseProjects(raw, source) {
   let parsed;
@@ -396,22 +396,130 @@ function pathAllowed(path, prefixes) {
  * either list declares. */
 function commitPathAllowed(path, writable) { return pathAllowed(path, writable); }
 
-/* ---------- GitHub ---------- */
+/* ---------- GitHub ----------
+ *
+ * Every call to GitHub goes through github(). Reads (GET) get three things writes do not.
+ *
+ *   Asked, not fetched. Each answer is kept with its ETag, and the next read of the same
+ *   address sends If-None-Match. An unchanged file comes back as 304, which GitHub does
+ *   not count against the token's allowance of 5,000 requests an hour. Summit HQ and the
+ *   Sponsorship Portal re-read their files every 20 to 30 seconds per open tab, and each
+ *   container re-reads the access list and project list every 30 to 60 seconds; almost
+ *   all of those find nothing new. In Sept 2026 the allowance ran out during the working
+ *   day and every tool failed at once (the admin panel's "The save relay returned an
+ *   error" was the part people saw).
+ *
+ *   One retry. A 5xx or a dropped connection is tried once more after a short pause. A
+ *   rate-limit refusal is not: retrying it only spends more of what has run out.
+ *
+ *   The last good copy. If GitHub still refuses (5xx, no connection, or a rate limit), the
+ *   read is answered from the copy last confirmed, if that was within GITHUB_STALE_MAX_MS.
+ *   Not after a 401 or a permission 403, which mean the token is wrong and must surface;
+ *   not for a 404; and not where the caller passes { stale: false } (the branch head read
+ *   just before a commit, which must be current).
+ *
+ * Writes are never retried (one that timed out may have landed) and never kept. Copies
+ * last only as long as the container, within GITHUB_CACHE_BYTES, so a freshly started
+ * container still pays for its first read of each file. Saves are unaffected: they carry
+ * the SHA the page read, and GitHub refuses a stale one whatever this layer served. */
+const GITHUB_CACHE_BYTES = 64 * 1024 * 1024;        // well inside a 256 MB function
+const GITHUB_CACHE_ENTRY_MAX = 8 * 1024 * 1024;     // larger answers are not kept
+const GITHUB_STALE_MAX_MS = 60 * 60_000;            // covers one full rate-limit window
+const GITHUB_RETRY_MS = 300;
+const GITHUB_LOW_ALLOWANCE = 500;
+const githubCache = new Map();                      // API path -> { etag, json, size, at }; oldest first
+let githubCacheBytes = 0;
+let lowAllowanceWarnedAt = 0;
 
-async function github(method, path, body) {
-  const res = await fetch(GITHUB_API + path, {
+/* Test hook, like __resetProjectsCache: a cold start has no copies. */
+export function __resetGithubCache() { githubCache.clear(); githubCacheBytes = 0; lowAllowanceWarnedAt = 0; }
+
+const headerOf = (res, name) => (res && res.headers && typeof res.headers.get === 'function') ? res.headers.get(name) : null;
+
+function cacheDrop(path) {
+  const hit = githubCache.get(path);
+  if (hit) { githubCacheBytes -= hit.size; githubCache.delete(path); }
+}
+function cacheKeep(path, etag, json) {
+  cacheDrop(path);
+  const size = (typeof json?.content === 'string' ? json.content.length : 0) + 2048;
+  if (!etag || size > GITHUB_CACHE_ENTRY_MAX) return;
+  githubCache.set(path, { etag, json, size, at: Date.now() });
+  githubCacheBytes += size;
+  for (const [k, v] of githubCache) {
+    if (githubCacheBytes <= GITHUB_CACHE_BYTES) break;
+    githubCacheBytes -= v.size; githubCache.delete(k);
+  }
+}
+
+function rateLimited(r) {
+  if (r.status === 429) return true;
+  if (r.status !== 403) return false;
+  return headerOf(r.res, 'x-ratelimit-remaining') === '0' || /rate limit/i.test(r.json?.message || '');
+}
+
+/* Written to the function's log so IT can see the allowance running down before it runs out. */
+function noteAllowance(res) {
+  const left = headerOf(res, 'x-ratelimit-remaining');
+  if (left === null || Number(left) >= GITHUB_LOW_ALLOWANCE) return;
+  const now = Date.now();
+  if (now - lowAllowanceWarnedAt < 60_000) return;
+  lowAllowanceWarnedAt = now;
+  const reset = Number(headerOf(res, 'x-ratelimit-reset')) * 1000;
+  console.warn(`GitHub allowance low: ${left} requests left${reset ? ' until ' + new Date(reset).toISOString() : ''}`);
+}
+
+async function githubOnce(method, path, body, extra) {
+  let res;
+  const request = fetch(GITHUB_API + path, {
     method,
     headers: {
       Authorization: `Bearer ${env('GITHUB_TOKEN')}`,
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
-      'User-Agent': 'mismo-initiative-hub-save-relay'
+      'User-Agent': 'mismo-initiative-hub-save-relay',
+      ...(extra || {})
     },
     body: body ? JSON.stringify(body) : undefined
   });
+  if (method !== 'GET') res = await request;       // a write that cannot connect throws, as before
+  else {
+    try { res = await request; }
+    catch (e) { return { status: 0, json: { message: String(e && e.message || e) }, res: null }; }
+  }
   let json = null;
   try { json = await res.json(); } catch { /* some errors have no body */ }
-  return { status: res.status, json };
+  return { status: res.status, json, res };
+}
+
+async function github(method, path, body, { stale = true } = {}) {
+  if (method !== 'GET') {
+    const { status, json } = await githubOnce(method, path, body);
+    return { status, json };
+  }
+  const hit = githubCache.get(path);
+  const ask = hit ? { 'If-None-Match': hit.etag } : null;
+  let r = await githubOnce('GET', path, null, ask);
+  if (r.status === 0 || r.status >= 500) {
+    await new Promise(done => setTimeout(done, GITHUB_RETRY_MS));
+    r = await githubOnce('GET', path, null, ask);
+  }
+  noteAllowance(r.res);
+
+  if (r.status === 304 && hit) {                   // unchanged: free, and the copy is current
+    hit.at = Date.now();
+    githubCache.delete(path); githubCache.set(path, hit);
+    return { status: 200, json: hit.json };
+  }
+  if (r.status === 200) { cacheKeep(path, headerOf(r.res, 'etag'), r.json); return { status: 200, json: r.json }; }
+  if (r.status === 404) { cacheDrop(path); return { status: 404, json: r.json }; }
+
+  const refused = r.status === 0 || r.status >= 500 || rateLimited(r);
+  if (refused && stale && hit && Date.now() - hit.at < GITHUB_STALE_MAX_MS) {
+    console.warn(`GitHub ${r.status || 'unreachable'} for ${path.split('?')[0]}; answering from the copy confirmed ${Math.round((Date.now() - hit.at) / 1000)}s ago`);
+    return { status: 200, json: hit.json, stale: true };
+  }
+  return { status: r.status, json: r.json };
 }
 
 const decodeBase64Utf8 = (b64) => Buffer.from(b64.replace(/\n/g, ''), 'base64').toString('utf8');
@@ -1157,7 +1265,7 @@ export async function handler(event) {
       ? body.message.trim().slice(0, 500) : 'Update';
 
     try {
-      const ref = await github('GET', `/repos/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
+      const ref = await github('GET', `/repos/${repo}/git/ref/heads/${encodeURIComponent(branch)}`, null, { stale: false });
       if (ref.status !== 200) return respond(502, { error: 'GITHUB', status: ref.status });
       const head = ref.json.object.sha;
       // The caller tells us which commit it read. Mismatch means someone else committed.
