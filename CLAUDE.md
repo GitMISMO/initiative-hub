@@ -405,9 +405,12 @@ are Pixel Stream #50A4DB.
     good #72C08E / #1F3328   warn #E0A83C / #3A3020   bad #F08579 / #3D2220
 
 Light mode is unchanged. Every Hub page, the admin panel included, now follows the one saved choice
-`resources:hub:theme` and the one narrowed-sidebar setting `resources:hub:rail`. The other tools
-(Summit HQ, Sponsorship Portal, glossary console, Service Orders, the resources home page) still
-have the old dark palette; they move once Jonna has seen it. The brand guide lists Signal Grey with
+`resources:hub:theme` and the one narrowed-sidebar setting `resources:hub:rail`. The same palette
+was applied to Summit HQ, the Sponsorship Portal, the glossary console (via
+`MISMO-handoff/tools/glossary-console/template.html`), the resources home page and the shared
+sign-in's account menu (`assets/session.js`), by changing only their dark-mode rules; light mode was
+checked pixel-identical. Summit HQ's teal "specs" colour (#68B6CE) became Pixel Stream. Service
+Orders is committed but not pushed: the session token could not write to `service-orders`. The brand guide lists Signal Grey with
 Pixel Stream's values; its swatch reads about #4B4B4B.
 
 ## Dashboards in the frame
