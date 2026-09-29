@@ -392,6 +392,24 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## Dark mode: Deep Circuit (29 Sept)
+
+Perry approved a dark palette from the brand guide's colours to replace the earlier one, which read
+as teal. It is the last `html[data-theme="dark"]` block on every Hub page (for the dashboards, the
+frame's block, which overrides their own). Top bar and sidebar stay Deep Circuit #0F314C; highlights
+are Pixel Stream #50A4DB.
+
+    background #0B1826   cards #112336   recessed #172D44
+    lines #1A3048 #243E5A #3A5A7C   text #EEF3F8 #B9C8D6 #8C9FB1
+    accent #50A4DB, soft #173A57   buttons #50A4DB with #0F314C text
+    good #72C08E / #1F3328   warn #E0A83C / #3A3020   bad #F08579 / #3D2220
+
+Light mode is unchanged. Every Hub page, the admin panel included, now follows the one saved choice
+`resources:hub:theme` and the one narrowed-sidebar setting `resources:hub:rail`. The other tools
+(Summit HQ, Sponsorship Portal, glossary console, Service Orders, the resources home page) still
+have the old dark palette; they move once Jonna has seen it. The brand guide lists Signal Grey with
+Pixel Stream's values; its swatch reads about #4B4B4B.
+
 ## Dashboards in the frame
 
 The six dashboards keep their own styles and code. The Summit HQ frame is a block appended to each

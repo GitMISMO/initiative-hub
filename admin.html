@@ -30,10 +30,10 @@
      sections were narrowed, so neither flashes. */
   (function(){
     var t = null;
-    try { t = localStorage.getItem('resources:hub:admin:theme'); } catch (e) {}
-    if (t !== 'dark' && t !== 'light') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    try { t = localStorage.getItem('resources:hub:theme'); } catch (e) {}
+    if (t !== 'dark') t = 'light';   // as the rest of the Hub: light unless dark was chosen
     document.documentElement.setAttribute('data-theme', t);
-    try { if (localStorage.getItem('resources:hub:admin:rail') === 'mini') document.documentElement.classList.add('railmini'); } catch (e) {}
+    try { if (localStorage.getItem('resources:hub:rail') === 'mini') document.documentElement.classList.add('railmini'); } catch (e) {}
   })();
 </script>
 <script src="/assets/session.js"></script>
@@ -64,19 +64,21 @@
     color-scheme:light;
   }
   html[data-theme="dark"]{
-    --paper:#061722; --surface:#0D2837; --sunk:#173C52;
-    --ink:#E9F4FB; --ink-2:#A6C5D9; --ink-3:#7A9DB4;
-    --line:#173547; --line-2:#1F4A63; --line-3:#2F6688;
-    --accent:#50a4db; --accent-soft:#123143;
-    --bad:#F08579; --bad-soft:#3A1C19;
-    --warn-ink:#E0A83C; --warn-soft:#3A2E13;
-    --good:#4FC79B; --good-soft:#0C3128;
-    --btn:#50a4db; --btn-ink:#06202f;
-    --adm-bg:#123143; --adm-ink:#94c8e9;
-    --code-bg:#030C12; --code-ink:#E9F4FB;
-    --scrim:rgba(0,0,0,.6);
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -18px rgba(0,0,0,.85);
+    --paper:#0B1826; --surface:#112336; --sunk:#172D44;
+    --ink:#EEF3F8; --ink-2:#B9C8D6; --ink-3:#8C9FB1;
+    --line:#1A3048; --line-2:#243E5A; --line-3:#3A5A7C;
+    --accent:#50A4DB; --accent-soft:#173A57;
+    --bad:#F08579; --bad-soft:#3D2220;
+    --warn-ink:#E0A83C; --warn-soft:#3A3020;
+    --good:#72C08E; --good-soft:#1F3328;
+    --btn:#50A4DB; --btn-ink:#0F314C;
+    --adm-bg:#173A57; --adm-ink:#A3CDE7;
+    --code-bg:#07111C; --code-ink:#E9F4FB;
+    --scrim:rgba(0,0,0,.65);
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 26px -18px rgba(0,0,0,.9);
     color-scheme:dark;
+    /* Deep Circuit dark mode (29 Sept) */
+    --shadow-s:0 1px 2px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
@@ -1237,7 +1239,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     document.documentElement.classList.toggle('railmini', on);
     $('railHide').setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
     $('railHide').title = (on ? 'Widen the sections' : 'Narrow the sections') + ' (backslash)';
-    try { localStorage.setItem('resources:hub:admin:rail', on ? 'mini' : 'full'); } catch (e) {}
+    try { localStorage.setItem('resources:hub:rail', on ? 'mini' : 'full'); } catch (e) {}
   }
   $('railHide').addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
   document.addEventListener('keydown', e => {
@@ -1258,7 +1260,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     btn.addEventListener('click', () => {
       const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('resources:hub:admin:theme', next); } catch (e) {}
+      try { localStorage.setItem('resources:hub:theme', next); } catch (e) {}
       paint();
     });
   })();
