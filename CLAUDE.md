@@ -23,7 +23,7 @@ edits are committed to `data/<id>.json` through the GitHub contents API. See
 
 | File | What it is |
 |---|---|
-| `index.html` | The hub homepage, in the Summit HQ look (navy masthead, Sections sidebar). MISMO Initiatives (domain tiles, then a domain's cards) and Potential Initiatives are sidebar sections; `#potential` opens the second. The sidebar also has Meeting Calendar, search, the Color Tour and Dark Mode |
+| `index.html` | The hub homepage, in the Summit HQ look (navy masthead, Sections sidebar) but in Libre Franklin, not IBM Plex (Perry's choice, 29 Sept; keep it). MISMO Initiatives (domain tiles, then a domain's cards) and Potential Initiatives are sidebar sections; `#potential` opens the second. The sidebar also has Meeting Calendar, search, the Color Tour and Dark Mode |
 | `mcd-dashboard.html`, `lbds-dashboard.html`, `ccs-dashboard.html`, `tpa-dashboard.html` | The four live, real workgroup dashboards |
 | `calendar.html` | Meeting calendar with a workgroup filter dropdown |
 | `dashboard-data.js` | Shared git-backed storage used by every dashboard: reads the committed data file, sends saves to the relay, holds the conflict lock, sanitises shared HTML. Read its header comment before touching persistence. |
