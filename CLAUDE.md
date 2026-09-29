@@ -24,7 +24,7 @@ edits are committed to `data/<id>.json` through the GitHub contents API. See
 | File | What it is |
 |---|---|
 | `index.html` | The hub homepage, in the Summit HQ look (navy masthead, Sections sidebar) but in Libre Franklin, not IBM Plex (Perry's choice, 29 Sept; keep it). MISMO Initiatives (domain tiles, then a domain's cards) and Potential Initiatives are sidebar sections; `#potential` opens the second. The sidebar also has Meeting Calendar, search, the Color Tour and Dark Mode |
-| `mcd-dashboard.html`, `lbds-dashboard.html`, `ccs-dashboard.html`, `tpa-dashboard.html` | The four live, real workgroup dashboards |
+| `mcd-dashboard.html`, `lbds-dashboard.html`, `ccs-dashboard.html`, `tpa-dashboard.html`, `title-order-dashboard.html`, `avm-testing-dashboard.html` | The six workgroup dashboards, one template. In the Summit HQ frame (29 Sept) with the navy section banners kept (light with navy text in dark, as before), an On This Page group in the sidebar (Role & Benefits and Engagement Roster counts read from the page), Locked and Save in the fixed top bar, and the Hub's shared theme key `resources:hub:theme`. The frame is a style block and markup added over each page, not a rewrite (see "Dashboards in the frame" below). |
 | `calendar.html` | Meeting calendar, in the Summit HQ look with Libre Franklin. The workgroup filter is in the sidebar, grouped by domain (above the calendar instead when the sidebar is narrowed or on a phone); one-line meeting chips; each week is as tall as its busiest day. Dark mode follows the Hub's saved theme |
 | `dashboard-data.js` | Shared git-backed storage used by every dashboard: reads the committed data file, sends saves to the relay, holds the conflict lock, sanitises shared HTML. Read its header comment before touching persistence. |
 | `potential.html` | One page that renders ANY potential initiative from `data/potential/<id>.json` (`?id=`). Approved section order: stage rail, Overview (facts card sized to its own content, not stretched; potential solutions folded in as a "What it could produce" subsection, no separate card), Status Updates (timeline), Potential Leadership (flat list — everyone interested, role as a tag, no seat structure, collapsed behind a "+ Add" link when empty), Stakeholder Engagement. Week-to-week edits happen here with the same Save/lock as the dashboards. In the Summit HQ look with Libre Franklin: the Hub sidebar with an On This Page group (Overview, Status Updates, Potential Leadership, Stakeholder Engagement) whose counts are set on every redraw, so an added update, leader or organization shows at once; name, domain and Edit/Save in the page header, the stage rail under it. |
@@ -374,6 +374,27 @@ Two rules follow:
   the deployed index.mjs. Compare it with the formula above (not plain `sha256sum`, which
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
+
+## Dashboards in the frame
+
+The six dashboards keep their own styles and code. The Summit HQ frame is a block appended to each
+page's `<style>` (it maps the page's colour tokens onto Summit HQ's and adds `.hqtop`, `.rail` and
+`.onp`, all scoped so they cannot reach the dashboard's classes) plus the masthead and sidebar markup
+at the top of `<body>`. **Saved fields are keyed by position** (`computeStableFieldKey`: the nearest
+`section[id]` or `div[id]`, then the index among editable elements in it; the header's are `body::`).
+So the frame contains no editable elements, adds no `section`/`div` with an id around the content,
+and leaves the header's editable pieces (workgroup tag, eyebrow, title, leadership chips) in order.
+The build was checked by comparing every dashboard's captured state before and after: identical.
+The roster heading's anchor is an `id` on its `h3`, which does not change any key.
+
+The frame block and markup are the same in all six (only the domain colour, `--dom-color`, differs).
+`_dev/dashboard-template.html` does not have the frame yet: a new dashboard should copy both from an
+existing one.
+
+Fixed in the same change: the meeting tracker's bars never drew (the fill was an inline `span`);
+the dashboards scrolled sideways on a phone; and `avm-testing-dashboard.html` saved under
+`id: 'ccs'`, the CCS dashboard's file, so each would have loaded the other's fields. It now saves as
+`avm-testing`. Nothing had been saved under `ccs`, so nothing was lost.
 
 ## Reviewing designs
 

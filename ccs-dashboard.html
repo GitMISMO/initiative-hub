@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Common Confidence Score (CCS) — Workgroup Dashboard</title>
 <script>
   // Set the theme before any CSS paints, so a dark-mode visitor doesn't see a flash
@@ -11,8 +11,9 @@
   // delay first paint the way the full page script (loaded later) would.
   (function(){
     try {
-      var saved = localStorage.getItem('resources:hub:ccs:theme');
+      var saved = localStorage.getItem('resources:hub:theme');
       if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      if (localStorage.getItem('resources:hub:rail') === 'mini') document.documentElement.classList.add('railmini');
     } catch (e) {}
   })();
 </script>
@@ -908,11 +909,234 @@
     font-size:11.5px;
     color:var(--ink-soft);
   }
+
+  /* ═══════════ The Hub's frame (Summit HQ look), added over the dashboard's own styles ═══════════
+     Everything the dashboard draws still uses its own rules. This block only maps its colour
+     tokens onto Summit HQ's palette and adds the masthead and sidebar. The frame's rules are
+     all scoped (.hqtop, .rail, .onp) so they cannot reach the dashboard's own classes. */
+  :root{
+    --ink:#0f314c; --ink-soft:#456179; --paper:#F1F6FA; --card:#FFFFFF; --line:#D5E2ED;
+    --brand:#2C74A6; --brand-soft:#dcedf8; --brand-text:#14486E;
+    --success:#0F7B5C; --success-soft:#E1F2EC; --success-text:#0F7B5C;
+    --dwg:#14486E; --dwg-soft:#dcedf8;
+    --shadow:0 1px 2px rgba(15,49,76,.06), 0 10px 26px -18px rgba(15,49,76,.45);
+    /* banners: navy with white text in light, as today */
+    --bar-bg:#0f314c; --header-bg:#0f314c; --header-bg-hover:#14486e; --header-text:#fff; --header-text-soft:rgba(255,255,255,.65);
+    /* the frame's own */
+    --navy:#0f314c; --navy-mid:#14486e; --sky:#50a4db; --sky-soft:#94c8e9;
+    --hq-h:64px; --rail-w:240px; --rail-mini:62px;
+    --dom-color:#C2255C;
+  }
+  html[data-theme="dark"]{
+    --ink:#E9F4FB; --ink-soft:#A6C5D9; --paper:#061722; --card:#0D2837; --line:#1F4A63;
+    --brand:#50a4db; --brand-soft:#123143; --brand-text:#94c8e9;
+    --success:#4FC79B; --success-soft:#0C3128; --success-text:#4FC79B;
+    --dwg:#94c8e9; --dwg-soft:#123143;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 26px -18px rgba(0,0,0,.85);
+    /* banners: light with navy text in dark, as today */
+    --bar-bg:#0f314c; --header-bg:#F1F6FA; --header-bg-hover:#E3ECF3; --header-text:#0f314c; --header-text-soft:rgba(15,49,76,.65);
+    --dom-color:#E0417A;
+  }
+  body{padding-top:calc(var(--hq-h) + env(safe-area-inset-top,0px));padding-left:var(--rail-w)}
+  html.railmini body{padding-left:var(--rail-mini)}
+  svg.i{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+  .hqtop{position:fixed;top:0;left:0;right:0;z-index:30;height:calc(var(--hq-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 22px 0;background:var(--navy);color:#fff;display:flex;align-items:center;
+    box-shadow:0 1px 0 rgba(80,164,219,.28);font-family:'Libre Franklin',system-ui,sans-serif;line-height:1.45}
+  .hqtop .logoplate{background:#fff;border-radius:5px;padding:9px 13px;display:flex;align-items:center;line-height:0;flex:0 0 auto;box-shadow:0 1px 0 rgba(80,164,219,.35)}
+  .hqtop .logoplate svg{height:24px;width:auto;display:block}
+  .hqtop .mastrule{display:block;width:2px;height:34px;flex:0 0 auto;margin-inline:20px;border-radius:1px;background:var(--sky)}
+  .hqtop .hqname{font-size:15.5px;font-weight:700;letter-spacing:-.005em;color:var(--sky);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hqtop .hqtop-r{margin-left:auto;display:flex;align-items:center;gap:13px;flex:0 0 auto}
+  .hqtop .eyebrow-m{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;white-space:nowrap}
+  /* Locked and Save: in the fixed top bar, so they stay in reach however far down the page you are */
+  .hqtop .floating-actions{position:static;flex-direction:row;align-items:center;gap:8px}
+  .hqtop .lock-toggle-btn,.hqtop .save-toggle-btn{border-radius:5px;padding:6px 12px;font-size:12.5px;
+    background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#fff}
+  .hqtop .lock-toggle-btn:hover,.hqtop .save-toggle-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff}
+  .hqtop .lock-toggle-btn.is-locked{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#fff}
+  .hqtop .lock-toggle-btn.is-locked:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3)}
+  .hqtop #lockToggleBtn:not(.is-locked){background:var(--sky);border-color:var(--sky);color:#06202f}
+  .hqtop .save-toggle-btn.has-changes{background:#E0A83C;border-color:#E0A83C;color:#06202f}
+  .hqtop .save-toggle-btn.just-saved{background:#4FC79B;border-color:#4FC79B;color:#06202f}
+  .hqtop .save-toggle-btn .dirty-dot{background:#06202f}
+  .hqtop :focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+
+  .rail{position:fixed;left:0;bottom:0;top:calc(var(--hq-h) + env(safe-area-inset-top,0px));width:var(--rail-w);z-index:20;
+    background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow:hidden auto;font-family:'Libre Franklin',system-ui,sans-serif;
+    font-size:14px;line-height:1.45;box-shadow:1px 0 0 rgba(80,164,219,.22), 4px 0 18px rgba(6,32,47,.14)}
+  html.railmini .rail{width:var(--rail-mini)}
+  .rail .rail-top{display:flex;align-items:center;gap:8px;padding:11px 10px 9px;border-bottom:1px solid rgba(80,164,219,.2)}
+  .rail .rail-lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.55);padding-left:3px}
+  .rail .railhide{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:5px;
+    color:rgba(255,255,255,.75);width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+  .rail .railhide svg{width:16px;height:16px}
+  .rail .railhide:hover{background:rgba(255,255,255,.14);color:#fff}
+  .rail nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 4px}
+  .rail nav a,.rail .theme-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+    border-radius:6px;color:rgba(255,255,255,.76);padding:8px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;text-decoration:none;height:auto}
+  .rail nav a svg,.rail .theme-btn svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .rail nav a:hover,.rail .theme-btn:hover{color:#fff;background:rgba(255,255,255,.09);border:0}
+  .rail nav a[aria-current="page"]{color:#fff;font-weight:600;background:var(--navy-mid);box-shadow:inset 3px 0 0 var(--sky)}
+  .rail nav a[aria-current="page"] svg{opacity:1;stroke:var(--sky)}
+  .rail a:focus-visible,.rail button:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .rail nav .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px}
+  .rail nav .count:empty{display:none}
+  .rail .foot{margin-top:auto;padding:8px 8px 10px;border-top:1px solid rgba(80,164,219,.2);display:flex;flex-direction:column;gap:1px}
+  /* the dashboard's own theme button, moved here: the moon and "Dark Mode" in light, the sun and "Light Mode" in dark */
+  .rail #themeToggleBtn{width:100%;height:auto;border-radius:6px;justify-content:flex-start}
+  .rail #themeToggleBtn .icon-sun,.rail #themeToggleBtn .tl-l{display:none}
+  .rail #themeToggleBtn .icon-moon{display:block}
+  html[data-theme="dark"] .rail #themeToggleBtn .icon-moon,html[data-theme="dark"] .rail #themeToggleBtn .tl-d{display:none}
+  html[data-theme="dark"] .rail #themeToggleBtn .icon-sun{display:block}
+  html[data-theme="dark"] .rail #themeToggleBtn .tl-l{display:inline}
+  /* On This Page */
+  .onp{border-top:1px solid rgba(80,164,219,.16);margin-top:4px;padding-top:7px}
+  .onp[hidden]{display:none}
+  .onp > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 2px}
+  .rail .onp nav{padding:4px 8px}
+  .rail .onp nav a{gap:10px;padding:7px 10px 7px 12px;font-size:12.5px;color:rgba(255,255,255,.72);font-weight:500}
+  .rail .onp nav a::before{content:'';width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);flex:0 0 auto}
+  .rail .onp nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .rail .onp nav a[aria-current]{color:#fff;font-weight:600;background:rgba(255,255,255,.08)}
+  .rail .onp nav a[aria-current]::before{background:var(--sky)}
+  html.railmini .rail-top{justify-content:center;padding-inline:0}
+  html.railmini .railhide{margin:0}
+  html.railmini .railhide svg{transform:scaleX(-1)}
+  html.railmini .rail-lbl,html.railmini .rail nav span,html.railmini .rail nav .count,html.railmini .rail .theme-btn .tl,html.railmini .onp{display:none !important}
+  html.railmini .rail nav{padding-inline:6px;align-items:center}
+  html.railmini .rail nav a,html.railmini .rail .theme-btn,html.railmini .rail #themeToggleBtn{justify-content:center;padding:10px 0;width:42px}
+  html.railmini .rail .foot{align-items:center}
+
+  /* ═══════════ the dashboard inside the frame ═══════════ */
+  .masthead{padding:22px 24px 0}
+  .masthead-inner,.wrap,.meeting-schedule-wrap{margin-left:0;margin-right:0}
+  .masthead-inner{border-bottom:2px solid var(--ink);padding-bottom:18px;max-width:1132px}   /* the same width as the content below it */
+  .masthead .eyebrow{font-size:11px;letter-spacing:.11em;color:var(--ink-soft)}
+  .title-row h1{font-size:clamp(24px,3vw,30px);letter-spacing:-.02em}
+  /* the workgroup tag: a quiet tag in the Hub's style, with its domain's colour (it stays an editable field) */
+  .workgroup-tag{display:inline-flex;align-items:center;gap:7px;background:var(--card);color:var(--ink-soft);border:1px solid var(--line);
+    font-size:12px;font-weight:600;letter-spacing:0;padding:2px 11px 2px 9px}
+  .workgroup-tag:not(:empty)::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--dom-color);flex:0 0 auto}
+  body:not(.locked) .workgroup-tag:empty{border-color:var(--dwg);color:var(--dwg)}
+  #meeting-schedule,#overview,#stakeholders,#governance,#roster-head{scroll-margin-top:calc(var(--hq-h) + 16px)}
+  /* The tracker's bars: the fill is an inline span, and inline boxes ignore width and height, so it never showed. */
+  .leaderboard-fill{display:block}
+
+  @media (max-width:760px){
+    :root{--hq-h:55px;--rail-w:58px;--rail-mini:58px}
+    .hqtop{padding-inline:12px}
+    .hqtop .logoplate{padding:7px 10px}
+    .hqtop .logoplate svg{height:18px}
+    .hqtop .mastrule{height:30px;margin-inline:10px}
+    .hqtop .hqname,.hqtop .eyebrow-m,.hqtop .save-label,.hqtop .lock-label{display:none}
+    .hqtop .hqtop-r{gap:8px}
+    .rail .railhide,.rail .rail-lbl,.rail nav span,.rail nav .count,.rail .theme-btn .tl,.onp{display:none !important}
+    .rail .rail-top{justify-content:center;padding-inline:0;min-height:12px}
+    .rail nav{padding-inline:6px;align-items:center}
+    .rail nav a,.rail .theme-btn,.rail #themeToggleBtn{justify-content:center;padding:10px 0;width:42px}
+    .rail .foot{align-items:center}
+    .masthead{padding:16px 16px 0}
+    /* The dashboards already scrolled sideways on a phone: the grids' columns would not shrink
+       below their content. Let every column shrink, and long links and tables wrap or scroll. */
+    .masthead-inner > *,.overview-col,.overview-card,.stake-card,.roster-layout > *,.gov-layout > *{min-width:0}
+    .overview-grid,.gov-layout,.roster-layout,.card-grid,.stake-layout{grid-template-columns:minmax(0,1fr) !important}
+    .wrap,.meeting-schedule-wrap{padding-left:16px;padding-right:16px}
+    .title-row h1,.meeting-tile-value,.overview-card a{overflow-wrap:anywhere}
+    .meeting-banner,.meeting-tile-row{flex-wrap:wrap}
+    .stake-card{overflow-x:auto}
+    .deliverables-table{display:block;overflow-x:auto;max-width:100%}
+    .eyebrow-row{flex-wrap:wrap}
+    .masthead .eyebrow{white-space:normal}
+  }
 </style>
   <script src="/assets/session.js"></script>
 <script src="dashboard-data.js?v=cfca585774"></script>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
+0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
+355 253 355 520 0 270 -132 459 -361 520 -74 20 -730 20 -802 0z m692 -320
+c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
+-297 0 -307 2 -346 83 -30 61 -31 198 -2 262 41 93 68 100 368 97 219 -2 243
+-4 274 -22z M0 545 l0 -515 225 0 225 0 2 296 3 296 116 -294 116 -293 197 0 198
+0 119 295 118 295 1 -297 0 -298 225 0 225 0 0 515 0 515 -337 -2 -338 -3
+-104 -264 c-80 -204 -107 -260 -113 -245 -5 10 -52 129 -106 264 l-98 245
+-337 3 -337 2 0 -515z M1892 1044 l-22 -15 0 -483 c0 -455 1 -484 18 -499 16 -15 48 -17
+246 -17 128 0 235 4 246 10 32 17 34 57 4 95 -33 44 -64 143 -64 206 l0 49
+203 0 c191 0 205 -1 222 -20 10 -11 34 -24 54 -30 49 -13 586 -13 612 0 22 12
+26 62 7 78 -8 6 -174 15 -413 21 -502 15 -549 23 -628 110 -43 48 -57 93 -57
+187 0 82 19 156 55 208 30 44 32 77 7 99 -27 25 -456 25 -490 1z M3716 1044 c-23 -22 -20 -31 19 -77 43 -49 78 -155 73 -218 l-3 -44
+-204 -3 c-194 -2 -205 -1 -218 17 -24 35 -78 41 -355 41 -255 0 -269 -1 -288
+-20 -27 -27 -26 -58 3 -70 12 -5 202 -14 422 -19 421 -12 476 -18 555 -62 92
+-51 132 -159 111 -299 -12 -77 -34 -129 -77 -179 -23 -28 -25 -36 -16 -57 l12
+-24 215 0 215 0 2 306 3 306 120 -303 120 -304 197 -3 196 -2 118 296 119 297
+3 -296 2 -297 225 0 225 0 0 515 0 515 -338 0 -337 0 -104 -265 c-58 -146
+-106 -263 -108 -261 -2 2 -50 120 -107 262 l-104 259 -340 3 c-300 2 -342 0
+-356 -14z"/></g><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-s, #50a4db)"><path d="M2485 1046 c-44 -20 -111 -94 -136 -151 -27 -60 -37 -198 -20 -263
+13 -48 68 -115 114 -138 64 -34 162 -43 562 -55 239 -6 405 -15 413 -21 19
+-16 15 -66 -7 -78 -26 -13 -563 -13 -612 0 -20 6 -44 19 -54 30 -17 19 -31 20
+-222 20 l-203 0 0 -49 c0 -81 34 -172 86 -230 78 -87 31 -81 672 -81 l568 0
+46 29 c79 50 122 121 139 231 21 140 -19 248 -111 299 -79 44 -134 50 -555 62
+-220 5 -410 14 -422 19 -29 12 -30 43 -3 70 19 19 33 20 288 20 277 0 331 -6
+355 -41 13 -18 24 -19 218 -17 l204 3 3 44 c4 60 -31 168 -70 215 -17 21 -52
+52 -77 67 l-45 29 -550 0 c-440 -1 -557 -3 -581 -14z"/></g></symbol>
+</defs></svg>
+
+<!-- The Hub's frame. Nothing here is editable, so the dashboard's saved fields keep their keys. -->
+<header class="hqtop">
+  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <span class="mastrule"></span>
+  <span class="hqname">Initiative Hub</span>
+  <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
+    <div class="floating-actions">
+  <button type="button" id="signInToEdit" class="lock-toggle-btn" title="Sign in to edit this dashboard" style="display:none">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    <span>Sign in to edit</span>
+  </button>
+  <button type="button" id="lockToggleBtn" class="lock-toggle-btn" aria-pressed="true" title="Unlock to allow edits">
+    <span class="lock-icon" aria-hidden="true"></span><span class="lock-label">Locked</span>
+  </button>
+  <button type="button" id="saveSnapshotBtn" class="save-toggle-btn" title="Save your edits to the repository so everyone sees them">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
+    <span class="save-label">Save</span>
+    <span class="dirty-dot" aria-hidden="true"></span>
+  </button>
+</div>
+    <!-- The shared account bubble every tool shows in this spot (session.js fills it). -->
+    <div id="rs-account"></div></span>
+</header>
+
+<aside class="rail" id="rail">
+  <div class="rail-top">
+    <span class="rail-lbl">Sections</span>
+    <button class="railhide" id="railHide" type="button" aria-label="Narrow the sections" title="Narrow the sections (backslash)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+  </div>
+  <nav aria-label="Initiative Hub">
+    <a href="index.html" aria-current="page" title="MISMO Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg><span>MISMO Initiatives</span></a>
+    <a href="index.html#potential" title="Potential Initiatives"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><span>Potential Initiatives</span></a>
+    <a href="calendar.html" title="Meeting Calendar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M8 3v4 M16 3v4 M3 10h18"/></svg><span>Meeting Calendar</span></a>
+  </nav>
+  <div class="onp" id="onPage" hidden><span>On This Page</span>
+    <nav aria-label="On this page">
+      <a href="#meeting-schedule" id="onpInfo"><span>Workgroup Information</span></a>
+      <a href="#overview" id="onpOverview"><span>Work Product Overview</span></a>
+      <a href="#stakeholders" id="onpRoles"><span>Role &amp; Benefits</span><b class="count" id="nRoles"></b></a>
+      <a href="#roster-head" id="onpRoster"><span>Engagement Roster</span><b class="count" id="nRoster"></b></a>
+      <a href="#governance" id="onpTracker"><span>Meeting Tracker</span></a>
+    </nav>
+  </div>
+  <div class="foot">
+    <button type="button" id="themeToggleBtn" class="theme-toggle-btn theme-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
+    <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
+    <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
+  <span class="tl tl-d">Dark Mode</span><span class="tl tl-l">Light Mode</span></button>
+  </div>
+</aside>
 
 <div class="masthead">
   <div class="masthead-inner">
@@ -934,26 +1158,7 @@
   </div>
 </div>
 
-<div class="floating-actions">
-  <a class="back-to-hub" href="index.html">← Back to Initiative Hub</a>
-  <button type="button" id="signInToEdit" class="lock-toggle-btn" title="Sign in to edit this dashboard" style="display:none">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-    <span>Sign in to edit</span>
-  </button>
-  <button type="button" id="lockToggleBtn" class="lock-toggle-btn" aria-pressed="true" title="Unlock to allow edits">
-    <span class="lock-icon" aria-hidden="true"></span><span class="lock-label">Locked</span>
-  </button>
-  <button type="button" id="saveSnapshotBtn" class="save-toggle-btn" title="Save your edits to the repository so everyone sees them">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
-    <span class="save-label">Save</span>
-    <span class="dirty-dot" aria-hidden="true"></span>
-  </button>
-  <div id="rs-account"></div>
-  <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
-    <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
-    <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
-  </button>
-</div>
+
 
   <div id="restoreBanner" class="restore-banner" style="display:none;">
     <span class="restore-banner-text">A saved version of this page exists in your browser from a previous visit.</span>
@@ -1105,7 +1310,7 @@
       </div>
     </div>
 
-    <h3 class="card-dark-bar" style="margin:0 0 4px;">Stakeholder engagement roster</h3>
+    <h3 class="card-dark-bar" id="roster-head" style="margin:0 0 4px;">Stakeholder engagement roster</h3>
     <p class="section-subtext" style="margin:0 0 12px;">"Active participants" = attended at least 1/3 of the 31 workgroup meetings held in the past year (Aug 2025–Aug 2026), per the uploaded meeting tracker.</p>
     <div class="card" style="padding:18px;" id="roster">
       <div class="roster-controls">
@@ -1196,7 +1401,7 @@
   }
   let savedDashboardTheme = 'light';
   try {
-    savedDashboardTheme = localStorage.getItem('resources:hub:ccs:theme') || 'light';
+    savedDashboardTheme = localStorage.getItem('resources:hub:theme') || 'light';
   } catch (e) {
     // Local storage unavailable — just default to light.
   }
@@ -1207,7 +1412,7 @@
       const next = current === 'dark' ? 'light' : 'dark';
       applyDashboardTheme(next);
       try {
-        localStorage.setItem('resources:hub:ccs:theme', next);
+        localStorage.setItem('resources:hub:theme', next);
       } catch (e) {
         // Local storage unavailable — the toggle still works, it just won't persist.
       }
@@ -2355,5 +2560,67 @@
   MismoStore.wireAccount({ editControls: ['#lockToggleBtn', '#saveSnapshotBtn'] });
 </script>
 
+<script>
+  /* On This Page: the record's own sections, listed in the sidebar under the Hub's.
+     A link scrolls to its section; the highlight follows whichever section is at the top
+     as you scroll. The counts are set by the page itself each time it redraws. */
+  function OnThisPage(pairs){
+    const get = id => document.getElementById(id);
+    const barH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hq-h')) || 64;
+    const shown = el => el && el.offsetParent !== null;
+    function mark(lid){ pairs.forEach(([, l]) => { const a = get(l); if (!a) return; if (l === lid) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); }); }
+    function spy(){
+      let cur = pairs[0][1];
+      for (const [sid, lid] of pairs){ const el = get(sid); if (shown(el) && el.getBoundingClientRect().top <= barH() + 28) cur = lid; }
+      // At the very bottom the last section is the one being read, even if it is too short to reach the top.
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2)
+        for (let i = pairs.length - 1; i >= 0; i--) if (shown(get(pairs[i][0]))) { cur = pairs[i][1]; break; }
+      mark(cur);
+    }
+    let queued = false;
+    addEventListener('scroll', () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; spy(); }); }, { passive: true });
+    addEventListener('resize', spy);
+    pairs.forEach(([sid, lid]) => { const a = get(lid); if (a) a.addEventListener('click', e => {
+      const el = get(sid); if (!shown(el)) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      mark(lid);
+    }); });
+    return {
+      spy,
+      show(on){ const g = get('onPage'); if (g) g.hidden = !on; if (on) spy(); },
+      count(id, n){ const b = get(id); if (b) b.textContent = n; }
+    };
+  }
+</script>
+<script>
+/* On This Page for the dashboard. The counts are read from the page as it stands, so a
+   stakeholder type or an organization added here shows at once. */
+(function(){
+  const onp = OnThisPage([['meeting-schedule', 'onpInfo'], ['overview', 'onpOverview'], ['stakeholders', 'onpRoles'], ['roster-head', 'onpRoster'], ['governance', 'onpTracker']]);
+  const roles = () => [...document.querySelectorAll('#stakeholders .stake-card tbody tr')].filter(tr => tr.querySelector('td')).length;   // the header row sits in the body too
+  const orgs = () => [...document.querySelectorAll('#rosterLayout .type-row .type-count')].reduce((n, el) => n + (parseInt(el.textContent, 10) || 0), 0);
+  function recount(){ onp.count('nRoles', roles()); onp.count('nRoster', orgs()); }
+  const st = document.getElementById('stakeholders');
+  if (st) new MutationObserver(recount).observe(st, { childList: true, subtree: true, characterData: true });
+  onp.show(true); recount();
+})();
+  // --- Narrowing the sections to icons: the button, or the backslash key (shared with the home page) ---
+  const railHide = document.getElementById('railHide');
+  function setMini(on){
+    document.documentElement.classList.toggle('railmini', on);
+    railHide.setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
+    railHide.title = (on ? 'Widen the sections' : 'Narrow the sections') + ' (backslash)';
+    try { localStorage.setItem('resources:hub:rail', on ? 'mini' : 'full'); } catch (e) {}
+  }
+  railHide.addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
+  document.addEventListener('keydown', e => {
+    if (e.key !== '\\' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); setMini(!document.documentElement.classList.contains('railmini'));
+  });
+  if (document.documentElement.classList.contains('railmini')) setMini(true);
+
+</script>
 </body>
 </html>
