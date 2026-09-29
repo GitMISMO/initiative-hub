@@ -222,6 +222,7 @@
   .seg button[aria-pressed="true"].lv-none{color:var(--ink);font-weight:700;background:var(--sunk)}
   .seg button:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
   .seg.locked button[disabled]{cursor:default;opacity:1}
+  .trow.allrow{background:var(--sunk)}
   .seg button[aria-pressed="true"].gp{background:var(--accent-soft);color:var(--accent)}
 
   /* adding someone or something: its own panel, opened from the button in the masthead */
@@ -683,11 +684,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     /* Service Orders and Agreements: one key per contracting company, each with its own
        private repository. A company's account holds its own key; MISMO staff who approve
        or administer hold every key. The names are from each key's data folder. */
-    { key:'so-phoenix',    label:'Phoenix Team', sum:'Service Orders (Phoenix Team)', colour:'#E11D48', group:'Service Orders and Agreements' },
-    { key:'so-actualize',  label:'Actualize',    sum:'Service Orders (Actualize)',    colour:'#E11D48', group:'Service Orders and Agreements' },
-    { key:'so-trex',       label:'T-Rex',        sum:'Service Orders (T-Rex)',        colour:'#E11D48', group:'Service Orders and Agreements' },
-    { key:'so-falcon',     label:'Falcon',       sum:'Service Orders (Falcon)',       colour:'#E11D48', group:'Service Orders and Agreements' },
-    { key:'so-trudigital', label:'TruDigital',   sum:'Service Orders (TruDigital)',   colour:'#E11D48', group:'Service Orders and Agreements' }
+    { key:'so-phoenix',    label:'Phoenix Team', sum:'Service Orders (Phoenix Team)', colour:'#E11D48', group:'Service Orders and Agreements', family:true },
+    { key:'so-actualize',  label:'Actualize',    sum:'Service Orders (Actualize)',    colour:'#E11D48', group:'Service Orders and Agreements', family:true },
+    { key:'so-trex',       label:'T-Rex',        sum:'Service Orders (T-Rex)',        colour:'#E11D48', group:'Service Orders and Agreements', family:true },
+    { key:'so-falcon',     label:'Falcon',       sum:'Service Orders (Falcon)',       colour:'#E11D48', group:'Service Orders and Agreements', family:true },
+    { key:'so-trudigital', label:'TruDigital',   sum:'Service Orders (TruDigital)',   colour:'#E11D48', group:'Service Orders and Agreements', family:true }
   ];
 
   /* The sections People & Access is split into, in this order. Each person's section is
@@ -771,6 +772,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const extra = named.length - 3;
     return bits.join('') + (first ? `<small>${first}${extra > 0 ? ` and ${extra} more` : ''}</small>` : '');
   }
+  /* Service Orders has no key of its own: the portal opens for anyone holding any company's
+     key, and shows the companies they hold. This row sets all of them at once, which is
+     what MISMO staff need; a company's own account gets just its own row below. */
+  function allRow(email, tools, a){
+    const lvls = tools.map(t => levelOf(a[t.key])), same = lvls.every(l => l === lvls[0]) ? lvls[0] : null;
+    const b = (v, text) => `<button type="button" class="lv-${v}" aria-pressed="${same === v}" data-acc-all="${esc(email)}" data-keys="${tools.map(t => t.key).join(',')}" data-level="${v}">${text}</button>`;
+    return `<div class="trow allrow"><span class="tname"><strong>Every company</strong> <small>&middot; the portal opens with any one company; MISMO staff need all of them</small></span>` +
+      `<span class="seg" role="group" aria-label="Every company">` + b('edit','Edit') + b('view','View') + b('none','No access') + '</span></div>';
+  }
   function drawerFor(email, p){
     const a = p.access || {};
     const order = [], groups = {};
@@ -779,7 +789,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       `<span class="seg" role="group" aria-label="Section">` + PEOPLE_GROUPS.map(g =>
         `<button type="button" class="gp" aria-pressed="${groupOf(email) === g.key}" data-acc-group="${esc(email)}" data-group="${g.stored}">${esc(g.one)}</button>`).join('') + '</span></div>' : '';
     return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>${p.platformAdmin ? 'an administrator: every tool, and each tool’s settings' : 'every tool, grouped'}</small></div>` + section +
-      order.map(g => `<div class="grp">${esc(g)}</div>` + groups[g].map(t => {
+      order.map(g => `<div class="grp">${esc(g)}</div>` + (!p.platformAdmin && groups[g].every(t => t.family) ? allRow(email, groups[g], a) : '') + groups[g].map(t => {
         /* Said out loud rather than shown as a fourth segment, so the control stays three
            wide while the extra permission is still visible to whoever is granting access. */
         const note = p.platformAdmin ? '' : a[t.key] === 'admin' ? ' <small>&middot; also manages this tool’s settings</small>' : '';
@@ -833,6 +843,18 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (mg) {
       openDrawer = openDrawer === mg.dataset.accManage ? null : mg.dataset.accManage; renderAccess();
       const back = $('accList').querySelector(`[data-acc-manage="${CSS.escape(mg.dataset.accManage)}"]`); if (back) back.focus();
+      return;
+    }
+    const al = e.target.closest('[data-acc-all]');
+    if (al) {
+      const p = acc.people[al.dataset.accAll]; p.access = p.access || {};
+      for (const k of al.dataset.keys.split(',')) {
+        if (al.dataset.level === 'edit') { if (levelOf(p.access[k]) !== 'edit') p.access[k] = 'staff'; }
+        else if (al.dataset.level === 'view') p.access[k] = 'view';
+        else delete p.access[k];
+      }
+      markAcc();
+      const back = document.querySelector(`[data-acc-all="${CSS.escape(al.dataset.accAll)}"][data-level="${al.dataset.level}"]`); if (back) back.focus();
       return;
     }
     const gp = e.target.closest('[data-acc-group]');
