@@ -568,6 +568,12 @@ personal access token in a plaintext file:
 
 Carried forward from earlier sessions, still outstanding as of this handoff:
 
+- **Move the Hub's data into a private repository (later, Perry, 30 Sept).** The Hub is behind the
+  sign-in, but `initiative-hub` is public, so its `data/` files can still be fetched by URL. For now
+  every person has Edit on the Hub. The move means a private data repository and a relay project
+  for it, the pages reading data through the relay instead of from Pages, and moving the files.
+- **Work Requests: limit reads to people's own requests (needs IT).** A relay change; every request
+  already records `createdBy`. Until then everyone with access reads every request.
 - **Relay request 7 is deployed (29 Sept); one check left.** Ask Amy Moses to open the
   Business Glossary Console with her View access: it should open read-only, with no Save.
   Then remove the fallback email lists in `PEOPLE_GROUPS` in admin.html (every person's
