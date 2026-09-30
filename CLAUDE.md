@@ -410,7 +410,7 @@ was applied to Summit HQ, the Sponsorship Portal, the glossary console (via
 `MISMO-handoff/tools/glossary-console/template.html`), the resources home page and the shared
 sign-in's account menu (`assets/session.js`), by changing only their dark-mode rules; light mode was
 checked pixel-identical. Summit HQ's teal "specs" colour (#68B6CE) became Pixel Stream. Service
-Orders is committed but not pushed: the session token could not write to `service-orders`. The brand guide lists Signal Grey with
+Orders too, applied on top of Jonna's latest upload of that page. The brand guide lists Signal Grey with
 Pixel Stream's values; its swatch reads about #4B4B4B.
 
 ## Dashboards in the frame
