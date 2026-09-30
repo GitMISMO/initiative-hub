@@ -392,6 +392,38 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## Work Requests (30 Sept 2026)
+
+`work-requests.html` and `work-requests.js`: the intake for updates to existing standards (the
+Care and Feeding form), built from the prototype Perry approved. The repo files are now the source.
+
+- **Storage:** relay project `hub-requests`, the PRIVATE `GitMISMO/initiative-hub-requests`, via the
+  single-file `/data/{name}` route: `data/requests.json` and `data/drafts.json`, each `{docs:{id:{...}}}`.
+  Saves send the version read; on 409 the change is re-applied on top (same pattern as Website
+  Migration HQ). Request ids are `REQ-0001`, worked out on the copy being saved.
+- **Who created it:** every request has `createdBy {email, name}` from the sign-in, and every draft
+  `by {email, name}`. Decisions add `decidedBy`/`decidedAt`.
+- **Visibility, for now:** everyone with Work Requests access can read every request (Perry, 30
+  Sept). My Work Requests and drafts filter by the signed-in email in the page only. Limiting reads
+  to people's own requests needs a relay change (a future IT request); the data already carries
+  what it needs.
+- **Deciding** (WR#, facilitator, assign, make a potential initiative) is for Work Requests admins
+  and platform administrators. "Make a Potential Initiative" creates a real one through
+  `MismoStore.potential.put` (it lands in the public Hub repo, like every potential initiative).
+- **PDF:** jsPDF 2.5.1 in `vendor/` (MIT, licence beside it) and the trimmed brand fonts and logo in
+  `work-requests-pdf-assets.js`; both load only when someone first downloads a PDF.
+- **Access:** the admin panel's Work Requests row (key `hub-requests`, Standards). A person needs the
+  Hub and Work Requests.
+- The new-standard path ("No" to the first question) is not built yet: it shows a placeholder.
+
+## The Hub is behind the sign-in (30 Sept 2026)
+
+Every Hub page marks `<html data-rs-gate>` and loads `hub-gate.js`, which calls
+`RS.requireAccess('hub')` once the page is parsed (the sign-in screen needs the body). `admin.html`
+gates itself. The sidebar's Work Requests group (`#wrGroup`) shows only to people with that tool.
+**The gate hides pages, not the repository:** the Hub repo is public, so its `data/` files can still
+be fetched by anyone who knows the URL. Moving the Hub's data to a private repository would close that.
+
 ## Dark mode: Deep Circuit (29 Sept)
 
 Perry approved a dark palette from the brand guide's colours to replace the earlier one, which read

@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-rs-gate>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/assets/session.js"></script>
+<script src="hub-gate.js"></script>
 <title>Facilitator key helper — MISMO Initiative Hub</title>
 <!--
   Generates a facilitator passcode and the SHA-256 hash that goes in facilitators.json.
-  Runs entirely in this browser tab. It makes no network requests: open it from disk
-  or from the repo, and nothing you type or generate leaves the page.
+  Runs entirely in this browser tab: nothing you type or generate leaves the page. On
+  resources.mismo.org it is behind the Hub's sign-in like every Hub page; opened from disk it
+  simply works, with no sign-in and no network requests.
 
   Use it to:
     1. Create the admin entry the first time (paste the snippet into facilitators.json).
