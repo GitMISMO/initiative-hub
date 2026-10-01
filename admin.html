@@ -759,6 +759,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         for (const p of Object.values(acc.people)) if (p.platformAdmin) giveAll(p);
         acc.dirty = true; setTimeout(() => setStatus('accStatus', 'dirty', 'Administrators given every tool. Save to keep it.'), 0);
       }
+      /* Once people set their own passwords, the list lives in a private repository. While the
+         relay is still reading it from the old public file it reports no version; this save is
+         the one that moves it, so it is offered here even with nothing else to change. */
+      if (acc.selfService && acc.sha === null && Object.keys(acc.people).length) {
+        acc.dirty = true; setTimeout(() => setStatus('accStatus', 'dirty', 'The account list is still in the public repository. Save Access to move it to the private one.'), 0);
+      }
       $('accUnavailable').hidden = true;
       $('accReady').hidden = false;
       $('accAddOpen').hidden = false;
