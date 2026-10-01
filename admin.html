@@ -173,6 +173,7 @@
   .p-none{color:var(--ink-3);font-style:italic;font-weight:500;padding-inline:0}
   /* Administrator is a property of the person, not a fourth level on each tool, so it
      sits beside the name once rather than repeating down a row. */
+  .adm.locked{background:var(--warn-soft,#F7EFE0);color:var(--warn-ink,#8A5F16)}
   .adm{display:inline-flex;align-items:center;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     background:var(--adm-bg);color:var(--adm-ink);border-radius:3px;padding:1px 6px;line-height:16px}
 
@@ -719,7 +720,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   async function loadAccess(){
     try {
       const r = await S.access.get();
-      acc = { people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group') };
+      acc = { people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),
+              selfService: (r.fields || []).includes('auth'), locks: r.auth || {} };
       /* Once sections are kept, everyone starts in the one they are shown in, so the next
          save writes them all rather than only the ones someone moved. */
       if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
@@ -814,7 +816,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         const cls = ['row', expiryNote(p.expires).soon ? 'soon' : '', freshRow === email ? 'fresh' : ''].filter(Boolean).join(' ');
         return `<div class="${cls}">` +
           `<div class="who"><span class="av">${esc(initials(p.name))}</span><div style="min-width:0">` +
-            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}</div>` +
+            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}${acc.locks[email] && acc.locks[email].locked ? '<span class="adm locked" title="Locked after 5 incorrect passwords. A password reset unlocks it.">Locked</span>' : ''}</div>` +
             `<div class="em">${esc(email)}</div></div></div>` +
           `<div class="sum">${summarise(p)}</div>` +
           expCell('data-acc-exp', email, p.expires, `Access for ${p.name} expires`) +
@@ -890,6 +892,23 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       return;
     }
     const rs = e.target.closest('[data-acc-reset]');
+    if (rs && acc.selfService) {
+      /* People set their own passwords: they get a link to do it, which also unlocks them.
+         Nothing to save here; the relay records the link. */
+      const email = rs.dataset.accReset, p = acc.people[email], RS = window.ResourcesSession;
+      rs.disabled = true;
+      try {
+        const res = await fetch('https://rgvdi67cg27o5kcmiytcqbqnrm0hmztx.lambda-url.us-east-1.on.aws/hub/auth/admin-reset', { method: 'POST', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (RS && RS.token()) }, body: JSON.stringify({ email }) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) setStatus('accStatus', 'bad', `The reset link couldn\u2019t be made (${j.error || res.status}).`);
+        else if (j.emailed) setStatus('accStatus', 'ok', `A reset link is on its way to ${p.name}. It works once, for one hour.`);
+        else { reveal(p.name, j.link, 'link');
+          $('revealTitle').textContent = `Reset link for ${p.name}`;
+          $('revealNote').textContent = 'Email isn\u2019t set up yet, so send this to them yourself. It works once, for one hour, and unlocks their account when they use it.'; }
+      } catch (err) { setStatus('accStatus', 'bad', 'Couldn\u2019t reach the relay. Try again.'); }
+      rs.disabled = false; return;
+    }
     if (rs) {
       const p = acc.people[rs.dataset.accReset];
       const code = S.facilitators.generatePasscode();

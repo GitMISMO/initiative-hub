@@ -392,6 +392,36 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## Self-service passwords (relay request 8, written 30 Sept 2026; waiting on IT)
+
+People choose their own passwords, reset them by email, and are locked after five wrong guesses.
+The relay code is `_dev/aws/index.mjs` (section SELF-SERVICE PASSWORDS); tests in
+`_dev/aws/test-passwords.mjs` (47 checks; the other suites still pass).
+
+- **Off until `DIRECTORY_REPO` is set** on the Lambda (`GitMISMO/resources-accounts`, private). A
+  person-chosen password must never be hashed into a public file. Until then sign-in is unchanged.
+- **The account list moves:** while the private repo has no `access.json`, it is read from the old
+  public `_internal/access.json`; the first save (admin panel or a password change) creates it in the
+  private repo. **After that, delete the public copy** (git history keeps the old random-password
+  hashes and the names and emails, unless the history is rewritten).
+- **Sign-in state:** `auth-state.json` beside it: wrong-guess counts, locks, reset links (SHA-256 only),
+  the last five password hashes. `passwordChangedAt` sits on each person in `access.json`; tokens
+  issued before it are refused (TOKEN_STALE).
+- **Rules:** at least 13 characters (`PASSWORD_MIN_LENGTH`, Perry's choice; NIST's figure for a password
+  alone is 15), no composition rules, not containing the name, email or "MISMO", not one of the last
+  five, and not breached (Have I Been Pwned range API, k-anonymity; a short local list if unreachable).
+  No forced periodic changes (NIST SP 800-63B rev. 4).
+- **Lockout:** five wrong guesses, with "N tries left" warnings; locked until a reset (by link, or a
+  new password set in the admin panel). Emails with no account count down the same way, in memory
+  only, so the warnings reveal nothing.
+- **Email** goes through a Power Automate "When an HTTP request is received" flow (`MAIL_FLOW_URL`,
+  `MAIL_FLOW_SECRET`), called by the relay only. Not built yet (Perry is confirming the mailbox with
+  his boss). Without it, the admin panel's Reset password shows the link to pass on.
+- **Pages:** `/assets/session.js` (Forgot your password?, the countdown, the lock, and Change password
+  in the account menu, shown only when the relay reports `passwords: true`), `/reset-password.html`
+  (the link's secret is after `#` and is cleared from the address bar), and the admin panel (Locked
+  badges; Reset password emails a link once the relay reports the `auth` field).
+
 ## Work Requests (30 Sept 2026)
 
 `work-requests.html` and `work-requests.js`: the intake for updates to existing standards (the

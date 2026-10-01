@@ -62,7 +62,7 @@
  * No AWS services are called and no data is stored here.
  */
 
-import { createHash, createHmac, timingSafeEqual, pbkdf2Sync } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -564,20 +564,19 @@ const accessCache = { at: 0, value: null };
 export function __resetAccessCache() { accessCache.at = 0; accessCache.value = null; }
 
 async function loadAccess() {
-  const configRepo = process.env.PROJECTS_REPO;
-  if (!configRepo) return { error: 'NO_DIRECTORY' };
+  if (!directoryLoc().repo) return { error: 'NO_DIRECTORY' };
   const now = Date.now();
   if (accessCache.value && now - accessCache.at < ACCESS_CACHE_MS) return accessCache.value;
 
-  const branch = process.env.PROJECTS_BRANCH || 'main';
-  const path = process.env.ACCESS_PATH || ACCESS_PATH_DEFAULT;
-  const file = await readFile(configRepo, branch, path);
-  if (file.status === 404) return { error: 'NO_DIRECTORY' };
-  if (file.status !== 200) {
+  /* From the private repository once DIRECTORY_REPO is set (see SELF-SERVICE PASSWORDS),
+   * otherwise from PROJECTS_REPO as before. */
+  const dir = await readDirectory();
+  if (dir.error === 'NO_DIRECTORY') return { error: 'NO_DIRECTORY' };
+  if (dir.error) {
     if (accessCache.value) return accessCache.value;   // ride out a brief GitHub failure
     return { error: 'DIRECTORY_UNREADABLE' };
   }
-  const people = (file.data && typeof file.data.people === 'object' && file.data.people) || {};
+  const people = (dir.people && typeof dir.people === 'object' && dir.people) || {};
   const value = { people };
   accessCache.at = now;
   accessCache.value = value;
@@ -801,7 +800,11 @@ async function authenticate(headers, repo, branch) {
      * still honoured for their own project so nobody is signed out by this change. */
     if (currentProjectKey) {
       const perm = await roleFor(payload.sub, currentProjectKey);
-      if (!perm.error) return { email: payload.sub, name: perm.name, role: perm.role };
+      if (!perm.error) {
+        const dirNow = await loadAccess();
+        if (!dirNow.error && tokenIsStale(payload, personByEmail(dirNow.people, payload.sub))) return { error: 'TOKEN_STALE' };
+        return { email: payload.sub, name: perm.name, role: perm.role };
+      }
       if (perm.error === 'NO_DIRECTORY') {
         /* No directory yet. The token has already proved who this is, so the role comes
          * from whichever list does exist: the token's own claim if it was minted before
@@ -925,6 +928,349 @@ function writeOutcome(status, json, hadSha) {
 
 const authorFor = (name) => ({ name, email: `${name.replace(/\s+/g, '.').toLowerCase()}@facilitators.mismo-hub.invalid` });
 
+/* =====================================================================================
+ * SELF-SERVICE PASSWORDS (relay request 8, 30 Sept 2026)
+ *
+ * People choose their own passwords, reset them by email, and are locked after five wrong
+ * guesses. Everything here is OFF until DIRECTORY_REPO names a PRIVATE repository: a
+ * person-chosen password must never be hashed into a public file, where it could be guessed
+ * offline with no lockout. Until then sign-in behaves exactly as before.
+ *
+ *   DIRECTORY_REPO     e.g. GitMISMO/resources-accounts (private). The account list
+ *                      (access.json) and the sign-in state (auth-state.json) live here.
+ *   DIRECTORY_BRANCH   default main.   DIRECTORY_PATH default access.json.
+ *   MAIL_FLOW_URL      a Power Automate "When an HTTP request is received" URL. Optional:
+ *                      without it no email is sent, and an administrator is shown the
+ *                      reset link to pass on instead.
+ *   MAIL_FLOW_SECRET   sent with every email request; the flow checks it.
+ *   PASSWORD_MIN_LENGTH default 13 (Perry, 30 Sept 2026).
+ *
+ * Moving the list: while DIRECTORY_REPO has no access.json yet, it is read from the old
+ * public location, and the first save (an administrator's, or a password change) writes
+ * it to the private repository. After that the public copy can be deleted.
+ * ===================================================================================== */
+const PASSWORD_MAX = 128;
+const MAX_FAILED = 5;
+const RESET_TTL_MS = 60 * 60_000;              // a reset link works for one hour
+const INVITE_TTL_MS = 7 * 24 * 60 * 60_000;    // a "set your password" link for a new person, one week
+const RESET_REQUESTS_PER_HOUR = 3;
+const HISTORY_KEEP = 5;                        // not one of the last five passwords
+const UNKNOWN_TTL_MS = 60 * 60_000;
+const passwordMin = () => Math.max(8, Number(process.env.PASSWORD_MIN_LENGTH) || 13);
+const selfServiceOn = () => !!process.env.DIRECTORY_REPO;
+
+function directoryLoc() {
+  if (process.env.DIRECTORY_REPO) return { repo: process.env.DIRECTORY_REPO, branch: process.env.DIRECTORY_BRANCH || 'main',
+                                           path: process.env.DIRECTORY_PATH || 'access.json', private: true };
+  return { repo: process.env.PROJECTS_REPO, branch: process.env.PROJECTS_BRANCH || 'main',
+           path: process.env.ACCESS_PATH || ACCESS_PATH_DEFAULT, private: false };
+}
+function legacyLoc() {
+  return { repo: process.env.PROJECTS_REPO, branch: process.env.PROJECTS_BRANCH || 'main', path: process.env.ACCESS_PATH || ACCESS_PATH_DEFAULT };
+}
+/* The account list as it stands, fresh, with where it came from. `source` is 'private' once
+ * it lives in DIRECTORY_REPO, 'legacy' while it is still being read from the public file. */
+async function readDirectory() {
+  const loc = directoryLoc();
+  if (!loc.repo) return { status: 500, error: 'NO_DIRECTORY' };
+  let file = await readFile(loc.repo, loc.branch, loc.path);
+  if (file.status === 404 && loc.private) {
+    const old = legacyLoc();
+    file = await readFile(old.repo, old.branch, old.path);
+    if (file.status === 200) return { status: 200, people: file.data?.people || {}, sha: null, source: 'legacy' };
+  }
+  if (file.status !== 200) return { status: file.status, error: file.status === 404 ? 'NO_DIRECTORY' : 'DIRECTORY_UNREADABLE' };
+  return { status: 200, people: file.data?.people || {}, sha: file.sha, source: loc.private ? 'private' : 'public' };
+}
+async function writeDirectory(people, sha, message, author) {
+  const loc = directoryLoc();
+  return github('PUT', `/repos/${loc.repo}/contents/${loc.path}`, {
+    message, content: encodeBase64Utf8({ people }), branch: loc.branch, sha: sha || undefined, author: authorFor(author)
+  });
+}
+/* Change one person in the list, re-reading and retrying if someone else saved first. */
+async function updatePerson(email, change, message, author) {
+  const id = String(email).toLowerCase();
+  for (let tries = 0; tries < 4; tries++) {
+    const dir = await readDirectory();
+    if (dir.error) return { error: dir.error };
+    const key = Object.keys(dir.people).find(k => k.toLowerCase() === id);
+    if (!key) return { error: 'NO_ACCOUNT' };
+    const people = { ...dir.people, [key]: change({ ...dir.people[key] }) };
+    const { status, json } = await writeDirectory(people, dir.sha, message, author);
+    if (status === 200 || status === 201) { __resetAccessCache(); return { ok: true, sha: json?.content?.sha }; }
+    if (status !== 409 && status !== 422) return { error: 'GITHUB', status };
+  }
+  return { error: 'CONFLICT' };
+}
+
+/* ---------- the sign-in state: wrong guesses, locks, reset links, password history ----------
+ * auth-state.json beside the account list:  { "accounts": { "<email>": {
+ *     "failed": 2, "lastFailedAt": "...", "lockedAt": "...",
+ *     "reset": { "hash": "<sha256 of the link's secret>", "expires": "...", "purpose": "reset" },
+ *     "resetRequests": ["<iso>", ...], "history": ["pbkdf2$...", ...] } } }
+ * The secret in a reset link is never stored, only its SHA-256, so the file cannot be used to
+ * reset anyone's password. */
+async function readState() {
+  const loc = directoryLoc();
+  const file = await readFile(loc.repo, loc.branch, process.env.AUTH_STATE_PATH || 'auth-state.json');
+  if (file.status === 404) return { accounts: {}, sha: null };
+  if (file.status !== 200) return { error: 'STATE_UNREADABLE' };
+  const accounts = (file.data && typeof file.data.accounts === 'object' && file.data.accounts) || {};
+  return { accounts, sha: file.sha };
+}
+async function updateState(email, change, message) {
+  const id = String(email).toLowerCase(), loc = directoryLoc(), path = process.env.AUTH_STATE_PATH || 'auth-state.json';
+  for (let tries = 0; tries < 4; tries++) {
+    const st = await readState();
+    if (st.error) return { error: st.error };
+    const accounts = { ...st.accounts };
+    const next = change({ ...(accounts[id] || {}) });
+    if (next === null || (next && !Object.keys(next).length)) delete accounts[id]; else accounts[id] = next;
+    const { status } = await github('PUT', `/repos/${loc.repo}/contents/${path}`, {
+      message, content: encodeBase64Utf8({ accounts }), branch: loc.branch, sha: st.sha || undefined
+    });
+    if (status === 200 || status === 201) return { ok: true };
+    if (status !== 409 && status !== 422) return { error: 'GITHUB', status };
+  }
+  return { error: 'CONFLICT' };
+}
+
+/* Emails that match no account still count down and lock, in this container's memory, so the
+ * warnings look the same whether or not an account exists and cannot be used to find out. */
+const unknownTries = new Map();
+function unknownFailure(email) {
+  const id = String(email).toLowerCase(), now = Date.now();
+  for (const [k, v] of unknownTries) if (now - v.at > UNKNOWN_TTL_MS) unknownTries.delete(k);
+  const e = unknownTries.get(id) || { failed: 0, at: now };
+  e.failed++; e.at = now; unknownTries.set(id, e);
+  return e.failed >= MAX_FAILED ? lockedResponse() : failedResponse(MAX_FAILED - e.failed);
+}
+export function __resetUnknownTries() { unknownTries.clear(); }
+function failedResponse(remaining) {
+  return respond(401, { error: 'SIGNIN_FAILED', remaining,
+    message: `That email and password do not match an account. ${remaining} ${remaining === 1 ? 'try' : 'tries'} left before the account is locked.` });
+}
+function lockedResponse() {
+  return respond(423, { error: 'LOCKED',
+    message: `This account is locked after ${MAX_FAILED} incorrect passwords. Reset your password to unlock it.` });
+}
+
+/* ---------- the password rules ----------
+ * NIST SP 800-63B rev. 4: length, no composition rules, and a check against passwords already
+ * known to attackers. The minimum is PASSWORD_MIN_LENGTH (13, Perry's choice; NIST's figure for
+ * a password used alone is 15). The breached-password check asks Have I Been Pwned with only
+ * the first five characters of the password's SHA-1 (k-anonymity): the password, and even its
+ * full hash, never leave the relay. If that service can't be reached, a short local list of the
+ * most common choices is checked instead. */
+const COMMON = new Set(('password passw0rd password1 password12 password123 password1234 password12345 qwertyuiop qwerty123456 ' +
+  '1234567890123 12345678910 123456789012 iloveyou12345 welcome12345 letmein12345 admin1234567 changeme12345 ' +
+  'mismo1234567 mortgage12345 baseball12345 football12345 monkey1234567 dragon1234567 sunshine12345 princess12345').split(' '));
+export async function checkNewPassword(pw, { name, email, history = [], current } = {}) {
+  const problems = [];
+  const p = String(pw || '');
+  if (p.length < passwordMin()) problems.push(`Use at least ${passwordMin()} characters.`);
+  if (p.length > PASSWORD_MAX) problems.push(`Use no more than ${PASSWORD_MAX} characters.`);
+  const low = p.toLowerCase();
+  const parts = [String(email || '').split('@')[0], ...String(name || '').split(/\s+/), 'mismo'].map(s => s.toLowerCase()).filter(s => s.length >= 3);
+  if (parts.some(s => low.includes(s))) problems.push('Don\u2019t include your name, your email or \u201cMISMO\u201d.');
+  if (/^(.)\1+$/.test(p) || /^(0123456789|1234567890|abcdefghij)/i.test(p)) problems.push('Avoid repeated or sequential characters.');
+  if (current && verifyPassword(p, current)) problems.push('Choose a password you haven\u2019t used before.');
+  else if (history.some(h => verifyPassword(p, h))) problems.push('Choose a password you haven\u2019t used before.');
+  if (!problems.length && await breached(p)) problems.push('That password has appeared in a data breach. Choose another.');
+  return problems;
+}
+async function breached(p) {
+  if (COMMON.has(p.toLowerCase())) return true;
+  const sha1 = createHash('sha1').update(p, 'utf8').digest('hex').toUpperCase();
+  try {
+    const res = await fetch('https://api.pwnedpasswords.com/range/' + sha1.slice(0, 5), {
+      method: 'GET', headers: { 'Add-Padding': 'true', 'User-Agent': 'mismo-save-relay' }, signal: AbortSignal.timeout(3000) });
+    if (res.status !== 200) return false;
+    const text = await res.text();
+    return text.split('\n').some(line => { const [suffix, count] = line.trim().split(':'); return suffix === sha1.slice(5) && Number(count) > 0; });
+  } catch (e) { return false; }   // unreachable: the local list above was the fallback
+}
+export function hashNewPassword(pw) {
+  const salt = randomBytes(16).toString('hex');
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${salt}$${pbkdf2Hex(pw, salt, PBKDF2_ITERATIONS)}`;
+}
+
+/* ---------- email, through Power Automate ---------- */
+async function sendMail(msg) {
+  const url = process.env.MAIL_FLOW_URL;
+  if (!url) return { sent: false };
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: process.env.MAIL_FLOW_SECRET || '', ...msg }), signal: AbortSignal.timeout(8000) });
+    if (res.status >= 200 && res.status < 300) return { sent: true };
+    console.error('mail flow answered', res.status, 'for', msg.kind);   // never the link
+    return { sent: false };
+  } catch (e) { console.error('mail flow unreachable for', msg.kind); return { sent: false }; }
+}
+function linkFor(origin, email, secret) {
+  return `${origin || 'https://resources.mismo.org'}/reset-password.html#e=${encodeURIComponent(email)}&t=${secret}`;
+}
+const EMAILS = {
+  reset: (name, link) => ({ subject: 'Reset your MISMO Resources password',
+    text: `Hello ${name},\n\nUse this link to set a new password for MISMO Resources. It works once, for one hour:\n\n${link}\n\nIf you didn\u2019t ask for this, you can ignore this email; your password hasn\u2019t changed.\n\nMISMO Programs & Operations` }),
+  invite: (name, link) => ({ subject: 'Set your MISMO Resources password',
+    text: `Hello ${name},\n\nAn account has been set up for you on MISMO Resources. Use this link to choose your password. It works once, for one week:\n\n${link}\n\nMISMO Programs & Operations` }),
+  locked: (name, link) => ({ subject: 'Your MISMO Resources account is locked',
+    text: `Hello ${name},\n\nYour account was locked after ${MAX_FAILED} incorrect passwords. Use this link to set a new password and unlock it. It works once, for one hour:\n\n${link}\n\nIf this wasn\u2019t you, reset your password anyway and let Programs & Operations know.\n\nMISMO Programs & Operations` }),
+  changed: (name) => ({ subject: 'Your MISMO Resources password was changed',
+    text: `Hello ${name},\n\nThe password for your MISMO Resources account was just changed. If this was you, there\u2019s nothing to do.\n\nIf it wasn\u2019t, reset your password at https://resources.mismo.org and let Programs & Operations know right away.\n\nMISMO Programs & Operations` }),
+};
+const htmlOf = text => '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.5;color:#0f314c">' +
+  text.split('\n').map(l => l.startsWith('https://') ? `<p><a href="${l}" style="color:#2C74A6">${l.split('#')[0]}</a></p>` : (l ? `<p>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>` : '')).join('') + '</div>';
+async function mailPerson(kind, email, name, link) {
+  const m = EMAILS[kind](name || email, link);
+  return sendMail({ kind, to: email, subject: m.subject, text: m.text, html: htmlOf(m.text) });
+}
+/* A new reset link: its secret goes into the email (or to the administrator), only its hash
+ * into the state file. Requesting another replaces the last one. */
+async function issueLink(email, purpose, origin) {
+  const secret = b64url(randomBytes(32));
+  const r = await updateState(email, s => ({ ...s, reset: { hash: sha256hex(secret), purpose,
+    expires: new Date(Date.now() + (purpose === 'invite' ? INVITE_TTL_MS : RESET_TTL_MS)).toISOString() } }), `Password link for ${email}`);
+  if (r.error) return { error: r.error };
+  return { link: linkFor(origin, email, secret) };
+}
+/* After a password is set: the new hash in the list, the old one into the history, and the
+ * failed count, lock and link cleared. passwordChangedAt also ends every session that began
+ * before the change (see tokenIsStale). */
+async function setPassword(person, pw) {
+  const email = person.email, now = new Date().toISOString();
+  const hash = hashNewPassword(pw);
+  const w = await updatePerson(email, p => ({ ...p, hash, passwordChangedAt: now }), `Password changed (${person.name || email})`, person.name || email);
+  if (w.error) return w;
+  await updateState(email, s => { const history = [person.hash, ...(s.history || [])].filter(Boolean).slice(0, HISTORY_KEEP);
+    const { failed, lastFailedAt, lockedAt, reset, ...rest } = s; return { ...rest, history }; }, `Sign-in state cleared for ${email}`);
+  mailPerson('changed', email, person.name).catch(() => {});
+  return { ok: true, changedAt: now };
+}
+function tokenIsStale(payload, person) {
+  if (!person || !person.passwordChangedAt) return false;
+  return (payload.iat || 0) * 1000 < Date.parse(person.passwordChangedAt) - 1000;
+}
+function personByEmail(people, email) {
+  const id = String(email || '').toLowerCase();
+  const key = Object.keys(people || {}).find(k => k.toLowerCase() === id);
+  return key ? { email: key, ...people[key] } : null;
+}
+function signedInBody(person, now) {
+  const access = {};
+  for (const [proj, role] of Object.entries(person.access || {})) { const r = normaliseRole(role); if (r) access[proj] = r; }
+  const token = signToken({ sub: person.email, name: person.name, iat: now, exp: now + TOKEN_TTL_SECONDS }, process.env.AUTH_SECRET);
+  return { token, name: person.name, email: person.email, access, platformAdmin: person.platformAdmin === true, passwords: true,
+           expiresAt: new Date((now + TOKEN_TTL_SECONDS) * 1000).toISOString() };
+}
+
+/* ---------- the routes: /{project}/auth/forgot, /auth/reset, /auth/password, /auth/admin-reset ---------- */
+async function passwordRoutes(method, subPath, event, headers, proj) {
+  if (method !== 'POST') return null;
+  const route = { '/auth/forgot': 'forgot', '/auth/reset': 'reset', '/auth/password': 'password', '/auth/admin-reset': 'admin-reset' }[subPath];
+  if (!route) return null;
+  if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
+  const origin = headers['origin'];
+  if (origin && origin !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This relay does not serve that site.' });
+  if (!selfServiceOn()) return respond(503, { error: 'PASSWORDS_OFF', message: 'Setting your own password isn\u2019t switched on yet. Ask an administrator to reset it.' });
+  if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET' });
+  const parsed = parseBody(event);
+  if (parsed.error) return parsed.error;
+  const body = parsed.body || {};
+  const dir = await readDirectory();
+  if (dir.error) return respond(502, { error: dir.error });
+
+  if (route === 'forgot') {
+    /* Always the same answer, so it cannot be used to find out who has an account. */
+    const same = respond(200, { ok: true, message: 'If there\u2019s an account for that email, a reset link is on its way.' });
+    const person = personByEmail(dir.people, body.email);
+    if (!person || isExpired(person) || !person.hash) return same;
+    const st = await readState(); if (st.error) return same;
+    const recent = ((st.accounts[person.email.toLowerCase()] || {}).resetRequests || []).filter(t => Date.now() - Date.parse(t) < 60 * 60_000);
+    if (recent.length >= RESET_REQUESTS_PER_HOUR) return same;
+    const link = await issueLink(person.email, 'reset', proj.origin);
+    if (link.error) return same;
+    await updateState(person.email, s => ({ ...s, resetRequests: [...recent, new Date().toISOString()] }), `Reset requested for ${person.email}`);
+    await mailPerson('reset', person.email, person.name, link.link);
+    return same;
+  }
+
+  if (route === 'reset') {
+    const person = personByEmail(dir.people, body.email);
+    const st = person ? await readState() : { accounts: {} };
+    const s = person && !st.error ? (st.accounts[person.email.toLowerCase()] || {}) : {};
+    const good = person && !isExpired(person) && s.reset && typeof body.token === 'string' && body.token.length >= 20 &&
+      Date.parse(s.reset.expires) > Date.now() && hashesMatch(s.reset.hash, sha256hex(body.token));
+    if (!good) return respond(400, { error: 'BAD_LINK', message: 'This link has expired or has already been used. Ask for a new one.' });
+    const problems = await checkNewPassword(body.password, { name: person.name, email: person.email, history: s.history || [], current: person.hash });
+    if (problems.length) return respond(400, { error: 'WEAK_PASSWORD', problems });
+    const set = await setPassword(person, body.password);
+    if (set.error) return respond(502, { error: set.error });
+    return respond(200, signedInBody(person, Math.floor(Date.now() / 1000) + 1));
+  }
+
+  /* The last two need a signed-in person. */
+  const auth = headers['authorization'] || '';
+  const payload = auth.startsWith('Bearer ') ? verifyToken(auth.slice(7).trim(), process.env.AUTH_SECRET) : { error: 'TOKEN_BAD' };
+  if (payload.error) return respond(401, { error: payload.error });
+  const me = personByEmail(dir.people, payload.sub);
+  if (!me || isExpired(me) || tokenIsStale(payload, me)) return respond(401, { error: 'TOKEN_STALE', message: 'Sign in again.' });
+
+  if (route === 'password') {
+    if (!verifyPassword(String(body.current || ''), me.hash)) return respond(400, { error: 'WRONG_PASSWORD', message: 'Your current password isn\u2019t right.' });
+    const st = await readState();
+    const problems = await checkNewPassword(body.password, { name: me.name, email: me.email, history: st.error ? [] : ((st.accounts[me.email.toLowerCase()] || {}).history || []), current: me.hash });
+    if (problems.length) return respond(400, { error: 'WEAK_PASSWORD', problems });
+    const set = await setPassword(me, body.password);
+    if (set.error) return respond(502, { error: set.error });
+    /* This session continues: a fresh token, issued after the change. */
+    return respond(200, { ok: true, changedAt: set.changedAt, ...signedInBody(me, Math.floor(Date.now() / 1000) + 1) });
+  }
+
+  if (route === 'admin-reset') {
+    if (me.platformAdmin !== true) return respond(403, { error: 'NOT_PLATFORM_ADMIN' });
+    const person = personByEmail(dir.people, body.email);
+    if (!person) return respond(404, { error: 'NO_ACCOUNT' });
+    const purpose = body.purpose === 'invite' ? 'invite' : 'reset';
+    const link = await issueLink(person.email, purpose, proj.origin);
+    if (link.error) return respond(502, { error: link.error });
+    const mail = await mailPerson(purpose, person.email, person.name, link.link);
+    /* Without an email flow the administrator passes the link on; it is shown once. */
+    return respond(200, mail.sent ? { emailed: true } : { emailed: false, link: link.link });
+  }
+  return null;
+}
+
+/* One sign-in attempt, once self-service is on: one PBKDF2 whatever happens, the lock checked
+ * before the password matters, five wrong guesses lock the account and email a reset link. */
+async function attemptSignIn(email, password, origin) {
+  const dir = await loadAccess();
+  if (dir.error) return { error: dir.error };
+  const person = personByEmail(dir.people, email);
+  const ok = verifyPassword(password, person ? person.hash : DECOY_HASH);
+  if (!person || isExpired(person)) return { response: unknownFailure(email) };
+  const id = person.email.toLowerCase(), now = new Date().toISOString();
+  const st = await readState();
+  if (st.error) return { error: 'DIRECTORY_UNREADABLE' };
+  const s = st.accounts[id] || {};
+  if (s.lockedAt) return { response: lockedResponse() };
+  if (!ok) {
+    const failed = (s.failed || 0) + 1;
+    if (failed >= MAX_FAILED) {
+      await updateState(id, x => ({ ...x, failed, lastFailedAt: now, lockedAt: now }), `Locked ${id} after ${MAX_FAILED} incorrect passwords`);
+      const link = await issueLink(person.email, 'reset', origin);
+      if (!link.error) await mailPerson('locked', person.email, person.name, link.link);
+      return { response: lockedResponse() };
+    }
+    await updateState(id, x => ({ ...x, failed, lastFailedAt: now }), `Incorrect password for ${id}`);
+    return { response: failedResponse(MAX_FAILED - failed) };
+  }
+  if (s.failed) await updateState(id, x => { const { failed, lastFailedAt, ...rest } = x; return rest; }, `Signed in: ${id}`);
+  return { found: person };
+}
+
 export async function handler(event) {
   const method = (event.requestContext?.http?.method || 'GET').toUpperCase();
   const rawPath = event.rawPath || '/';
@@ -976,7 +1322,14 @@ export async function handler(event) {
 
     /* The directory is the real source. The per-repository facilitators.json is tried only
      * if no directory exists yet, so this works before and after the migration. */
-    let found = await findPerson(email, password);
+    let found;
+    if (selfServiceOn()) {
+      const a = await attemptSignIn(email, password, proj.origin);
+      if (a.response) return a.response;
+      found = a.found || { error: a.error };
+    } else {
+      found = await findPerson(email, password);
+    }
     let access = null;
     if (!found.error) {
       /* Normalised here so the page only ever sees admin/staff/view. A hand-edited
@@ -1013,11 +1366,13 @@ export async function handler(event) {
     return respond(200, {
       token, name: found.name, email: found.email, access,
       platformAdmin: found.platformAdmin === true,
+      passwords: selfServiceOn(),     // the account menu offers Change password only when this is true
       expiresAt: new Date((now + TOKEN_TTL_SECONDS) * 1000).toISOString()
     });
   }
+  const pwRoute = await passwordRoutes(method, subPath, event, headers, proj);
+  if (pwRoute) return pwRoute;
   if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
-
   const origin = headers['origin'];
   if (origin && origin !== proj.origin) {
     return respond(403, { error: 'ORIGIN', message: 'This relay does not serve that site.' });
@@ -1045,6 +1400,7 @@ export async function handler(event) {
    * means something is wrong. Collapsing them into KEY_BAD would make an ordinary
    * eight-hour expiry look like a rejected credential. */
   if (who.error === 'TOKEN_EXPIRED') return respond(401, { error: 'TOKEN_EXPIRED', message: 'Your session has expired. Sign in again.' });
+  if (who.error === 'TOKEN_STALE') return respond(401, { error: 'TOKEN_STALE', message: 'Your password was changed. Sign in again.' });
   if (who.error === 'TOKEN_WRONG_PROJECT') return respond(401, { error: 'TOKEN_WRONG_PROJECT', message: 'That session belongs to a different application.' });
   if (who.error === 'TOKEN_BAD') return respond(401, { error: 'TOKEN_BAD', message: 'That session could not be verified. Sign in again.' });
   if (who.error === 'NO_ACCESS') return respond(403, { error: 'NO_ACCESS', message: 'Your account does not have access to this application.' });
@@ -1076,10 +1432,7 @@ export async function handler(event) {
    * The directory lives beside projects.json in the config repository, not in any
    * project's own repository, so this writes there rather than to proj.repo. */
   if (isAccess) {
-    const configRepo = process.env.PROJECTS_REPO;
-    if (!configRepo) return respond(500, { error: 'NO_DIRECTORY' });
-    const accessPath = process.env.ACCESS_PATH || ACCESS_PATH_DEFAULT;
-    const configBranch = process.env.PROJECTS_BRANCH || 'main';
+    if (!directoryLoc().repo) return respond(500, { error: 'NO_DIRECTORY' });
 
     const may = await isPlatformAdmin(who.email);
     if (may.error === 'NOT_PLATFORM_ADMIN') {
@@ -1089,11 +1442,18 @@ export async function handler(event) {
     if (may.error) return respond(502, { error: may.error });
 
     if (method === 'GET') {
-      const file = await readFile(configRepo, configBranch, accessPath);
-      if (file.status !== 200) return respond(502, { error: 'GITHUB', status: file.status });
+      const dir = await readDirectory();
+      if (dir.error) return respond(502, { error: 'GITHUB', status: dir.status });
       /* `fields` tells the admin panel which optional entries this relay keeps, so a control
        * for one is only shown once the relay that saves it is deployed. */
-      return respond(200, { people: file.data?.people || {}, sha: file.sha, fields: ['group'] });
+      /* 'auth' means people can set their own passwords: the panel then shows locks and
+       * emails reset links instead of showing a new password. */
+      const out = { people: dir.people, sha: dir.sha, fields: selfServiceOn() ? ['group', 'auth'] : ['group'] };
+      if (selfServiceOn()) {
+        const st = await readState();
+        if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, failed: s.failed || 0 }]));
+      }
+      return respond(200, out);
     }
 
     if (method === 'PUT') {
@@ -1105,6 +1465,9 @@ export async function handler(event) {
       }
       const entries = Object.entries(people);
       if (entries.length > 500) return respond(400, { error: 'TOO_MANY' });
+      const current = await readDirectory();
+      if (current.error) return respond(502, { error: current.error });
+      const rehashed = [];
 
       const clean = {};
       const seen = new Set();
@@ -1130,6 +1493,11 @@ export async function handler(event) {
           access[proj] = r;
         }
         const entry = { name, hash: p.hash, access };
+        /* When the password was last changed: kept from the stored list, never taken from the
+         * panel, and set to now when the panel changes the hash. */
+        const before = personByEmail(current.people, email);
+        if (before && before.hash === p.hash) { if (before.passwordChangedAt) entry.passwordChangedAt = before.passwordChangedAt; }
+        else { entry.passwordChangedAt = new Date().toISOString(); if (before) rehashed.push(email); }
         if (p.platformAdmin === true) entry.platformAdmin = true;
         /* The section the admin panel lists them in. Display only: it grants nothing. */
         if (p.group !== undefined && p.group !== null && p.group !== '') {
@@ -1156,16 +1524,17 @@ export async function handler(event) {
           message: 'You cannot remove your own platform administrator access here.' });
       }
 
-      const { status, json } = await github('PUT', `/repos/${configRepo}/contents/${accessPath}`, {
-        message: `Update who has access (by ${who.name})`,
-        content: encodeBase64Utf8({ people: clean }),
-        branch: configBranch,
-        sha: parsed.body.sha || undefined,
-        author: authorFor(who.name)
-      });
-      const bad = writeOutcome(status, json, !!parsed.body.sha);
+      /* While the list is still being read from the old public file, this save is the one that
+       * creates it in the private repository, so it is written there without a sha. */
+      const writeSha = current.source === 'legacy' ? null : (parsed.body.sha || null);
+      const { status, json } = await writeDirectory(clean, writeSha, `Update who has access (by ${who.name})`, who.name);
+      const bad = writeOutcome(status, json, !!writeSha);
       if (bad) return bad;
       __resetAccessCache();          // the next request must see the change, not the cache
+      /* An administrator who sets a new password for someone also unlocks them. */
+      if (selfServiceOn()) for (const email of rehashed) {
+        await updateState(email, s => { const { failed, lastFailedAt, lockedAt, reset, ...rest } = s; return rest; }, `Unlocked ${email} (new password from ${who.name})`);
+      }
       return respond(200, { sha: json.content?.sha, savedBy: who.name, count: Object.keys(clean).length });
     }
 
