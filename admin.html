@@ -683,9 +683,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
      tool there and it appears here and in people's menus (Perry, 1 Oct 2026). This copy is
      the fallback if that file can't be read. */
   let TOOLS = [
-    { key:'hub',         label:'Initiative Hub',     colour:'#2A4DFF', group:'Standards' },
+    /* Files (hub-files) follows the Hub: everyone who can open a potential initiative sees its files (Perry, 1 Oct 2026). */
+    { key:'hub',         label:'Initiative Hub',     colour:'#2A4DFF', group:'Standards', also:['hub-files'] },
     { key:'glossary',    label:'Business Glossary Console', colour:'#0F9D77', group:'Standards' },
-    { key:'hub-files',   label:'Files',              colour:'#7F5AF0', group:'Standards' },
     { key:'hub-requests', label:'Work Requests',     colour:'#14486E', group:'Standards' },
     { key:'summit-hq',   label:'Summit HQ',          colour:'#B45309', group:'Events' },
     { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' },

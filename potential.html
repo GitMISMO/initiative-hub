@@ -238,13 +238,14 @@
   .files{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
   .files .lbl2{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:8px}
   .chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
-  .chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 4px 0 10px;border-radius:999px;border:1px solid var(--line-2);
-    background:var(--surface);font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;max-width:300px;cursor:pointer}
+  .chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:3px 4px 3px 10px;border-radius:13px;border:1px solid var(--line-2);
+    background:var(--surface);font-size:12px;font-weight:600;color:var(--ink);max-width:100%;cursor:pointer;text-align:left;line-height:1.35}
   .chip .dot{width:7px;height:7px;border-radius:2px;flex:0 0 auto}
-  .chip .nm{overflow:hidden;text-overflow:ellipsis}
-  .chip .sz{font-weight:500;color:var(--ink-3);flex:0 0 auto}
+  /* The whole file name, wrapping when it is long, never cut off (Perry, 1 Oct 2026). */
+  .chip .nm{white-space:normal;overflow-wrap:anywhere;word-break:break-word;min-width:0}
+  .chip .sz{font-weight:500;color:var(--ink-3);flex:0 0 auto;white-space:nowrap}
   .chip .x{border:none;background:none;color:var(--ink-3);cursor:pointer;font-size:13px;padding:0 4px}
-  .chip.add{border-style:dashed;border-color:var(--line-3);color:var(--accent);font-weight:600;padding:0 12px}
+  .chip.add{border-style:dashed;border-color:var(--line-3);color:var(--accent);font-weight:600;padding:3px 12px;white-space:nowrap}
   .files .note{font-size:12px;color:var(--ink-3);margin-top:8px;padding:0;border:0;background:none}
   .tl{border-left:2px solid var(--line-2);margin-left:6px;padding-left:16px}
   .tl-i{position:relative;padding-bottom:14px} .tl-i:last-child{padding-bottom:0}
@@ -643,7 +644,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     }));
 
     $('updAdd').addEventListener('click', () => {
-      const text = $('updText').value.trim(), by = $('updBy').value.trim();
+      const text = $('updText').value.trim(), by = $('updBy').value.trim() || S.keyName();
       if (!text) return;
       rec.updates = [{ text, by, at: new Date().toISOString(), _pending: true }, ...(rec.updates || [])];
       setDirty(true); render();
@@ -736,6 +737,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     applyTheme(next);
     try { localStorage.setItem('resources:hub:theme', next); } catch (e) {}
   });
+
+  /* Status updates are recorded by the person signed in (Perry, 1 Oct 2026). The page can draw
+     behind the sign-in screen before anyone has signed in, so the name is filled in when they
+     do; a name someone typed on purpose is left alone. */
+  (function () {
+    function fillBy() { var b = document.getElementById('updBy'); if (b && !b.value.trim() && window.MismoStore) b.value = window.MismoStore.keyName(); }
+    if (window.ResourcesSession) window.ResourcesSession.onChange(function () { setTimeout(fillBy, 0); });
+    document.addEventListener('focusin', function (e) { if (e.target && e.target.id === 'updText') fillBy(); });
+  })();
 </script>
 </body>
 </html>

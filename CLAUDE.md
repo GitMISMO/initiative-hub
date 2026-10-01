@@ -409,6 +409,15 @@ can't be read.
 - Keep `tools.json` in the panel's order and with every field the panel's built-in list uses: a
   missing `family` once dropped the Service Orders "Every company" row (caught by t-all).
 
+## Potential initiatives: files and status updates (1 Oct 2026)
+
+- **Files follow the Hub.** `hub-files` is carried by the Initiative Hub row (`also`), so everyone who
+  can open a potential initiative sees and adds its files; there is no separate Files row. The page
+  still asks the relay and shows nothing if it refuses.
+- **Whole file names**, wrapping when long (`.chip .nm` in `potential.html`), never cut off.
+- **Status updates are recorded by the person signed in:** "Recorded by" is filled with their name,
+  also when they sign in after the page has drawn; an empty box uses their name on Add.
+
 ## The QR Code Manager in the admin panel (30 Sept 2026)
 
 Jonna's tool at `/QR/` (repo `GitMISMO/QR`, so Pages serves `/QR/`; codes in the private `GitMISMO/qr-data`).
