@@ -687,6 +687,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     { key:'summit-hq',   label:'Summit HQ',          colour:'#B45309', group:'Events' },
     { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' },
     { key:'website-migration', label:'Website Migration HQ', colour:'#475569', group:'Website' },
+    /* One row, two keys: the codes (private qr-data) and the public list a phone reads when a
+       code is scanned (qr-routes). Every save writes both, so they are always set together. */
+    { key:'qr',          label:'QR Code Manager',    colour:'#2477B8', group:'QR Codes', also:['qr-routes'] },
     /* Service Orders and Agreements: one key per contracting company, each with its own
        private repository. A company's account holds its own key; MISMO staff who approve
        or administer hold every key. The names are the companies' full names, as the Service Orders portal shows them. */
@@ -714,8 +717,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     return (PEOPLE_GROUPS.find(g => g.stored === st) || PEOPLE_GROUPS[1]).key;
   };
 
-  const adminHasAll = p => TOOLS.every(t => (p.access || {})[t.key] === 'admin');
-  function giveAll(p){ p.access = p.access || {}; TOOLS.forEach(t => { p.access[t.key] = 'admin'; }); }
+  const keysOf = t => [t.key].concat(t.also || []);
+  const adminHasAll = p => TOOLS.every(t => keysOf(t).every(k => (p.access || {})[k] === 'admin'));
+  function giveAll(p){ p.access = p.access || {}; TOOLS.forEach(t => keysOf(t).forEach(k => { p.access[k] = 'admin'; })); }
+  /* A tool with more than one key: the others always follow the row's own. */
+  function follow(p, t){ (t.also || []).forEach(k => { if (p.access[t.key]) p.access[k] = p.access[t.key]; else delete p.access[k]; }); }
 
   async function loadAccess(){
     try {
@@ -727,6 +733,13 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
       /* Administrators have every tool, including any added to TOOLS later: filled in here,
          and written on the next save. Nothing in the panel can lower it. */
+      /* Anyone whose keys for one tool disagree is brought into line with the row they see. */
+      let synced = false;
+      for (const p of Object.values(acc.people)) for (const t of TOOLS) if (t.also) {
+        p.access = p.access || {};
+        if (t.also.some(k => (p.access[k] || null) !== (p.access[t.key] || null))) { follow(p, t); synced = true; }
+      }
+      if (synced){ acc.dirty = true; setTimeout(() => setStatus('accStatus', 'dirty', 'Access to tools with more than one key brought into line. Save to keep it.'), 0); }
       if (Object.values(acc.people).some(p => p.platformAdmin && !adminHasAll(p))) {
         for (const p of Object.values(acc.people)) if (p.platformAdmin) giveAll(p);
         acc.dirty = true; setTimeout(() => setStatus('accStatus', 'dirty', 'Administrators given every tool. Save to keep it.'), 0);
@@ -887,6 +900,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       } else {
         delete p.access[tool];   // No access is the absence of an entry, not a stored value
       }
+      const def = TOOLS.find(t => t.key === tool); if (def) follow(p, def);
       markAcc();
       const back = document.querySelector(restore); if (back) back.focus();
       return;

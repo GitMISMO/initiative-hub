@@ -392,6 +392,14 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## The QR Code Manager in the admin panel (30 Sept 2026)
+
+Jonna's tool at `/qr/` (repo `GitMISMO/QR`, codes in the private `GitMISMO/qr-data`) uses two relay keys:
+`qr` (the codes) and `qr-routes` (the public list a phone reads on a scan). Every save writes both, so
+the admin panel shows ONE row, QR Code Manager, with `also:['qr-routes']`: setting the row sets both
+keys, administrators get both, and anyone whose two keys disagree is brought into line on load
+("Save to keep it"). The same `also` works for any future tool with more than one key.
+
 ## Self-service passwords (relay request 8, written 30 Sept 2026; waiting on IT)
 
 People choose their own passwords, reset them by email, and are locked after five wrong guesses.
