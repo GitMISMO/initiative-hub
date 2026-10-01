@@ -546,6 +546,12 @@
   .addgroup .ac{max-width:420px}
   .side .ac-list{min-width:0}
 
+  /* Add boxes: say how to add, and light up + Add while something is typed (Perry, 2 Oct 2026). */
+  .adder-hint{display:none;margin:6px 0 0;font-size:12.5px;color:var(--accent)}
+  .adder.typing + .adder-hint{display:block}
+  .adder.typing .btn{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .has-err .adder input{border-color:var(--bad)}
+
   /* ═══════════ the Hub's frame on this page ═══════════ */
   .rail-top{gap:8px;padding:11px 10px 9px}
   .rail-top .rail-lbl{padding-left:3px}
@@ -616,7 +622,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   </section>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="work-requests.js?v=5f8b84e8fd"></script>
+<script src="work-requests.js?v=4215553684"></script>
 <script>
   // --- Narrowing the sections to icons: the button, or the backslash key (shared with the home page) ---
   const railHide = document.getElementById('railHide');

@@ -42,7 +42,7 @@ function call(method, name, body){
     .then(r => r.json().catch(() => ({})).then(b => {
       if (r.ok) return b;
       if (r.status === 401 && RS) RS.signIn({ reason:'expired' }).catch(() => {});
-      throw { status:r.status, code:(b && b.error) || ('HTTP_' + r.status), message: b && b.message };
+      throw { status:r.status, code:(b && b.error) || ('HTTP_' + r.status), message: b && b.message, gh: b && b.status };
     }), () => { throw { code:'OFFLINE' }; });
 }
 async function load(name){ const f = fileOf(name), b = await call('GET', name); f.docs = (b.data && typeof b.data.docs === 'object' && b.data.docs) || {}; f.sha = b.sha || null; f.loaded = true; return f; }
@@ -66,7 +66,9 @@ function mutate(name, fn){
 function errText(e){
   const c = e && e.code;
   return c === 'SIGNED_OUT' ? 'you are signed out' : c === 'NO_ACCESS' || c === 'VIEW_ONLY' ? 'your account cannot save here' : c === 'OFFLINE' ? 'the connection dropped'
-    : c === 'GONE' ? 'that request is no longer there' : (e && e.message) || 'something went wrong';
+    : c === 'GONE' ? 'that request is no longer there'
+    : c === 'GITHUB' && e.gh === 404 ? 'the saving service can\u2019t reach the requests repository. An administrator needs to check its access'
+    : (e && e.message) || 'something went wrong';
 }
 
 
@@ -343,7 +345,7 @@ const text = (k, ph = '', list = '') => `<input type="text" id="f-${k}" data-k="
 const area = (k, ph = '') => `<textarea id="f-${k}" data-k="${k}" placeholder="${esc(ph)}">${esc(W.r[k])}</textarea>`;
 function listBuilder(k, ph){
   return `<ul class="items">${W.r[k].map((t, i) => `<li><span>${esc(t)}</span><button type="button" class="x" data-del="${k}" data-i="${i}" aria-label="Remove ${esc(t)}">\u00d7</button></li>`).join('')}</ul>
-    <div class="adder" style="margin-top:8px"><input type="text" id="f-${k}" data-adder="${k}" placeholder="${esc(ph)}"><button type="button" class="btn" data-add="${k}">Add</button></div>`;
+    <div class="adder" style="margin-top:8px"><input type="text" id="f-${k}" data-adder="${k}" placeholder="${esc(ph)}"><button type="button" class="btn" data-add="${k}">+ Add</button></div><p class="adder-hint" aria-live="polite">Press Enter or <b>+ Add</b> to put it on the list.</p>`;
 }
 const COPS = L.workgroups.filter(w => /community of practice|\bcop\b/i.test(w));
 function suggested(r){
@@ -403,7 +405,7 @@ const ASK = {
       <ul class="orgs">${g.orgs.map((o, oi) => `<li class="org"><span class="oname">${esc(o.name)}</span>
         <span class="seg" role="group" aria-label="Has ${esc(o.name)} adopted the current work product?">${ADOPT.map(([v, t]) => `<button type="button" class="${v}" data-adopt="${gi}:${oi}:${v}" aria-pressed="${o.adopted === v}">${t}</button>`).join('')}</span>
         <button type="button" class="x" data-delorg="${gi}:${oi}" aria-label="Remove ${esc(o.name)}">\u00d7</button></li>`).join('')}</ul>
-      <div class="adder"><input type="text" data-orgadder="${gi}" placeholder="Add an organization, then press Add" aria-label="Add an organization to ${esc(g.type)}"><button type="button" class="btn" data-addorg="${gi}">Add</button></div></div>`).join('');
+      <div class="adder"><input type="text" data-orgadder="${gi}" placeholder="Type an organization, then press Enter" aria-label="Add an organization to ${esc(g.type)}"><button type="button" class="btn" data-addorg="${gi}">+ Add</button></div><p class="adder-hint" aria-live="polite">Press Enter or <b>+ Add</b> to put it on the list.</p></div>`).join('');
     const limited = adoptionLimited(r);
     return field('owner','Which workgroup currently owns the work product?',
         acHTML('owner', { value:r.owner, options:wgOpts(), placeholder:'Search ' + L.workgroups.length + ' workgroups', label:'Owning workgroup', onPick: v => { W.r.owner = v; clearErr('owner'); dirty(); } })) +
@@ -421,15 +423,15 @@ const ASK = {
         { optional:true, hint:'External organizations or industry groups that could help support or advocate for adoption of this work.' });
   },
   scope(){
-    return field('inScope','In Scope', listBuilder('inScope','Add an item, then press Add'), { for:'f-inScope', hint:'A brief description for each; keep each one independent of the others.' }) +
-      field('outScope','Out of Scope', listBuilder('outScope','Add an item, then press Add'), { for:'f-outScope', optional:true });
+    return field('inScope','In Scope', listBuilder('inScope','Type an item, then press Enter'), { for:'f-inScope', hint:'A brief description for each; keep each one independent of the others.' }) +
+      field('outScope','Out of Scope', listBuilder('outScope','Type an item, then press Enter'), { for:'f-outScope', optional:true });
   },
   deliver(r){
     const phases = r.phases.map((items, pi) => `<div class="phase"><h4>Phase ${pi + 1}${r.phases.length > 1 ? `<button type="button" class="btn ghost" data-delphase="${pi}">Remove Phase</button>` : ''}</h4>
       <ul class="items">${items.map((t, i) => `<li><span>${esc(t)}</span><button type="button" class="x" data-delph="${pi}" data-i="${i}" aria-label="Remove ${esc(t)}">\u00d7</button></li>`).join('')}
       ${pi === r.phases.length - 1 && pathOf(r) === 'full' ? `<li class="locked"><label class="choice${r.adoptionPlan ? ' on' : ''}" style="border:0;background:none;padding:0;min-width:0"><input class="vh" type="checkbox" data-plan${r.adoptionPlan ? ' checked' : ''}><span class="ind box" aria-hidden="true"></span><span>Adoption Plan</span></label><em>Required for Published Work Products</em></li>` : ''}</ul>
-      <div class="adder" style="margin-top:8px"><input type="text" id="f-ph${pi}" data-phadder="${pi}" placeholder="Add a deliverable, then press Add"><button type="button" class="btn" data-addph="${pi}">Add</button></div></div>`).join('');
-    return field('phases','Deliverables Requested', phases + `<button type="button" class="btn ghost add" data-addphase>+ Add a Phase</button>`, { for:'f-ph0', hint:'The deliverables the workgroup will produce, by phase.' }) +
+      <div class="adder" style="margin-top:8px"><input type="text" id="f-ph${pi}" data-phadder="${pi}" placeholder="Type a deliverable, then press Enter"><button type="button" class="btn" data-addph="${pi}">+ Add</button></div><p class="adder-hint" aria-live="polite">Press Enter or <b>+ Add</b> to put it on the list.</p></div>`).join('');
+    return field('phases','Deliverables Requested', phases + `<button type="button" class="btn ghost add" data-addphase>+ Add a Phase</button>`, { for:'f-ph0', hint:'The deliverables the workgroup will produce, by phase. Phase 1 needs at least one.' }) +
       field('future','Possible Future Phases', area('future'), { optional:true }) +
       radios('rec','Work Group Recommendation', [['cop','Community of Practice','Fast track: the scope is small enough, or capacity exists, for an existing CoP'],['dwg','Development Work Group','Project: a new DWG is required']], { grid:true }) +
       field('recWhy','Reasoning for the Recommendation', area('recWhy'));
@@ -457,7 +459,7 @@ function check(id, r){
   if (id === 'people'){ need('owner', 'Choose the workgroup, or Not sure.'); if (adoptionLimited(r)) need('adoptionWhy', 'Explain why a revision would be valuable, since adoption is limited.'); }
   if (id === 'adoption'){ if (!r.mandate) e.mandate = 'Choose Yes or No.'; }
   if (id === 'scope'){ if (!r.inScope.length) e.inScope = 'Add at least one thing that is in scope.'; }
-  if (id === 'deliver'){ if (!r.rec) e.rec = 'Choose a recommendation.'; }
+  if (id === 'deliver'){ if (!(r.phases[0] || []).length) e.phases = 'Add at least one Phase 1 deliverable.'; if (!r.rec) e.rec = 'Choose a recommendation.'; }
   return e;
 }
 
@@ -602,8 +604,13 @@ function nextLabel(id){
 function progress(){ const secs = asked(W.r).filter(s => s.id !== 'newstd'); return { n: secs.filter(s => W.done.has(s.id)).length, total: secs.length }; }
 function drawWizard(focus){
   closePop(); ACO = null;
+  /* Text typed into an add box but not yet added survives the redraw (choosing an answer
+     elsewhere in the section redraws it). */
+  const pending = [...document.querySelectorAll('#wizard [data-adder], #wizard [data-phadder], #wizard [data-orgadder]')]
+    .filter(i => i.value.trim()).map(i => [i.dataset.adder ? `[data-adder="${i.dataset.adder}"]` : i.dataset.phadder !== undefined ? `[data-phadder="${i.dataset.phadder}"]` : `[data-orgadder="${i.dataset.orgadder}"]`, i.value]);
   $('#wizard').innerHTML = `<div class="wr">${headHTML(W.r, { mode:'fill' })}<div class="wr-grid"><div>${timelineHTML(W.r, { mode:'fill', fin:W.fin })}</div>
     <aside class="glance" aria-label="At a glance">${glanceHTML(W.r)}</aside></div></div>`;
+  pending.forEach(([sel, v]) => { const i = document.querySelector('#wizard ' + sel); if (i){ i.value = v; const a = i.closest('.adder'); if (a) a.classList.add('typing'); } });
   if (focus === 'err'){ const q = document.querySelector('.has-err input:not(.vh),.has-err textarea,.has-err .date-btn,.has-err .choice input'); if (q) q.focus(); }
   else if (focus){
     const sec = document.getElementById(W.step === 'finish' ? 'sec-finish' : 'sec-' + W.step);
@@ -619,7 +626,21 @@ function redraw(){
   drawWizard(); if (sel){ const b = document.querySelector(sel); if (b) b.focus(); }
 }
 function goTo(id){ W.step = id; W.errs = {}; drawWizard(true); }
+/* Anything typed into an add box but not yet added is added, so it is never lost. */
+function takePending(){
+  let took = false;
+  document.querySelectorAll('#wizard [data-adder], #wizard [data-phadder], #wizard [data-orgadder]').forEach(inp => {
+    const v = inp.value.trim(); if (!v) return;
+    if (inp.dataset.adder) W.r[inp.dataset.adder].push(v);
+    else if (inp.dataset.phadder !== undefined) W.r.phases[+inp.dataset.phadder].push(v);
+    else W.r.parts[+inp.dataset.orgadder].orgs.push({ name:v, adopted:'' });
+    inp.value = ''; took = true;
+  });
+  if (took) dirty();
+  return took;
+}
 function nextSection(){
+  takePending();
   const e = check(W.step, W.r); W.errs = e;
   if (Object.keys(e).length){ drawWizard('err'); return; }
   W.done.add(W.step); W.fin[W.step] = iso(new Date());
@@ -854,6 +875,7 @@ document.addEventListener('input', e => {
     if (t.dataset.k === 'title'){ const h1 = document.querySelector('.wr-title'); if (h1){ h1.textContent = t.value || 'Untitled Work Request'; h1.classList.toggle('placeholder', !t.value); } }
     if (W.errs[t.dataset.k]){ delete W.errs[t.dataset.k]; const q = document.getElementById('q-' + t.dataset.k); if (q){ q.classList.remove('has-err'); const er = q.querySelector('.err'); if (er) er.remove(); } } }
   if (t.dataset.row){ W.r[t.dataset.row][+t.dataset.i][t.dataset.f] = t.value; dirty(); }
+  if (t.dataset.adder || t.dataset.phadder !== undefined || t.dataset.orgadder !== undefined){ const a = t.closest('.adder'); if (a) a.classList.toggle('typing', !!t.value.trim()); }
 });
 document.addEventListener('change', e => {
   const t = e.target;
@@ -931,8 +953,8 @@ document.addEventListener('click', e => {
   if (!W) return;
   if (d.next !== undefined) nextSection();
   else if (d.back !== undefined) back();
-  else if (d.savedraft !== undefined){ saveDraft(false); drawWizard(); }
-  else if (d.exit !== undefined){ const p = saveDraft(true); W = null; show('mine'); p.then(ok => { if (ok){ show('mine'); toast('Draft saved. Resume it any time from My Work Requests.'); } }); }
+  else if (d.savedraft !== undefined){ takePending(); saveDraft(false); drawWizard(); }
+  else if (d.exit !== undefined){ takePending(); const p = saveDraft(true); W = null; show('mine'); p.then(ok => { if (ok){ show('mine'); toast('Draft saved. Resume it any time from My Work Requests.'); } }); }
   else if (d.goto){ goTo(d.goto); }
   else if (d.suggest){ W.r.completion = d.suggest; delete W.errs.completion; dirty(); drawWizard(); document.getElementById('f-completion').focus(); }
   else if (d.addsponsor !== undefined){ W.r.sponsors.push({ name:'', company:'' }); dirty(); drawWizard(); const rs = document.querySelectorAll('[data-row="sponsors"][data-f="name"]'); rs[rs.length - 1].focus(); }
