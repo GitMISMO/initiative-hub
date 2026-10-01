@@ -52,7 +52,11 @@ function mutate(name, fn){
     tries = tries || 0;
     if (!f.loaded) await load(name);
     const next = JSON.parse(JSON.stringify(f.docs)); const out = fn(next);
-    try { const b = await call('PUT', name, { content:{ docs:next }, sha:f.sha }); f.docs = next; f.sha = b.sha || f.sha; return out; }
+    try { const b = await call('PUT', name, { content:{ docs:next }, sha:f.sha });
+      /* The relay may send back what this person may see, and a new number for a request
+         whose number someone else already held (relay request 8). */
+      f.docs = (b.data && b.data.docs) || next; f.sha = b.sha || f.sha;
+      return (b.ids && typeof out === 'string' && b.ids[out]) || out; }
     catch (e){ if (e && e.status === 409 && tries < 4){ await load(name); return attempt(tries + 1); } throw e; }
   });
   job.then(() => { f.saving--; }, () => { f.saving--; });
@@ -722,7 +726,7 @@ function drawRail(){
         <button type="button" data-view-go="mine" title="My Work Requests"${cur('mine')}>${I('M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5')}<span>My Work Requests</span><b class="count">${items.length}</b></button>
       </nav>
       ${items.length ? `<div class="mine" role="list" aria-label="My work requests">${items.map(it => `<button type="button" role="listitem" data-mine="${it.key}" title="${esc(it.t)}: ${it.label}"${active === it.key ? ' aria-current="true"' : ''}><i class="dot-${it.dot}" aria-hidden="true"></i><span>${esc(it.t)}</span></button>`).join('')}</div>` : ''}
-      <nav aria-label="Everyone's work requests"><button type="button" data-view-go="all" title="All Work Requests"${cur('all') || (view === 'detail' && !cur('mine') ? ' aria-current="page"' : '')}>${I('M4 6h16 M4 12h16 M4 18h10')}<span>All Work Requests</span><b class="count${newN ? ' hot' : ''}">${newN}</b></button></nav>
+      ${ME.decides ? `<nav aria-label="Everyone's work requests"><button type="button" data-view-go="all" title="All Work Requests"${cur('all') || (view === 'detail' && !cur('mine') ? ' aria-current="page"' : '')}>${I('M4 6h16 M4 12h16 M4 18h10')}<span>All Work Requests</span><b class="count${newN ? ' hot' : ''}">${newN}</b></button></nav>` : ''}
     </div>`;
 }
 /* ─────────────── My Work Requests ─────────────── */
@@ -772,7 +776,7 @@ function drawAll(){
         <h3>${esc(x.req.title)}</h3>
         <div class="meta"><span>From ${esc(byName(x))}</span><span>Update to ${esc(x.req.standard)}</span><span>${x.id}${x.wr ? ' \u00b7 ' + esc(x.wr) : ''} \u00b7 ${fmt(x.submitted)}</span></div>
         <div class="right">${staffChip(x)}</div></button>`).join('') : `<div class="card empty">${requests.length ? 'Nothing here.' : 'No work requests yet.'}</div>`}</div>
-    <div class="card seeall">For now, everyone with access to Work Requests sees every request. Each one records who created it, so it can be limited to people\u2019s own requests once the saving service supports that.</div>`;
+    <div class="card seeall">Each person sees only the requests they created. Administrators of Work Requests and platform administrators see all of them.</div>`;
 }
 /* ─────────────── one request ─────────────── */
 function drawDetail(){
@@ -1121,7 +1125,7 @@ function boot(){
     refreshRequests();
     try { const res = await fetch('data/facilitator-roster.json?t=' + Date.now(), { cache:'no-store' }); if (res.ok){ const j = await res.json(); const list = (j.facilitators || j || []).map(f => f.name).filter(Boolean); if (list.length) L.facilitators = list; } } catch (e) {}
     const h = location.hash.replace('#', '');
-    if (h === 'new' && ME.submits) startWizard(); else show(h === 'all' ? 'all' : h === 'mine' ? 'mine' : (ME.decides ? 'all' : 'mine'));
+    if (h === 'new' && ME.submits) startWizard(); else show(h === 'all' && ME.decides ? 'all' : h === 'mine' ? 'mine' : (ME.decides ? 'all' : 'mine'));
     setInterval(poll, 30000); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
   }, e => { if (e && e.code === 'OFFLINE') banner('<b>Work Requests couldn\u2019t reach the sign-in service.</b> Check your connection, then reload the page.'); });
 }

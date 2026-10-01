@@ -10,6 +10,10 @@
   function showRequests() {
     var g = document.getElementById('wrGroup'); if (!g) return;
     var has = function () { return !!RS.role('hub-requests'); };
+    /* All Work Requests is for the people who decide on them: Work Requests administrators
+       and platform administrators. Everyone else sees their own, under My Work Requests. */
+    var all = g.querySelector('a[href$="#all"]');
+    if (all && !(RS.role('hub-requests') === 'admin' || (RS.isPlatformAdmin && RS.isPlatformAdmin()))) all.remove();
     if (has()) { g.hidden = false; return; }
     /* The browser's copy of someone's access is taken at sign-in; ask the relay before hiding it. */
     if (RS.refreshAccess) RS.refreshAccess(['hub-requests']).then(function () { if (has()) g.hidden = false; }, function () {});

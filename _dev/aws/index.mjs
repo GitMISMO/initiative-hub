@@ -1271,6 +1271,123 @@ async function attemptSignIn(email, password, origin) {
   return { found: person };
 }
 
+/* =====================================================================================
+ * WORK REQUESTS: EACH PERSON'S OWN (relay request 8, 30 Sept 2026)
+ *
+ * Project hub-requests keeps two files through /data/{id}. The relay, not the page, decides
+ * who sees what:
+ *   requests  Administrators of Work Requests and platform administrators read and change
+ *             every request. Everyone else reads only the requests they created
+ *             (createdBy.email), and may only ADD new ones, recorded as theirs, with no
+ *             decision on them: a submitted request is not edited by its requester.
+ *   drafts    Always each person's own (by.email), administrators included.
+ * The page saves the whole file it was shown, so for anyone who sees only part of it, the
+ * relay merges: everyone else's entries are kept exactly as stored. A new request whose
+ * number another person already holds gets the next free number, reported back in `ids`.
+ * /file and /commit are refused for this project, so the files cannot be read or written
+ * whole around these rules.
+ * ===================================================================================== */
+const OWNED_FILES = {
+  'hub-requests': {
+    requests: { owner: d => d && d.createdBy && d.createdBy.email, adminsSeeAll: true, addOnly: true, prefix: 'REQ-',
+                decisionFields: ['wr', 'facilitator', 'assignedTo', 'potentialId', 'potentialName', 'decidedBy', 'decidedAt'] },
+    drafts:   { owner: d => d && d.by && d.by.email, adminsSeeAll: false }
+  }
+};
+const lowerOf = s => String(s || '').trim().toLowerCase();
+/* Key order can change on a round trip through a browser; compare content, not text. */
+function canon(v) {
+  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}
+async function seesAll(rule, who) {
+  if (!rule.adminsSeeAll) return false;
+  if (who.role === 'admin') return true;
+  const pa = await isPlatformAdmin(who.email);
+  return !pa.error;
+}
+function ownView(rule, docs, me) {
+  const out = {};
+  for (const [id, d] of Object.entries(docs || {})) if (lowerOf(rule.owner(d)) === me) out[id] = d;
+  return out;
+}
+/* The merge for someone who sees only their own entries. Returns { docs, ids } or { error }.
+ *   requests (addOnly): every stored request is kept exactly as stored, whatever was sent
+ *     for it (a page may hold an older copy of one that has since been decided). Only entries
+ *     that are new are taken, and each must be created as the person saving it.
+ *   drafts: the person's own entries become what was sent (added, changed or removed);
+ *     everyone else's are kept exactly as stored. */
+function mergeOwn(rule, stored, sent, me) {
+  const docs = { ...stored }, ids = {};
+  const isMine = d => lowerOf(rule.owner(d)) === me;
+  if (!rule.addOnly) for (const id of Object.keys(stored)) if (isMine(stored[id]) && !(id in sent)) delete docs[id];
+  let n = 0;
+  if (rule.prefix) for (const k of Object.keys(stored)) { const m = new RegExp('^' + rule.prefix + '(\\d+)$').exec(k); if (m) n = Math.max(n, +m[1]); }
+  for (const [id, d] of Object.entries(sent)) {
+    const existing = Object.prototype.hasOwnProperty.call(stored, id) ? stored[id] : undefined;
+    if (existing !== undefined && isMine(existing)) {
+      if (!rule.addOnly) { if (!isMine(d)) return { error: 'NOT_ALLOWED', message: 'Drafts stay with the person who started them.' }; docs[id] = d; }
+      continue;                                                   // a submitted request stays as stored
+    }
+    if (existing !== undefined && canon(existing) === canon(d)) continue;   // someone else's, sent back unchanged
+    if (!isMine(d)) return { error: 'NOT_ALLOWED', message: 'You can only add your own.' };
+    let entry = d;
+    if (rule.addOnly) {
+      if (d.status && d.status !== 'new') return { error: 'NOT_ALLOWED', message: 'A new work request starts as new.' };
+      entry = { ...d, status: 'new' };
+      for (const f of rule.decisionFields || []) if (entry[f]) entry[f] = f === 'decidedBy' ? null : '';
+    }
+    let newId = id;
+    if (existing !== undefined || newId in docs || !/^[A-Za-z0-9-]{1,40}$/.test(id)) {
+      if (!rule.prefix) return { error: 'BAD_ID' };
+      do { n++; newId = rule.prefix + String(n).padStart(4, '0'); } while (newId in docs);
+      ids[id] = newId;
+    }
+    if (rule.prefix && entry.id && entry.id !== newId) entry = { ...entry, id: newId };
+    docs[newId] = entry;
+  }
+  return { docs, ids };
+}
+async function ownedData(rule, method, id, event, who, repo, branch) {
+  const filePath = `data/${id}.json`, me = lowerOf(who.email);
+  const all = await seesAll(rule, who);
+  if (method === 'GET') {
+    const file = await readFile(repo, branch, filePath);
+    if (file.status === 404) return respond(200, { data: null, sha: null });
+    if (file.corrupt) return respond(502, { error: 'CORRUPT', message: 'The committed data file is not valid JSON.' });
+    if (file.status !== 200) return respond(502, { error: 'GITHUB', status: file.status, message: file.message });
+    const docs = (file.data && file.data.docs) || {};
+    return respond(200, { data: { docs: all ? docs : ownView(rule, docs, me) }, sha: file.sha, scope: all ? 'all' : 'own' });
+  }
+  if (method !== 'PUT') return respond(405, { error: 'METHOD' });
+  const { body, error } = parseBody(event);
+  if (error) return error;
+  if (!body || typeof body.content !== 'object' || body.content === null) return respond(400, { error: 'BAD_CONTENT' });
+  const sent = (body.content.docs && typeof body.content.docs === 'object') ? body.content.docs : {};
+  for (let tries = 0; tries < 4; tries++) {
+    const file = await readFile(repo, branch, filePath);
+    if (file.status !== 200 && file.status !== 404) return respond(502, { error: 'GITHUB', status: file.status });
+    const stored = (file.data && file.data.docs) || {};
+    /* Someone who sees everything saves as before, guarded by the version they read. */
+    if (all && body.sha && file.sha && body.sha !== file.sha) return respond(409, { error: 'CONFLICT', message: 'Someone else saved first.' });
+    const merged = all ? { docs: sent, ids: {} } : mergeOwn(rule, stored, sent, me);
+    if (merged.error) return respond(403, { error: merged.error, message: merged.message });
+    const payload = { docs: merged.docs, savedBy: who.name, savedAt: new Date().toISOString() };
+    const { status, json } = await github('PUT', `/repos/${repo}/contents/${filePath}`, {
+      message: `Update ${id} (saved by ${who.name})`, content: encodeBase64Utf8(payload), branch,
+      sha: file.sha || undefined, author: authorFor(who.name)
+    });
+    if (status === 200 || status === 201) {
+      return respond(200, { sha: json.content?.sha, savedBy: who.name, ids: merged.ids,
+        data: { docs: all ? merged.docs : ownView(rule, merged.docs, me) } });
+    }
+    if (status !== 409 && status !== 422) return writeOutcome(status, json, true) || respond(502, { error: 'GITHUB', status });
+    /* Someone saved in between: read again and merge again; their entries are kept. */
+  }
+  return respond(409, { error: 'CONFLICT', message: 'Too many saves at once. Try again.' });
+}
+
 export async function handler(event) {
   const method = (event.requestContext?.http?.method || 'GET').toUpperCase();
   const rawPath = event.rawPath || '/';
@@ -1548,6 +1665,11 @@ export async function handler(event) {
    * repository, and it exists so that files kept in a PRIVATE repository can reach a
    * signed-in person without the repository being public. Anyone not signed in gets
    * nothing: the authentication above has already run. */
+  /* A project whose files are each person's own is read and saved only through /data, so
+   * neither route can be used to read or write those files whole. */
+  if (OWNED_FILES[proj.key] && (fileMatch || commitMatch)) {
+    return respond(403, { error: 'NOT_ALLOWED', message: 'Work requests are read and saved one person at a time.' });
+  }
   if (fileMatch && method === 'GET') {
     const wanted = decodeURIComponent(fileMatch[1]);
     if (wanted.includes('..') || wanted.startsWith('/')) return respond(400, { error: 'BAD_PATH' });
@@ -1572,6 +1694,9 @@ export async function handler(event) {
   if (dataMatch) {
     const id = dataMatch[1];
     if (!DASHBOARD_ID.test(id) || RESERVED_IDS.has(id)) return respond(400, { error: 'BAD_ID' });
+    /* Work Requests: each person's own (see WORK REQUESTS: EACH PERSON'S OWN). */
+    const ownRule = OWNED_FILES[proj.key] && OWNED_FILES[proj.key][id];
+    if (ownRule) return ownedData(ownRule, method, id, event, who, repo, branch);
     const filePath = `data/${id}.json`;
 
     if (method === 'GET') {

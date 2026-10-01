@@ -433,10 +433,14 @@ Care and Feeding form), built from the prototype Perry approved. The repo files 
   Migration HQ). Request ids are `REQ-0001`, worked out on the copy being saved.
 - **Who created it:** every request has `createdBy {email, name}` from the sign-in, and every draft
   `by {email, name}`. Decisions add `decidedBy`/`decidedAt`.
-- **Visibility, for now:** everyone with Work Requests access can read every request (Perry, 30
-  Sept). My Work Requests and drafts filter by the signed-in email in the page only. Limiting reads
-  to people's own requests needs a relay change (a future IT request); the data already carries
-  what it needs.
+- **Visibility (relay request 8):** the relay decides. Work Requests admins and platform admins
+  read and decide on every request; everyone else reads only the requests they created and may
+  only add new ones (a submitted request isn't edited by its requester; stale copies sent back are
+  ignored). Drafts are always each person's own. A new request whose number someone else holds
+  gets the next free one, returned in `ids`; the page adopts the relay's `data` after a save.
+  `/file` and `/commit` are refused for `hub-requests`. Code: WORK REQUESTS: EACH PERSON'S OWN in
+  `_dev/aws/index.mjs`; tests `_dev/aws/test-workrequests.mjs` (28). Until IT deploys it, the page
+  shows All Work Requests only to administrators, but the relay still serves every request.
 - **Deciding** (WR#, facilitator, assign, make a potential initiative) is for Work Requests admins
   and platform administrators. "Make a Potential Initiative" creates a real one through
   `MismoStore.potential.put` (it lands in the public Hub repo, like every potential initiative).
@@ -602,8 +606,6 @@ Carried forward from earlier sessions, still outstanding as of this handoff:
   sign-in, but `initiative-hub` is public, so its `data/` files can still be fetched by URL. For now
   every person has Edit on the Hub. The move means a private data repository and a relay project
   for it, the pages reading data through the relay instead of from Pages, and moving the files.
-- **Work Requests: limit reads to people's own requests (needs IT).** A relay change; every request
-  already records `createdBy`. Until then everyone with access reads every request.
 - **Relay request 7 is deployed (29 Sept); one check left.** Ask Amy Moses to open the
   Business Glossary Console with her View access: it should open read-only, with no Save.
   Then remove the fallback email lists in `PEOPLE_GROUPS` in admin.html (every person's
