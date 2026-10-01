@@ -434,7 +434,7 @@ People choose their own passwords, reset them by email, and are locked after fiv
 The relay code is `_dev/aws/index.mjs` (section SELF-SERVICE PASSWORDS); tests in
 `_dev/aws/test-passwords.mjs` (47 checks; the other suites still pass).
 
-- **Off until `DIRECTORY_REPO` is set** on the Lambda (`GitMISMO/resources-accounts`, private). A
+- **Off until `DIRECTORY_REPO` is set** on the Lambda (`GitMISMO/GitMISMO-resources-accounts`, private). A
   person-chosen password must never be hashed into a public file. Until then sign-in is unchanged.
 - **The account list moves:** while the private repo has no `access.json`, it is read from the old
   public `_internal/access.json`; the first save (admin panel or a password change) creates it in the

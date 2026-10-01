@@ -936,7 +936,7 @@ const authorFor = (name) => ({ name, email: `${name.replace(/\s+/g, '.').toLower
  * person-chosen password must never be hashed into a public file, where it could be guessed
  * offline with no lockout. Until then sign-in behaves exactly as before.
  *
- *   DIRECTORY_REPO     e.g. GitMISMO/resources-accounts (private). The account list
+ *   DIRECTORY_REPO     e.g. GitMISMO/GitMISMO-resources-accounts (private). The account list
  *                      (access.json) and the sign-in state (auth-state.json) live here.
  *   DIRECTORY_BRANCH   default main.   DIRECTORY_PATH default access.json.
  *   MAIL_FLOW_URL      a Power Automate "When an HTTP request is received" URL. Optional:
