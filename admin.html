@@ -679,7 +679,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
      enforced by it. `key` must match the project key in projects.json, because that is
      what the relay looks up: a tool listed here under a key the relay does not know would
      render a control that silently governs nothing. */
-  const TOOLS = [
+  /* The tools come from /assets/tools.json, the one list every account menu reads too: add a
+     tool there and it appears here and in people's menus (Perry, 1 Oct 2026). This copy is
+     the fallback if that file can't be read. */
+  let TOOLS = [
     { key:'hub',         label:'Initiative Hub',     colour:'#2A4DFF', group:'Standards' },
     { key:'glossary',    label:'Business Glossary Console', colour:'#0F9D77', group:'Standards' },
     { key:'hub-files',   label:'Files',              colour:'#7F5AF0', group:'Standards' },
@@ -723,7 +726,19 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   /* A tool with more than one key: the others always follow the row's own. */
   function follow(p, t){ (t.also || []).forEach(k => { if (p.access[t.key]) p.access[k] = p.access[t.key]; else delete p.access[k]; }); }
 
+  let toolList = null;
+  function loadToolList(){
+    if (!toolList) toolList = fetch('/assets/tools.json?t=' + Date.now(), { cache:'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        const ok = (j && Array.isArray(j.tools) ? j.tools : []).filter(t => t && /^[a-z0-9-]{1,40}$/.test(t.key) && t.label && t.group);
+        if (ok.length) TOOLS = ok.map(t => Object.assign({ key:t.key, label:t.label, colour:t.colour || '#546F88', group:t.group },
+          t.sum ? { sum:t.sum } : {}, t.family ? { family:true } : {}, Array.isArray(t.also) && t.also.length ? { also:t.also.slice() } : {}));
+      }).catch(() => {});
+    return toolList;
+  }
   async function loadAccess(){
+    await loadToolList();
     try {
       const r = await S.access.get();
       acc = { people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),

@@ -1487,6 +1487,26 @@ export async function handler(event) {
       expiresAt: new Date((now + TOKEN_TTL_SECONDS) * 1000).toISOString()
     });
   }
+  /* GET /{project}/auth/me -> what the signed-in person may reach NOW, read fresh from the
+   * account list, so their account menu shows a change an administrator just made without
+   * waiting for them to sign in again. Read-only; reveals nothing about anyone else. */
+  if (method === 'GET' && subPath === '/auth/me') {
+    if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
+    const o = headers['origin'];
+    if (o && o !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This relay does not serve that site.' });
+    if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET' });
+    const auth = headers['authorization'] || '';
+    const payload = auth.startsWith('Bearer ') ? verifyToken(auth.slice(7).trim(), process.env.AUTH_SECRET) : { error: 'TOKEN_BAD' };
+    if (payload.error) return respond(401, { error: payload.error });
+    const dir = await loadAccess();
+    if (dir.error) return respond(dir.error === 'NO_DIRECTORY' ? 404 : 502, { error: dir.error });
+    const me = personByEmail(dir.people, payload.sub);
+    if (!me || isExpired(me)) return respond(401, { error: 'NO_ACCOUNT' });
+    if (tokenIsStale(payload, me)) return respond(401, { error: 'TOKEN_STALE', message: 'Your password was changed. Sign in again.' });
+    const access = {};
+    for (const [k, role] of Object.entries(me.access || {})) { const r = normaliseRole(role); if (r) access[k] = r; }
+    return respond(200, { name: me.name || me.email, email: me.email, access, platformAdmin: me.platformAdmin === true, passwords: selfServiceOn() });
+  }
   const pwRoute = await passwordRoutes(method, subPath, event, headers, proj);
   if (pwRoute) return pwRoute;
   if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });

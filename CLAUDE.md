@@ -392,9 +392,28 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## RULE: one list of tools, `/assets/tools.json` (Perry, 1 Oct 2026)
+
+The admin panel's People & Access and every account menu (`/assets/session.js`) read the SAME list,
+`GitMISMO.github.io/assets/tools.json`. Each built-in list is only a fallback for when the file
+can't be read.
+
+- **Adding a tool with its own access** = an entry in `tools.json` (key, label, group, colour, path;
+  `also` for keys always set with it, `family` for an "every one" row, `sum`/`menu` for clearer names)
+  plus `_internal/projects.json` for the relay. Nothing else: the panel offers it and menus show it.
+- **The account menu shows only the tools the person has**, grouped as the panel groups them, each a
+  link. Pages ask the relay (`GET /auth/me`, request 8) for their access as it is now, on load (at
+  most every 2 minutes) and when the menu opens (at most every 30 seconds), so a change made in the
+  panel reaches their menu without signing in again. Before request 8 is deployed, the menu uses what
+  they had at sign-in. A session ended by a password change signs out.
+- Keep `tools.json` in the panel's order and with every field the panel's built-in list uses: a
+  missing `family` once dropped the Service Orders "Every company" row (caught by t-all).
+
 ## The QR Code Manager in the admin panel (30 Sept 2026)
 
-Jonna's tool at `/qr/` (repo `GitMISMO/QR`, codes in the private `GitMISMO/qr-data`) uses two relay keys:
+Jonna's tool at `/QR/` (repo `GitMISMO/QR`, so Pages serves `/QR/`; codes in the private `GitMISMO/qr-data`).
+The codes it prints point to `/qr/` (lower case): `GitMISMO.github.io/qr/index.html` forwards those to `/QR/`
+with the query (a scan's `?c=CODE`) intact, in case GitHub treats the two differently. It uses two relay keys:
 `qr` (the codes) and `qr-routes` (the public list a phone reads on a scan). Every save writes both, so
 the admin panel shows ONE row, QR Code Manager, with `also:['qr-routes']`: setting the row sets both
 keys, administrators get both, and anyone whose two keys disagree is brought into line on load
