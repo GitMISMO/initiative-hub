@@ -14,7 +14,7 @@ const store = { get(k){ try { return localStorage.getItem(k); } catch (e) { retu
 /* ─────────────── who is looking: the shared resources.mismo.org sign-in ─────────────── */
 const RS = window.ResourcesSession || null;
 const RELAY_URL = 'https://rgvdi67cg27o5kcmiytcqbqnrm0hmztx.lambda-url.us-east-1.on.aws';
-const PROJECT = 'hub-requests';     // the private GitMISMO/initiative-hub-requests, through the relay
+const PROJECT = 'hub-requests';     // the private GitMISMO/GitMISMO-initiative-hub-requests, through the relay
 let ME = { email:'', name:'', short:'', role:null, decides:false, submits:false };
 function refreshMe(){
   const s = RS && RS.current(), role = RS ? RS.role(PROJECT) : null;

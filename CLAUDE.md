@@ -463,7 +463,7 @@ The relay code is `_dev/aws/index.mjs` (section SELF-SERVICE PASSWORDS); tests i
 `work-requests.html` and `work-requests.js`: the intake for updates to existing standards (the
 Care and Feeding form), built from the prototype Perry approved. The repo files are now the source.
 
-- **Storage:** relay project `hub-requests`, the PRIVATE `GitMISMO/initiative-hub-requests`, via the
+- **Storage:** relay project `hub-requests`, the PRIVATE `GitMISMO/GitMISMO-initiative-hub-requests`, via the
   single-file `/data/{name}` route: `data/requests.json` and `data/drafts.json`, each `{docs:{id:{...}}}`.
   Saves send the version read; on 409 the change is re-applied on top (same pattern as Website
   Migration HQ). Request ids are `REQ-0001`, worked out on the copy being saved.
