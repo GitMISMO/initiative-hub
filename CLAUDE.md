@@ -638,6 +638,10 @@ personal access token in a plaintext file:
 
 Carried forward from earlier sessions, still outstanding as of this handoff:
 
+- **Show-password eye button (future upgrade, Perry, 2 Oct).** An eye toggle on every password box people
+  type into: the sign-in screen and Change password (both in `/assets/session.js`) and
+  `/reset-password.html`. A real button with an aria-label that says what it does ("Show password" /
+  "Hide password"), switching the input's type between password and text; hidden again on submit.
 - **Move the Hub's data into a private repository (later, Perry, 30 Sept).** The Hub is behind the
   sign-in, but `initiative-hub` is public, so its `data/` files can still be fetched by URL. For now
   every person has Edit on the Hub. The move means a private data repository and a relay project
