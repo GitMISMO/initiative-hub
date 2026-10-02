@@ -945,10 +945,20 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       rs.disabled = false; return;
     }
     if (rs) {
+      /* A new password works only once it is saved, so it is saved at once (Oct 2026: a reset
+         left unsaved cost Kellie Stoll her sign-in). Any other unsaved change saves with it. */
       const p = acc.people[rs.dataset.accReset];
       const code = S.facilitators.generatePasscode();
       p.hash = await S.facilitators.pbkdf2Hash(code);
-      markAcc(); reveal(p.name, code, 'password'); return;
+      markAcc();
+      rs.disabled = true;
+      const saved = await saveAccessNow();
+      rs.disabled = false;
+      reveal(p.name, code, 'password');
+      $('revealNote').textContent = saved.ok
+        ? 'Saved: this password works within a minute. Give it to them now; it is not stored anywhere and cannot be shown again. Copy it exactly, with no space at either end.'
+        : `NOT SAVED YET (${saved.message}). Don\u2019t give them this password until Save Access succeeds; if the page has to be reloaded, reset again.`;
+      return;
     }
     const rm = e.target.closest('[data-acc-remove]');
     if (rm) {
@@ -981,18 +991,22 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (acc && acc.dirty && !confirm('Discard unsaved access changes?')) return;
     openDrawer = null; freshRow = null; showErr('accErr'); loadAccess();
   });
-  $('accSave').addEventListener('click', async () => {
+  async function saveAccessNow(){
     $('accSave').disabled = true; showErr('accErr'); setStatus('accStatus', 'dirty', 'Saving…');
     try {
       const r = await S.access.put(acc.people, acc.sha);
       acc.sha = r.sha; acc.dirty = false; freshRow = null;
       setStatus('accStatus', 'ok', `Saved. ${r.count} ${r.count === 1 ? 'person' : 'people'}.`);
       renderAccess();
+      return { ok: true };
     } catch (e) {
       $('accSave').disabled = false; setStatus('accStatus', 'dirty');
-      showErr('accErr', (e && e.message) || 'Could not save.');
+      const message = (e && e.message) || 'Could not save.';
+      showErr('accErr', message);
+      return { ok: false, message };
     }
-  });
+  }
+  $('accSave').addEventListener('click', saveAccessNow);
 
   /* ================= Stakeholder Types ================= */
   const DASH = { 'avm-testing':'AVM Testing', ccs:'CCS', lbds:'LBDS', mcd:'MCD', 'title-order':'Title Order', tpa:'TPA' };
