@@ -418,6 +418,17 @@ overview there. Initiatives without one say so in the confirmation.
 markup differs and is full of `{{placeholders}}`, so `overview-access.py` refuses it). Apply the same
 access rule and `wrDeliverables` to the new page, add it to `OVERVIEWS`, and run both saved-field tests.
 
+## Hub search (Perry, 5 Oct 2026)
+
+The Hub's main page has the home page's search box and way of reading what people mean: `hub-search.js`,
+using the shared engine `/assets/search-core.js` (GitMISMO.github.io). It searches initiatives by
+everything written about them ("regulator exams" finds MCD, "Erin" her initiatives), domains with
+their acronyms, potential initiatives and workgroups (loaded on the first search) and the Hub's tasks.
+An initiative opens its overview, or its domain's panel when it has none; a domain opens its panel.
+The sidebar box feeds it on this page (on Potential Initiatives it still filters the cards). Test:
+`t-hub-search.mjs`. The home page still has its own copy of the engine in `assets/home.js` and can move
+to search-core.js.
+
 ## RULE: adding a new tool or service (Perry, 5 Oct 2026)
 
 Whenever a new tool or service is added to MISMO Resources (by Claude, by Jonna, or found already
