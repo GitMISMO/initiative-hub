@@ -482,15 +482,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   };
 
   const domainMeta = {
-    'Mortgage Compliance': {color:'var(--teal)', soft:'#E3F5F3', desc:'Standardized data for regulatory exams and compliance reporting.'},
+    'Mortgage Compliance': {abbr:'MCD', color:'var(--teal)', soft:'#E3F5F3', desc:'Standardized data for regulatory exams and compliance reporting.'},
     'eMortgage': {color:'var(--gold)', soft:'#FDF0DE', desc:'Standards for eNotes, eClosing, and digital mortgage agreements.'},
     'Servicing': {color:'var(--brand)', soft:'#EAF0FF', desc:'Data standards for the handoff from origination into loan servicing.'},
     'Title & Closing': {color:'var(--cyan)', soft:'#E1F3F7', desc:'Standards for title data exchange, closing documents, and title pricing.'},
     'Originations': {color:'var(--rose)', soft:'#FCE7EF', desc:'Standards used during loan origination and underwriting.'},
     'Valuation': {color:'var(--violet)', soft:'#F1EBFD', desc:'Appraisal and automated valuation model (AVM) standards.'},
-    'Artificial Intelligence': {color:'var(--fuchsia)', soft:'#FBE8FC', desc:'Governance frameworks for responsible AI use in mortgage lending.'},
+    'Artificial Intelligence': {abbr:'AI', color:'var(--fuchsia)', soft:'#FBE8FC', desc:'Governance frameworks for responsible AI use in mortgage lending.'},
     'Governance': {color:'var(--graphite)', soft:'#EEF1F4', desc:'Oversight and risk-management standards across MISMO\'s initiatives.'},
-    'Mortgage Insurance': {color:'var(--emerald)', soft:'#E1F6EA', desc:'Standards for mortgage insurance claims, activation, and rate quoting.'},
+    'Mortgage Insurance': {abbr:'MI', color:'var(--emerald)', soft:'#E1F6EA', desc:'Standards for mortgage insurance claims, activation, and rate quoting.'},
     'Secondary': {color:'var(--indigo)', soft:'#EBEAFD', desc:'Standards for the secondary market where loans are sold, pooled, and securitized.'},
     'Credit Reporting': {color:'var(--crimson)', soft:'#FBE7EC', desc:'Standards for pulling, formatting, and exchanging consumer credit data.'}
   };
@@ -507,6 +507,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
   let activeDomain = null;
 
+  /* A domain as shown: its name, with its acronym where it has one (Perry, 5 Oct 2026). */
+  function domainLabel(domain){ const ab = (domainMeta[domain] || {}).abbr; return ab ? `${domain} (${ab})` : domain; }
+
   function itemsFor(domain){
     return initiatives.filter(i => i.domains.includes(domain));
   }
@@ -518,7 +521,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       return `<button type="button" class="domain-tile${domain === activeDomain ? ' active' : ''}" aria-pressed="${domain === activeDomain ? 'true' : 'false'}" style="--tile-color:${meta.color}; --tile-soft:${meta.soft};" data-domain="${domain}">
         <div class="tile-top-row">
           <span class="tile-icon-wrap">${domainIcons[domain]}</span>
-          <span class="tile-name">${domain}</span>
+          <span class="tile-name">${domainLabel(domain)}</span>
         </div>
         <span class="tile-desc">${meta.desc}</span>
         <span class="tile-count">${count} initiative${count !== 1 ? 's' : ''}</span>
@@ -624,10 +627,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const cardsHtml = items.map(initCard).join('');
 
     panelArea.innerHTML = `
-      <section class="panel" aria-label="${escapeHtml(activeDomain)}" style="--tile-color:${meta.color}; --tile-soft:${meta.soft};">
+      <section class="panel" aria-label="${escapeHtml(domainLabel(activeDomain))}" style="--tile-color:${meta.color}; --tile-soft:${meta.soft};">
         <div class="panel-head">
           <span class="panel-icon-wrap">${domainIcons[activeDomain]}</span>
-          <h2 class="panel-title">${activeDomain}</h2>
+          <h2 class="panel-title">${domainLabel(activeDomain)}</h2>
           <span class="panel-sub">${items.length} initiative${items.length !== 1 ? 's' : ''}</span>
           <button type="button" class="btn" id="panelClose">Close</button>
         </div>
