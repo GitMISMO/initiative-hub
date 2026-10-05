@@ -392,6 +392,24 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## RULE: adding a new tool or service (Perry, 5 Oct 2026)
+
+Whenever a new tool or service is added to MISMO Resources (by Claude, by Jonna, or found already
+uploaded), **ask Perry which section it belongs in** (today: Standards & Tools, Planning,
+Sponsorship, Service Orders and Agreements, or a new one), and make a note to add it to all four:
+
+1. **The home page** (`GitMISMO.github.io/index.html`): its tool, in its section, with a colour and icon.
+2. **The admin console**: an entry in `GitMISMO.github.io/assets/tools.json` (key, label, group =
+   the section, colour, path; `also` for extra relay keys), plus its keys in `_internal/projects.json`.
+   The admin panel's People & Access and every account menu read tools.json, so one entry covers both.
+3. **Who gets access**, set from the console: ask Perry (for example, admins only, staff Edit, or
+   named people), then set it in People & Access.
+4. **Which of its pages appear on the home page**: suggest options for Perry to choose from (its
+   main page, and the two or three tasks people come to do, worded as tasks, for example
+   “Make a QR code” opening Make a New Code), with the words people might search for each.
+
+Don't consider a new tool finished until all four are done or Perry has said to skip one.
+
 ## RULE: one list of tools, `/assets/tools.json` (Perry, 1 Oct 2026)
 
 The admin panel's People & Access and every account menu (`/assets/session.js`) read the SAME list,
