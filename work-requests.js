@@ -696,6 +696,36 @@ async function submitRequest(){
   }
 }
 /* the reviewer's changes to a submitted request */
+/* The initiatives with an overview page, and the overview's data file (data/<id>.json in the Hub). */
+const OVERVIEWS = { 'Mortgage Compliance Dataset':'mcd', 'Common Confidence Score':'ccs', 'Title Order Dataset Specification':'title-order',
+  'AVM Testing Guidance and Best Practices':'avm-testing', 'Tri-Party eNote Bailee Agreement':'tpa', 'Loan Boarding Dataset':'lbds' };
+function hubCall(method, id, body){
+  const tok = RS && RS.token();
+  if (!tok) return Promise.reject({ code:'SIGNED_OUT' });
+  return fetch(`${RELAY_URL}/hub/data/${id}`, { method, cache:'no-store',
+    headers: Object.assign({ 'Authorization':'Bearer ' + tok }, body ? { 'Content-Type':'application/json' } : {}), body: body ? JSON.stringify(body) : undefined })
+    .then(r => r.json().catch(() => ({})).then(b => { if (r.ok) return b; throw { status:r.status, code:(b && b.error) || ('HTTP_' + r.status), message: b && b.message, gh: b && b.status }; }), () => { throw { code:'OFFLINE' }; });
+}
+/* A request assigned to an initiative becomes one of its overview's deliverables, once. */
+async function addToOverview(x, initiative){
+  const id = OVERVIEWS[initiative];
+  if (!id) return 'That initiative has no overview page yet, so it wasn\u2019t added to any deliverables.';
+  for (let tries = 0; tries < 3; tries++){
+    try {
+      const got = await hubCall('GET', id);
+      const data = (got && got.data) || { dashboard:id };
+      const list = Array.isArray(data.wrDeliverables) ? data.wrDeliverables : [];
+      if (list.some(d => d.id === x.id)) return 'It was already in that overview\u2019s deliverables.';
+      list.push({ id:x.id, wr:x.wr || '', name:(x.req && x.req.title) || x.id, status:'notstarted', date:'', addedAt:new Date().toISOString() });
+      data.wrDeliverables = list;
+      await hubCall('PUT', id, { content:data, sha:(got && got.sha) || null });
+      return 'It\u2019s now in that overview\u2019s deliverables.';
+    } catch (e){
+      if (!(e && (e.status === 409 || e.code === 'CONFLICT'))) return 'Adding it to the overview\u2019s deliverables didn\u2019t work (' + errText(e) + '), so add it there by hand.';
+    }
+  }
+  return 'The overview kept changing while this was saved, so add it to its deliverables by hand.';
+}
 function updateReq(id, patch, msg){
   return mutate('requests', d => { if (!d[id]) throw { code:'GONE' }; Object.assign(d[id], patch, { updatedAt:new Date().toISOString() }); })
     .then(() => { refreshRequests(); if (view === 'detail' && openId === id) drawDetail(); drawRail(); if (msg) toast(msg); return true; },
@@ -944,7 +974,9 @@ document.addEventListener('click', e => {
   if (d.open){ openId = d.open; show('detail'); return; }
   if (d.mode !== undefined){ if (d.mode) decideForm(d.mode); else $('#decideForm').innerHTML = ''; return; }
   if (d.assign !== undefined){ const x0 = requests.find(q => q.id === openId), f = $('#decideForm'); if (!f.dataset.choice){ toast('Choose an initiative first.'); return; }
-    b.disabled = true; updateReq(x0.id, { status:'assigned', assignedTo:f.dataset.choice, decidedBy:{ email:ME.email, name:ME.name }, decidedAt:new Date().toISOString() }, 'Assigned to ' + f.dataset.choice).then(ok => { if (!ok) b.disabled = false; }); return; }
+    b.disabled = true; const choice = f.dataset.choice;
+    updateReq(x0.id, { status:'assigned', assignedTo:choice, decidedBy:{ email:ME.email, name:ME.name }, decidedAt:new Date().toISOString() }, null)
+      .then(ok => { if (!ok){ b.disabled = false; return; } return addToOverview(x0, choice).then(m => toast('Assigned to ' + choice + '. ' + m)); }); return; }
   if (d.promote !== undefined){ const x0 = requests.find(q => q.id === openId); promote(x0); return; }
   if (d.undo !== undefined){ const x0 = requests.find(q => q.id === openId); updateReq(x0.id, { status:'new', assignedTo:'', decidedBy:null, decidedAt:null }, 'Decision undone'); return; }
   if (d.pdf){ makePDF(d.pdf); return; }

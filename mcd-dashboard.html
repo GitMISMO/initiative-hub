@@ -296,34 +296,34 @@
   }
   .save-toggle-btn.has-changes .dirty-dot{display:block;}
 
-  body.locked [contenteditable="true"]{
+  body.locked:not(.edit-some) [contenteditable="true"], body.edit-some [contenteditable="true"]:not(#stakeholders *){
     pointer-events:none;
   }
-  body.locked select.status-select,
-  body.locked select.crit-select,
-  body.locked select.role-select,
-  body.locked select.type-select,
-  body.locked select.deliv-status-select,
-  body.locked input.type-input,
-  body.locked input.deliv-date-input,
-  body.locked .contact-input{
+  body.locked:not(.edit-some) select.status-select, body.edit-some select.status-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.crit-select, body.edit-some select.crit-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.role-select, body.edit-some select.role-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.type-select, body.edit-some select.type-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.deliv-status-select,
+  body.locked:not(.edit-some) input.type-input, body.edit-some input.type-input:not(#stakeholders *),
+  body.locked:not(.edit-some) input.deliv-date-input, body.edit-some input.deliv-date-input:not(#stakeholders *),
+  body.locked:not(.edit-some) .contact-input, body.edit-some .contact-input:not(#stakeholders *){
     pointer-events:none;
     opacity:.75;
   }
   /* Hide the native dropdown arrow on selects while locked - a visible arrow
      implies an interactive control, which is misleading once it's disabled. */
-  body.locked select.status-select,
-  body.locked select.crit-select,
-  body.locked select.role-select,
-  body.locked select.type-select,
-  body.locked select.deliv-status-select{
+  body.locked:not(.edit-some) select.status-select, body.edit-some select.status-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.crit-select, body.edit-some select.crit-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.role-select, body.edit-some select.role-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.type-select, body.edit-some select.type-select:not(#stakeholders *),
+  body.locked:not(.edit-some) select.deliv-status-select{
     appearance:none; -webkit-appearance:none; -moz-appearance:none;
   }
-  body.locked .contact-edit-btn,
-  body.locked .icon-btn,
-  body.locked .add-task-btn,
-  body.locked .pill-add-btn,
-  body.locked .pill-remove{
+  body.locked:not(.edit-some) .contact-edit-btn, body.edit-some .contact-edit-btn:not(#stakeholders *),
+  body.locked:not(.edit-some) .icon-btn, body.edit-some .icon-btn:not(#stakeholders *),
+  body.locked:not(.edit-some) .add-task-btn, body.edit-some .add-task-btn:not(#stakeholders *),
+  body.locked:not(.edit-some) .pill-add-btn, body.edit-some .pill-add-btn:not(#stakeholders *),
+  body.locked:not(.edit-some) .pill-remove, body.edit-some .pill-remove:not(#stakeholders *){
     display:none !important;
   }
 
@@ -949,7 +949,6 @@
   .hqtop .lock-toggle-btn:hover,.hqtop .save-toggle-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff}
   .hqtop .lock-toggle-btn.is-locked{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#fff}
   .hqtop .lock-toggle-btn.is-locked:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3)}
-  .hqtop #lockToggleBtn:not(.is-locked){background:var(--sky);border-color:var(--sky);color:#06202f}
   .hqtop .save-toggle-btn.has-changes{background:#E0A83C;border-color:#E0A83C;color:#06202f}
   .hqtop .save-toggle-btn.just-saved{background:#4FC79B;border-color:#4FC79B;color:#06202f}
   .hqtop .save-toggle-btn .dirty-dot{background:#06202f}
@@ -1050,10 +1049,14 @@
   .rail .wr-group > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 2px}
   html.railmini .rail .wr-group > span{display:none}
   @media (max-width:760px){ .rail .wr-group > span{display:none} }
+
+  /* Edit access: a quiet note on what can be changed (Perry, 5 Oct 2026). */
+  .access-note{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(255,255,255,.82);padding:0 4px}
+  .access-note[hidden]{display:none}
 </style>
   <script src="/assets/session.js"></script>
 <script src="hub-gate.js"></script>
-<script src="dashboard-data.js?v=cfca585774"></script>
+<script src="dashboard-data.js?v=10f9a0eb17"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -1097,9 +1100,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
     <span>Sign in to edit</span>
   </button>
-  <button type="button" id="lockToggleBtn" class="lock-toggle-btn" aria-pressed="true" title="Unlock to allow edits">
-    <span class="lock-icon" aria-hidden="true"></span><span class="lock-label">Locked</span>
-  </button>
+  <span id="accessNote" class="access-note" hidden>You can edit Stakeholder Engagement and deliverable status</span>
   <button type="button" id="saveSnapshotBtn" class="save-toggle-btn" title="Save your edits to the repository so everyone sees them">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
     <span class="save-label">Save</span>
@@ -1434,45 +1435,43 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     });
   }
 
+  // Who may change what (Perry, 5 Oct 2026). There is no lock any more: People & Access
+  // decides. Admin on the Initiative Hub changes everything here; Edit changes the Stakeholder
+  // Engagement section and each deliverable's status; View changes nothing. applyLockState()
+  // keeps its name because every re-render calls it, so new content follows the same rule.
+  const EDIT_ZONE = '#stakeholders';
+  const accessNote = document.getElementById('accessNote');
   let isLocked = true;
-  const lockToggleBtn = document.getElementById('lockToggleBtn');
-  const LOCK_ICON_LOCKED = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
-  const LOCK_ICON_UNLOCKED = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.75-1.5"></path></svg>';
-
+  function editLevel(){
+    const S = window.MismoStore, r = S && S.role ? S.role() : null;
+    if (r === 'admin') return 'all';
+    if (r === 'staff' || (S && S.canEdit && S.canEdit())) return 'some';
+    return 'none';
+  }
+  function mayEdit(el, level){
+    return level === 'all' || (level === 'some' && (!!el.closest(EDIT_ZONE) || el.matches('select.deliv-status-select')));
+  }
   function applyLockState(){
+    const level = editLevel();
+    isLocked = level !== 'all';
     document.querySelectorAll('[contenteditable]').forEach(el => {
-      el.setAttribute('contenteditable', isLocked ? 'false' : 'true');
+      el.setAttribute('contenteditable', mayEdit(el, level) ? 'true' : 'false');
     });
     document.querySelectorAll(
       'select.status-select, select.crit-select, select.role-select, select.type-select, select.deliv-status-select, input.type-input, input.deliv-date-input, .contact-input'
     ).forEach(el => {
-      el.disabled = isLocked;
+      el.disabled = !mayEdit(el, level);
     });
     document.body.classList.toggle('locked', isLocked);
+    document.body.classList.toggle('edit-some', level === 'some');
+    if (accessNote) accessNote.hidden = level !== 'some';
+    /* Adding a company was allowed even while locked; with View access nothing changes. */
+    const addCompanyBtnEl = document.getElementById('addCompanyBtn');
+    if (addCompanyBtnEl) addCompanyBtnEl.style.display = level === 'none' ? 'none' : '';
   }
-
-  function updateLockUI(){
-    lockToggleBtn.classList.toggle('is-locked', isLocked);
-    lockToggleBtn.setAttribute('aria-pressed', isLocked ? 'true' : 'false');
-    lockToggleBtn.querySelector('.lock-icon').innerHTML = isLocked ? LOCK_ICON_LOCKED : LOCK_ICON_UNLOCKED;
-    lockToggleBtn.querySelector('.lock-label').textContent = isLocked ? 'Locked' : 'Unlocked';
-    lockToggleBtn.title = isLocked ? 'Unlock to allow edits' : 'Lock this dashboard to prevent edits';
-    applyLockState();
-  }
-
-  lockToggleBtn.addEventListener('click', () => {
-    isLocked = !isLocked;
-    if (isLocked){
-      // Close any in-progress edit forms cleanly before locking
-      editingContactIdx = null;
-      editingTaskIdx = null;
-      renderRosterList();
-      renderLane();
-    }
-    updateLockUI();
-  });
-
-  updateLockUI();
+  applyLockState();
+  if (window.ResourcesSession) window.ResourcesSession.onChange(() => setTimeout(applyLockState, 0));
+  document.addEventListener('rs:access', applyLockState);
 
   // Roadmap: lane data + task table renderer, embedded in the roster
   let laneData = {
@@ -1620,6 +1619,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       laneFound = true;
     }
     if (saved.generic) pendingGenericState = saved.generic;
+    if (Array.isArray(saved.wrDeliverables)) { wrDeliv = saved.wrDeliverables; renderWrDeliv(); }
     return { rosterFound, laneFound };
   }
 
@@ -2336,7 +2336,41 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     });
   });
 
-  const GENERIC_FIELD_EXCLUDE = '#rosterLayout';
+  // Deliverables added from Work Requests: a request assigned to this initiative appears here
+  // (Perry, 5 Oct 2026). They are their own list, saved with the page as wrDeliverables, and
+  // left out of the generic field capture, so the fixed rows above keep their saved values.
+  let wrDeliv = [];
+  const DELIV_LABEL = { notstarted: 'Not Started', progress: 'In Progress', done: 'Published' };
+  const escWr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function paintWrRow(tr, st){
+    const sel = tr.querySelector('select'), fill = tr.querySelector('.deliv-progress-fill'), label = tr.querySelector('.deliv-date-label');
+    sel.className = 'deliv-pill deliv-status-select ' + st;
+    if (fill && deliverableProgress[st]){ fill.style.width = deliverableProgress[st].width; fill.style.background = deliverableProgress[st].color; }
+    if (label) label.textContent = st === 'done' ? 'Published' : 'Expected Publication Date';
+  }
+  function renderWrDeliv(){
+    const table = document.querySelector('#deliverables-card .deliverables-table');
+    if (!table) return;
+    table.querySelectorAll('tr.wr-deliv').forEach(tr => tr.remove());
+    const body = table.tBodies[0] || table;
+    wrDeliv.forEach((d, i) => {
+      const st = deliverableProgress[d.status] ? d.status : 'notstarted';
+      const tr = document.createElement('tr');
+      tr.className = 'wr-deliv';
+      tr.dataset.req = d.id || '';
+      tr.innerHTML = `<td>${escWr(d.name)} <span class="mono" style="font-size:10px; color:var(--ink-soft);">${escWr(d.wr || d.id || '')}</span></td>`
+        + `<td><div class="prog-track"><div class="prog-fill deliv-progress-fill"></div></div></td>`
+        + `<td><select class="deliv-pill deliv-status-select" aria-label="Status of ${escWr(d.name)}">${Object.keys(DELIV_LABEL).map(k => `<option value="${k}"${k === st ? ' selected' : ''}>${DELIV_LABEL[k]}</option>`).join('')}</select></td>`
+        + `<td><div class="deliv-date-wrap"><span class="deliv-date-label"></span><input type="date" class="deliv-date-input" value="${escWr(d.date || '')}" aria-label="Date for ${escWr(d.name)}"></div></td>`;
+      body.appendChild(tr);
+      paintWrRow(tr, st);
+      tr.querySelector('select').addEventListener('change', e => { wrDeliv[i].status = e.target.value; paintWrRow(tr, e.target.value); });
+      tr.querySelector('input').addEventListener('change', e => { wrDeliv[i].date = e.target.value; });
+    });
+    applyLockState();
+  }
+
+  const GENERIC_FIELD_EXCLUDE = '#rosterLayout, .wr-deliv';
 
   // Computes a key for a generic-captured element that's stable across page structure
   // changes elsewhere on the page, without requiring a data-field-id on every single
@@ -2447,7 +2481,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       const snapshot = {
         rosterData: rosterData,
         laneData: laneData,
-        generic: captureGenericFieldStates()
+        generic: captureGenericFieldStates(),
+        wrDeliverables: wrDeliv
       };
 
       // Saving commits to the repository, so it is visible to everyone rather than to
@@ -2620,7 +2655,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   /* Editing controls appear only for someone who can actually edit. A signed-out visitor
      sees "Sign in to edit" in their place, rather than a Save button that refuses. The
      relay still decides for real on every request; this only decides what is shown. */
-  MismoStore.wireAccount({ editControls: ['#lockToggleBtn', '#saveSnapshotBtn'] });
+  MismoStore.wireAccount({ editControls: ['#saveSnapshotBtn'] });
 </script>
 
 <script>

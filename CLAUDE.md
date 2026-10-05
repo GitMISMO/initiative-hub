@@ -392,6 +392,28 @@ Two rules follow:
   differs by line endings). If they differ, the relay is behind. The file fingerprints itself, so there is no version
   number anyone has to remember to update.
 
+## Initiative overviews: no lock; who may change what (Perry, 5 Oct 2026)
+
+The six `*-dashboard.html` overviews have no Locked/Unlocked button any more. `applyLockState()` (name kept,
+every re-render calls it) applies the Hub level from People & Access:
+
+- **Admin** on the Hub (and platform admins): everything editable, exactly as the old unlocked view.
+- **Edit**: only `#stakeholders` (Stakeholder Engagement: types table and roster) and each
+  `select.deliv-status-select`. A note in the top bar says so (`#accessNote`).
+- **View**: nothing, exactly as the old locked view; Add company is hidden too.
+
+Saved fields are unchanged: tests `t-overview-saved-admin.mjs` (Admin = old unlocked) and
+`t-overview-saved-view.mjs` (View = old locked) compare every captured field with the pushed pages.
+Compare against the old page *unlocked*: saves only ever happened unlocked. Built by
+`hubbuild/overview-access.py`.
+
+**Work requests become deliverables.** Assigning a request to an initiative (Work Requests, Assign to an
+Existing Initiative) adds a row to that initiative's overview: `wrDeliverables` in `data/<id>.json`
+(`{id, wr, name, status, date, addedAt}`), shown under the fixed rows, saved with the page, and kept out
+of the generic field capture (`.wr-deliv` in GENERIC_FIELD_EXCLUDE) so the fixed rows keep their keys.
+The initiative-to-overview map is `OVERVIEWS` in work-requests.js (from transform2.py): add a new
+overview there. Initiatives without one say so in the confirmation.
+
 ## RULE: adding a new tool or service (Perry, 5 Oct 2026)
 
 Whenever a new tool or service is added to MISMO Resources (by Claude, by Jonna, or found already

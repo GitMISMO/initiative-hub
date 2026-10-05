@@ -233,7 +233,9 @@
       dashboard: cfg.id,
       rosterData: snapshot.rosterData,
       laneData: snapshot.laneData,
-      generic: snapshot.generic
+      generic: snapshot.generic,
+      /* deliverables added from Work Requests (Perry, 5 Oct 2026) */
+      wrDeliverables: Array.isArray(snapshot.wrDeliverables) ? snapshot.wrDeliverables : []
     };
 
     try {
