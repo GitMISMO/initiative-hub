@@ -414,6 +414,10 @@ of the generic field capture (`.wr-deliv` in GENERIC_FIELD_EXCLUDE) so the fixed
 The initiative-to-overview map is `OVERVIEWS` in work-requests.js (from transform2.py): add a new
 overview there. Initiatives without one say so in the confirmation.
 
+**To do when the next overview is made:** `_dev/dashboard-template.html` still has the old lock (its
+markup differs and is full of `{{placeholders}}`, so `overview-access.py` refuses it). Apply the same
+access rule and `wrDeliverables` to the new page, add it to `OVERVIEWS`, and run both saved-field tests.
+
 ## RULE: adding a new tool or service (Perry, 5 Oct 2026)
 
 Whenever a new tool or service is added to MISMO Resources (by Claude, by Jonna, or found already
