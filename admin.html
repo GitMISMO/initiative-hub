@@ -684,15 +684,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
      the fallback if that file can't be read. */
   let TOOLS = [
     /* Files (hub-files) follows the Hub: everyone who can open a potential initiative sees its files (Perry, 1 Oct 2026). */
-    { key:'hub',         label:'Initiative Hub',     colour:'#2A4DFF', group:'Standards', also:['hub-files'] },
-    { key:'glossary',    label:'Business Glossary Console', colour:'#0F9D77', group:'Standards' },
-    { key:'hub-requests', label:'Work Requests',     colour:'#14486E', group:'Standards' },
+    { key:'hub',         label:'Initiative Hub',     colour:'#2A4DFF', group:'Standards & Tools', also:['hub-files'] },
+    { key:'glossary',    label:'Business Glossary Console', colour:'#0F9D77', group:'Standards & Tools' },
+    { key:'hub-requests', label:'Work Requests',     colour:'#14486E', group:'Standards & Tools' },
+    { key:'qr',          label:'QR Code Manager',    colour:'#2477B8', group:'Standards & Tools', also:['qr-routes'] },
     { key:'summit-hq',   label:'Summit HQ',          colour:'#B45309', group:'Planning' },
     { key:'website-migration', label:'Website Migration HQ', colour:'#475569', group:'Planning' },
     { key:'sponsorship', label:'Sponsorship Portal', colour:'#0EA5E9', group:'Sponsorship' },
     /* One row, two keys: the codes (private qr-data) and the public list a phone reads when a
        code is scanned (qr-routes). Every save writes both, so they are always set together. */
-    { key:'qr',          label:'QR Code Manager',    colour:'#2477B8', group:'QR Codes', also:['qr-routes'] },
     /* Service Orders and Agreements: one key per contracting company, each with its own
        private repository. A company's account holds its own key; MISMO staff who approve
        or administer hold every key. The names are the companies' full names, as the Service Orders portal shows them. */
