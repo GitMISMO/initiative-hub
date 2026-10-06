@@ -447,6 +447,33 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
 
 Don't consider a new tool finished until all four are done or Perry has said to skip one.
 
+## RULE: every application is behind the sign-in (Perry, 6 Oct 2026)
+
+Every tool and page on resources.mismo.org is gated by the shared sign-in, with no exceptions beyond the four below.
+A tool is done only when it has all three:
+
+1. **A gate:** `ResourcesSession.requireAccess('<key>', { toolName })` (or `hub-gate.js` in the Hub; `requireSignIn` on
+   the home page), so a signed-out visitor sees the full-page sign-in and someone without access sees "You do not have
+   access".
+2. **`<html data-rs-gate>`,** so nothing of the tool shows before the gate decides.
+3. **The account bubble,** `<div id="rs-account"></div>` in the top bar (session.js fills it): name, Change password,
+   Sign out. Without it a tool looks as if it has no sign-in, because one sign-in covers every tool (Meeting Trackers,
+   6 Oct: gated all along, but it looked open).
+
+Deliberately public: the published Business Glossary (`/glossary/`), the 2027 Sponsorship Prospectus
+(`/sponsorship-prospectus/`), the QR forwarder (`/qr/`, which scanned codes pass through) and `/reset-password.html`.
+Anything published from a repository is public, so mock-ups and experiments don't belong in one (the glossary's
+`docs/mockups/` were removed for that reason). Service Orders is gated by its own older sign-in until it moves back to
+the shared one. Checked across every page on 6 Oct 2026.
+
+## The Hub's data is private (6 Oct 2026)
+
+The relay project `hub` points at the private `GitMISMO/initiative-hub-data` (data/, stakeholder-types.json,
+_internal/facilitators.json); this repository holds the pages and code only. Pages read through the relay
+(`relayFile` and `/data/` in dashboard-data.js; `readable: ["stakeholder-types.json"]` on the project), never from the
+public site, and a failed read shows as an error rather than as an empty page. Earlier versions of the data remain in
+this repository's history.
+
 ## RULE: one list of tools, `/assets/tools.json` (Perry, 1 Oct 2026)
 
 The admin panel's People & Access and every account menu (`/assets/session.js`) read the SAME list,
