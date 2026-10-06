@@ -164,7 +164,7 @@ button.nav{width:100%;border:0;background:none;font:inherit;color:inherit;text-a
 @media (max-width:640px){.band-in > div:nth-child(2) > div{flex-wrap:wrap;gap:14px !important} .band-in > div:nth-child(2) > div > div:nth-child(2){display:none} .band-in > div:nth-child(2) > div > div:nth-child(3){flex:1 1 100% !important} .top .eyebrow{display:none} .top{padding:0 14px} .mrule{margin:0 12px} .plate{padding:8px 10px} .plate svg{height:20px}}
 @media (max-width:860px){.rail{display:none} main{padding:0 16px 56px} .band,.testbar,.sticky{margin:0 -16px} .band{padding-left:16px;padding-right:16px} .tab-strip{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px} .band-tabs{padding:0 6px;gap:8px} .band-tabs a{padding:10px 14px 11px}}
 html[data-theme="dark"]{--paper:#0B1826;--surface:#112336;--sunk:#0E1F31;--ink:#EEF3F8;--ink2:#B9C8D6;--ink3:#97ABBE;--line:#1A3048;--line2:#23405C;--line3:#31557A;--accent:#7CC0EA;--accent-soft:#173A57;--dc:#EEF3F8;--btn:#1E5A85;--teal:#4FC3B5;--red:#F08A80;--red-soft:#3D2226;color-scheme:dark} html[data-theme="dark"] .plate{background:#fff !important}.ov-save{position:fixed;left:16px;bottom:16px;z-index:80;display:flex;align-items:center;gap:10px;max-width:min(520px,calc(100vw - 32px));padding:8px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line2);box-shadow:0 10px 26px -14px rgba(15,49,76,.45);font-size:12.5px;color:var(--ink2)}
-.ov-save[hidden]{display:none} .ov-save[data-kind="error"]{background:#FBE9E7;border-color:#F1C9C4;color:#7A2E26} .ov-save button{border:0;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;background:var(--btn);color:#fff;cursor:pointer}
+.ov-save[hidden]{display:none} .ov-save{transition:opacity .5s ease} .ov-save.gone{opacity:0;pointer-events:none} .ov-save[data-kind="error"]{background:#FBE9E7;border-color:#F1C9C4;color:#7A2E26} .ov-save button{border:0;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;background:var(--btn);color:#fff;cursor:pointer}
 </style></head><body data-role="admin"><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
 0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
@@ -334,8 +334,10 @@ window.ROSTER_FRAME = "<!doctype html><html lang=\"en\" data-theme=\"light\"><he
     var el = document.getElementById('ovSave');
     if (!el) { el = document.createElement('div'); el.id = 'ovSave'; el.className = 'ov-save'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
     el.dataset.kind = kind; el.innerHTML = '<span></span>' + (action ? '<button type="button">' + action[0] + '</button>' : '');
-    el.querySelector('span').textContent = text; el.hidden = !text;
+    el.querySelector('span').textContent = text; el.hidden = !text; el.classList.remove('gone');
     if (action) el.querySelector('button').onclick = action[1];
+    clearTimeout(el.__fade);
+    if (kind === 'ok' && text) el.__fade = setTimeout(function () { el.classList.add('gone'); }, 2200);   /* "All changes saved" fades; problems stay */
   }
   function schedule() {
     if (!loaded || failed || blocked) return;
@@ -679,7 +681,9 @@ const frame = $('#rosterFrame');
 function loadFrame() { frame.srcdoc = window.ROSTER_FRAME; }
 frame.addEventListener('load', () => {
   const doc = frame.contentDocument; if (!doc) return;
-  const fit = () => { frame.style.height = doc.documentElement.scrollHeight + 'px'; }; window.__fitFrame = fit;
+  /* the roster's own height, so the frame shrinks again when a drawer closes (the document's scroll height never drops
+     below the frame's, which left a tall empty gap; Perry, 6 Oct 2026) */
+  const fit = () => { const el = doc.getElementById('stakeholders') || doc.body; frame.style.height = Math.ceil(el.getBoundingClientRect().height) + 'px'; }; window.__fitFrame = fit;
   fit(); new ResizeObserver(fit).observe(doc.body);
   if (frame.contentWindow.setRole) frame.contentWindow.setRole(ENV.role(S));
 });
