@@ -71,7 +71,7 @@ main{flex:1;min-width:0;padding:0 36px 72px}
 .tl-fade.on .tl-arrow{pointer-events:auto} .tl-arrow{width:28px;height:28px;margin:0 2px;border-radius:50%;border:1px solid var(--line2);background:var(--surface);box-shadow:0 2px 6px rgba(15,49,76,.16);color:var(--dc);font:inherit;font-size:16px;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center} .tl-arrow:hover{background:var(--sunk)} .tl-rowlab{position:absolute;left:0;height:22px;z-index:2} .tl-rowlab .tl-name.above{position:sticky;left:6px;transform:none;display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap;background:var(--surface);padding:0 6px 0 2px;border-radius:4px} .tl-name.above b{display:inline} .tl-legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--ink2)} .tl-legend span[hidden]{display:none !important} .tl-legend span{display:inline-flex;align-items:center;gap:7px} .mk{display:inline-block;flex:0 0 auto}
 .tl{position:relative} .tl-year{position:absolute;top:0;bottom:0;border-left:1px dashed var(--line2)} .tl-year span{position:absolute;top:2px;left:6px;font-size:12px;font-weight:700;color:var(--ink3)}
 .tl-line{position:absolute;top:0;bottom:0;z-index:1} .tl-line.formed{border-left:2px dashed #0F314C} .tl-line.today{border-left:2px solid var(--teal)} .tl-line span{position:absolute;bottom:-2px;left:6px;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;background:var(--surface);padding:0 3px;white-space:nowrap} .tl-line.formed span{color:#0F314C} .tl-line.flip span{left:auto;right:6px} .tl-line.today span{color:#0B7268}
-.tl-hl{position:absolute;left:-12px;right:-12px;height:48px;border-radius:10px;background:#DCEDF8} .tl-bar{position:absolute;height:3px;border-radius:2px}
+.tl-hl{position:absolute;left:4px;right:4px;height:48px;border-radius:10px;background:#DCEDF8}   /* inside the timeline: reaching past it made 'All' look scrollable */ .tl-bar{position:absolute;height:3px;border-radius:2px}
 .tl-mark{position:absolute;width:0;height:0;z-index:2} .tl-mk{position:absolute;left:-11px;top:-11px;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .tl-lab{position:absolute;left:0;top:13px;transform:translateX(-50%);font-size:11px;font-weight:700;white-space:nowrap;background:var(--surface);padding:0 3px;border-radius:4px;line-height:1.35} .tl-mark.up .tl-lab{top:auto;bottom:13px}
 .tl-name{position:absolute;left:0;border:0;background:none;text-align:left;padding:0;cursor:pointer;line-height:1.25;transform:translateY(-50%)} /* clickable at a glance (Perry, 6 Oct 2026): a soft highlight, the name in the accent and underlined, a small arrow */
@@ -571,7 +571,15 @@ function askRoadblock(d, cb) {
 }
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2200); }
 document.addEventListener('click', e => {
-  const o = e.target.closest('[data-open]'); if (o && !e.target.closest('[data-act]')) { const id = o.dataset.open; S.open = S.open === id ? null : id; save(); renderDeliv(); return; }
+  const o = e.target.closest('[data-open]'); if (o && !e.target.closest('[data-act]')) { const id = o.dataset.open, fromTimeline = !!o.closest('#tlView'); S.open = S.open === id ? null : id; save(); renderDeliv();   /* asked before the redraw replaces the clicked name */
+    /* opened from the timeline: glide down so the timeline and the opened details are both in view (Perry, 6 Oct 2026) */
+    if (S.open === id && fromTimeline) {
+      const card = document.querySelector('.tl-card'), top = (document.querySelector('header.top') || {}).offsetHeight || 64, bar = document.getElementById('sticky');
+      const barH = bar && bar.classList.contains('on') ? bar.offsetHeight : 44;
+      const y = Math.max(0, card.getBoundingClientRect().top + scrollY - top - barH - 14);
+      scrollTo({ top: y, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+    return; }
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const d = S.deliv.find(x => x.id === b.dataset.id); if (!d) return;
   if (b.dataset.act === 'block') { const tt = today(), on = b.getAttribute('aria-checked') !== 'true'; d.block = on ? { on: true, by: who(), when: `${MON[tt.getMonth()]} ${tt.getDate()}`, text: (d.block && d.block.text) || '' } : { on: false, text: (d.block && d.block.text) || '' }; save(); renderDeliv(); if (on) { const ta = $(`textarea[data-act="blocktext"][data-id="${d.id}"]`); ta && ta.focus(); } return; }
