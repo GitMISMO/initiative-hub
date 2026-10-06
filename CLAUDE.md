@@ -505,7 +505,22 @@ the admin panel shows ONE row, QR Code Manager, with `also:['qr-routes']`: setti
 keys, administrators get both, and anyone whose two keys disagree is brought into line on load
 ("Save to keep it"). The same `also` works for any future tool with more than one key.
 
-## Self-service passwords (relay request 8, written 30 Sept 2026; waiting on IT)
+## Self-service passwords (relay request 8: LIVE since 6 Oct 2026)
+
+**Deployed 6 Oct 2026** (between 15:06 and 15:57 UTC), with `DIRECTORY_REPO`, `MAIL_FLOW_URL` and
+`MAIL_FLOW_SECRET` set. Checked the same day: the account list moved to the private
+`GitMISMO/GitMISMO-resources-accounts` on Perry's first save (15:57 UTC; 20 accounts, every hash carried
+over); Change password shows in the account menu; Perry's password reset went through end to end
+(email, link, new password); the public `_internal/access.json` was deleted (`GitMISMO.github.io`
+bb64563; earlier versions remain in that repository's history). Still to confirm: a non-admin
+(Kellie) sees only her own Work Requests.
+
+**Show-password eye** (6 Oct): one button in every password box on the sign-in screen, Change
+password and `/reset-password.html` (`passwordEyes` in `assets/session.js`); Edge's own reveal is
+hidden. **IT documents:** tell IT to copy code with GitHub's "Copy raw file" button, then Deploy, and
+to confirm with `/version` (a selected-text copy of a long file can be incomplete).
+
+### As written (30 Sept 2026)
 
 People choose their own passwords, reset them by email, and are locked after five wrong guesses.
 The relay code is `_dev/aws/index.mjs` (section SELF-SERVICE PASSWORDS); tests in
