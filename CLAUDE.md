@@ -485,6 +485,13 @@ are Erin Bittenbender, Kathryn Williams, Kellie Stoll, Leeann Walker and Meghan 
 2. **Team HQ's `ask` and `membersOnly` in `_internal/projects.json`** (Jonna, 5 Oct) are not read by the
    relay, so they enforce nothing yet: anyone with Team HQ access can still save expenses. Confirm with
    Jonna what she expects before building it.
+3. **Tabled (Perry, 6 Oct 2026): "View as" for administrators.** Pick a person in People & Access and
+   see the whole site as they do, their data included. Design agreed: read-only (the relay refuses every
+   save made while viewing as someone), ends after 30 minutes or on Stop, administrators only and never
+   as another administrator, each use logged in the private accounts repository, and a banner
+   "Viewing as … · read-only · Stop". Needs a relay route plus session.js and admin panel changes; best
+   deployed with items 1 and 2. Service Orders joins in only once it is back on the shared sign-in.
+   Decide whether staff are told administrators can do this.
 
 ## Potential initiatives: files and status updates (1 Oct 2026)
 
