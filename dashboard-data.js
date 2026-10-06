@@ -180,6 +180,17 @@
   /* Editors read through the relay: always fresh (no Pages deploy lag, no CDN cache) and
    * it returns the SHA directly. Falls through to the plain read if the relay is unset or
    * the key is rejected, so a bad key degrades to viewing rather than breaking the page. */
+  /* The Hub's data lives in a private repository (Perry, 6 Oct 2026), so every read goes through the relay;
+     nothing is read from the public site any more. Returns { status, data, sha }. */
+  async function relayFile(path) {
+    var res = await relay('/file/' + path, { method: 'GET' });
+    if (res.status === 404) return { status: 404, data: null, sha: null };
+    var body = null; try { body = await res.json(); } catch (e) {}
+    if (!res.ok) throw accessError(res, body);
+    var text = new TextDecoder().decode(Uint8Array.from(atob(body.content), function (c) { return c.charCodeAt(0); }));
+    return { status: 200, data: JSON.parse(text), sha: body.sha || null };
+  }
+
   async function loadViaRelay() {
     if (!RELAY_URL) throw new Error('NO_RELAY');
     var res = await relay('/data/' + cfg.id);
@@ -188,23 +199,12 @@
     return { data: body.data, sha: body.sha };
   }
 
-  /* Viewers read the deployed file from the same origin: no token, no API quota. */
-  async function loadViaPages() {
-    var res = await fetch(cfg.path + '?t=' + Date.now(), { cache: 'no-store' });
-    if (res.status === 404) return { data: null, sha: null };
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var text = await res.text();
-    return { data: JSON.parse(text), sha: await blobSha(text) };
-  }
-
   async function load() {
     var result = null;
     try {
-      if (hasKey()) {
-        try { result = await loadViaRelay(); }
-        catch (relayErr) { console.warn('Relay read failed, falling back to the deployed file:', relayErr); }
-      }
-      if (!result) result = await loadViaPages();
+      /* Through the relay only: the data is private, and an unreadable file must read as an error, not as "nothing saved". */
+      if (!hasKey()) throw new Error('NOT_SIGNED_IN');
+      result = await loadViaRelay();
       currentSha = result.sha;
       fileExisted = result.data !== null;
       loadedRemote = true;
@@ -237,6 +237,9 @@
       /* deliverables added from Work Requests (Perry, 5 Oct 2026) */
       wrDeliverables: Array.isArray(snapshot.wrDeliverables) ? snapshot.wrDeliverables : []
     };
+    /* The redesigned overview's own content: resources, roles and benefits, deliverables and their notes
+       (Perry, 6 Oct 2026). Written only by pages that send it, so the other overviews save as before. */
+    if (snapshot.overview && typeof snapshot.overview === 'object') payload.overview = snapshot.overview;
 
     try {
       // currentSha is the SHA of the version this page READ. The relay forwards it as-is
@@ -338,9 +341,9 @@
   var typeNames = {};
   async function typesLoad() {
     try {
-      var res = await fetch('stakeholder-types.json?t=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) return false;
-      var doc = await res.json();
+      var got = await relayFile('stakeholder-types.json');
+      if (got.status !== 200) return false;
+      var doc = got.data;
       var map = {};
       (doc.types || []).forEach(function (t) { if (t && t.key) map[t.key] = t.name || t.key; });
       typeNames = map;
@@ -409,16 +412,11 @@
 
   async function potentialList() {
     try {
-      var res = await fetch('data/potential/index.json?t=' + Date.now(), { cache: 'no-store' });
-      if (res.status === 404) return { ok: true, items: [] };
-      if (!res.ok) return { ok: false, reason: 'HTTP_' + res.status };
-      var idx = await res.json();
-      var ids = Array.isArray(idx.ids) ? idx.ids : [];
+      var got = await relayFile('data/potential/index.json');
+      if (got.status === 404) return { ok: true, items: [] };
+      var ids = Array.isArray(got.data && got.data.ids) ? got.data.ids : [];
       var items = await Promise.all(ids.map(async function (id) {
-        try {
-          var r = await fetch('data/potential/' + encodeURIComponent(id) + '.json?t=' + Date.now(), { cache: 'no-store' });
-          return r.ok ? await r.json() : null;
-        } catch (e) { return null; }
+        try { var one = await relayFile('data/potential/' + encodeURIComponent(id) + '.json'); return one.data; } catch (e) { return null; }
       }));
       return { ok: true, items: items.filter(Boolean) };
     } catch (e) { return { ok: false, reason: 'NETWORK' }; }
@@ -429,15 +427,10 @@
       try {
         var res = await relay('/potential/' + encodeURIComponent(id));
         if (res.ok) { var b = await res.json(); return { ok: true, data: b.data, sha: b.sha, fresh: true }; }
-      } catch (e) { /* fall through to the deployed file */ }
+        return { ok: false, reason: 'HTTP_' + res.status };
+      } catch (e) { return { ok: false, reason: 'NETWORK' }; }
     }
-    try {
-      var r = await fetch('data/potential/' + encodeURIComponent(id) + '.json?t=' + Date.now(), { cache: 'no-store' });
-      if (r.status === 404) return { ok: true, data: null, sha: null };
-      if (!r.ok) return { ok: false, reason: 'HTTP_' + r.status };
-      var text = await r.text();
-      return { ok: true, data: JSON.parse(text), sha: await blobSha(text), fresh: false };
-    } catch (e) { return { ok: false, reason: 'NETWORK' }; }
+    return { ok: false, reason: 'NO_KEY' };   /* private: there is no public copy to fall back to */
   }
 
   async function potentialPut(id, content, sha) {
@@ -591,12 +584,11 @@
    * resources.mismo.org can read. Names only: no emails, no hashes. Admins are not on it;
    * they are not facilitators. Expired entries are left off. */
   var ROSTER_PATH = 'data/facilitator-roster.json';
-  var ROSTER_URL = '/initiative-hub/' + ROSTER_PATH;
   var rosterPromise = null;
   function rosterLoad() {
     if (!rosterPromise) {
-      rosterPromise = fetch(ROSTER_URL + '?t=' + Date.now(), { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : { facilitators: [] }; })
+      rosterPromise = relayFile(ROSTER_PATH)
+        .then(function (r) { return r.data || { facilitators: [] }; })
         .then(function (d) {
           return (Array.isArray(d && d.facilitators) ? d.facilitators : [])
             .map(function (f) { return String((f && f.name) || '').trim(); })

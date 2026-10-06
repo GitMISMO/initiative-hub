@@ -1177,7 +1177,7 @@ function boot(){
     try { await Promise.all([load('requests'), load('drafts')]); }
     catch (e){ banner('<b>Work requests couldn\u2019t be read.</b> ' + esc(errText(e)) + '. Reload to try again; nothing you enter now can be saved until they load.'); }
     refreshRequests();
-    try { const res = await fetch('data/facilitator-roster.json?t=' + Date.now(), { cache:'no-store' }); if (res.ok){ const j = await res.json(); const list = (j.facilitators || j || []).map(f => f.name).filter(Boolean); if (list.length) L.facilitators = list; } } catch (e) {}
+    try { const got = await hubCall('GET', 'facilitator-roster'); const j = got && got.data; if (j){ const list = (j.facilitators || j || []).map(f => f.name).filter(Boolean); if (list.length) L.facilitators = list; } } catch (e) {}
     const h = location.hash.replace('#', '');
     if (h === 'new' && ME.submits) startWizard(); else show(h === 'all' && ME.decides ? 'all' : h === 'mine' ? 'mine' : (ME.decides ? 'all' : 'mine'));
     setInterval(poll, 30000); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
