@@ -15,7 +15,9 @@ Run it after adding or removing a type in any dashboard, and before pushing.
 import json, re, sys, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-TYPES = ROOT / 'stakeholder-types.json'
+# The Hub's data, stakeholder-types.json included, lives in the private GitMISMO/initiative-hub-data (6 Oct 2026):
+# check it in a clone of that repository next to this one, then commit it there.
+TYPES = ROOT.parent / 'initiative-hub-data' / 'stakeholder-types.json'
 DASHBOARDS = sorted(p for p in ROOT.glob('*-dashboard.html'))
 
 def dashboard_types(path):
