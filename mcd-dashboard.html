@@ -34,7 +34,7 @@ main{flex:1;min-width:0;padding:0 36px 72px}
 .mp-head{display:flex;align-items:center;gap:6px} .mp-head b{flex:1;text-align:center;font-size:13.5px;color:var(--dc)} .mp-nav{border:0;background:var(--sunk);border-radius:7px;width:28px;height:28px;cursor:pointer;color:var(--dc);font-size:15px}
 .mp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:10px;text-align:center} .mp-dow{font-size:10.5px;font-weight:700;color:var(--ink3);padding-bottom:4px}
 .mp-day{font-size:12px;line-height:30px;border-radius:8px;color:var(--ink2)} .mp-day.meet{background:#E1F2EC;color:#0B5E54;font-weight:800} .mp-day.past{opacity:.45} .mp-day.next{background:var(--teal);color:#fff} .mp-day.today{box-shadow:inset 0 0 0 2px var(--dc)}
-.mp-foot{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);line-height:1.5} .mp-actions{margin-top:10px} .mp-dl-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px} .mp-dl{display:grid;grid-template-columns:1fr 1fr;gap:6px} .mp-ics{display:flex;align-items:center;gap:8px;text-align:left;border:0;border-radius:9px;padding:8px 10px;font:inherit;font-size:12.5px;background:var(--btn);color:#fff;cursor:pointer} .mp-ics span{display:flex;flex-direction:column;line-height:1.25} .mp-ics small{font-size:11px;opacity:.8} .mp-ics.alt{background:#fff;color:var(--dc);border:1px solid var(--line2)} .mp-ics:hover{filter:brightness(1.08)} .mp-alt{margin-top:8px;font-size:11.5px;line-height:1.6;color:var(--ink3);text-align:center} .mp-alt a{font-weight:700;color:var(--accent);white-space:nowrap} .mp-note{margin-top:8px;font-size:12px;line-height:1.45;color:#5C4A12;background:#FFF4D6;border-radius:8px;padding:7px 9px} .mp-note[hidden]{display:none} .mp-full{display:block;margin-top:10px;font-size:12px;font-weight:700;color:var(--accent);text-align:center}
+.mp-foot{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);line-height:1.5} .mp-actions{margin-top:10px} .mp-dl-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px} .mp-dl{display:grid;grid-template-columns:1fr 1fr;gap:6px} .mp-dl .mp-ics.alt:nth-child(3){grid-column:1 / -1} .mp-hint{margin-top:7px;font-size:11.5px;line-height:1.45;color:var(--ink3)} .mp-ics{display:flex;align-items:center;gap:8px;text-align:left;border:0;border-radius:9px;padding:8px 10px;font:inherit;font-size:12.5px;background:var(--btn);color:#fff;cursor:pointer} .mp-ics span{display:flex;flex-direction:column;line-height:1.25} .mp-ics small{font-size:11px;opacity:.8} .mp-ics.alt{background:#fff;color:var(--dc);border:1px solid var(--line2)} .mp-ics:hover{filter:brightness(1.08)} .mp-alt{margin-top:8px;font-size:11.5px;line-height:1.6;color:var(--ink3);text-align:center} .mp-alt a{font-weight:700;color:var(--accent);white-space:nowrap} .mp-note{margin-top:8px;font-size:12px;line-height:1.45;color:#5C4A12;background:#FFF4D6;border-radius:8px;padding:7px 9px} .mp-note[hidden]{display:none} .mp-full{display:block;margin-top:10px;font-size:12px;font-weight:700;color:var(--accent);text-align:center}
 .mcard{display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:9px 12px 9px 9px;color:#fff}
 .m-tile{flex:0 0 42px;border-radius:9px;overflow:hidden;background:#fff;text-align:center} .m-tile div{background:#0B7268;color:#fff;font-size:10px;font-weight:800;letter-spacing:.1em;padding:2px 0} .m-tile b{display:block;font-family:'Archivo', 'Libre Franklin', sans-serif;font-size:18px;font-weight:800;line-height:1.15;color:var(--dc)} .m-tile span{display:block;font-size:10px;font-weight:700;color:var(--ink3);padding-bottom:3px}
 .m-name{font-size:12.5px;font-weight:800;line-height:1.25;white-space:nowrap} .m-line{display:flex;align-items:center;gap:8px;margin-top:5px} .m-when{font-size:12px;white-space:nowrap} .m-when b{color:#8FD6C9}
@@ -757,8 +757,10 @@ function renderPop() {
   const occ = SCHED.occurrences === 'weekly' ? 'Every' : 'Every ' + SCHED.occurrences.map(o => ORD[o - 1]).join(' and ');
   $('#mPop').innerHTML = `<div class="mp-head"><button type="button" class="mp-nav" data-mp="-1" aria-label="Previous month">‹</button><b>${MONTHS[m - 1]} ${y}</b><button type="button" class="mp-nav" data-mp="1" aria-label="Next month">›</button></div><div class="mp-grid">${cells}</div>
 <div class="mp-foot">${esc(SCHED.name)} · ${occ} ${DAYS[SCHED.day]} · ${timeLabel()}${n ? `<br><b>Next: ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][n.dow]}, ${MON[n.m - 1]} ${n.d}</b>${n.live ? ' · happening now' : ''}` : ''}</div>${n ? (() => { const L = calLinks(n); return `<div class="mp-actions"><div class="mp-dl-label">Download a calendar invite</div><div class="mp-dl">
-<button type="button" class="mp-ics" data-ics="series">${I('M12 4v11 M7 10l5 5 5-5 M5 20h14', 14)}<span><b>Every meeting</b><small>${SCHED.occurrences === 'weekly' ? 'Every' : SCHED.occurrences.map(o => ORD[o - 1]).join(' & ')} ${DAYS[SCHED.day]}${SCHED.occurrences === 'weekly' ? '' : 's'}</small></span></button>
+${multi() ? SCHED.occurrences.map(o => { const f = nextFor(o); return `<button type="button" class="mp-ics" data-ics="series-${o}">${I('M12 4v11 M7 10l5 5 5-5 M5 20h14', 14)}<span><b>Every ${ORD[o - 1]} ${DAYS[SCHED.day]}</b><small>${f ? 'from ' + MON[f.m - 1] + ' ' + f.d : 'repeating'}</small></span></button>`; }).join('')
+  : `<button type="button" class="mp-ics" data-ics="series">${I('M12 4v11 M7 10l5 5 5-5 M5 20h14', 14)}<span><b>Every meeting</b><small>${SCHED.occurrences === 'weekly' ? 'Every' : SCHED.occurrences.map(o => ORD[o - 1]).join(' & ')} ${DAYS[SCHED.day]}${SCHED.occurrences === 'weekly' ? '' : 's'}</small></span></button>`}
 <button type="button" class="mp-ics alt" data-ics="next">${I('M12 4v11 M7 10l5 5 5-5 M5 20h14', 14)}<span><b>Next meeting</b><small>${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][n.dow]}, ${MON[n.m - 1]} ${n.d} only</small></span></button></div>
+${multi() ? `<div class="mp-hint">Outlook adds one repeating meeting per file. Add both for every meeting.</div>` : ''}
 <div class="mp-alt">Or add to Google Calendar: <a href="${L.g}" target="_blank" rel="noopener">every meeting</a> · <a href="${L.g1}" target="_blank" rel="noopener">next only</a><br>Outlook on the web: <a href="${L.o}" target="_blank" rel="noopener">next meeting</a></div>
 <div class="mp-note" id="mpNote" hidden>Calendar files can’t be downloaded from this test page. On the live Hub the invite downloads directly; here, use Google Calendar or Outlook above.</div></div>`; })() : ''}
 <a class="mp-full" href="https://resources.mismo.org/initiative-hub/calendar.html" target="_blank" rel="noopener">Open the full Meeting Calendar ›</a>`;
@@ -785,29 +787,31 @@ function nextFor(ord) {                                            /* the next m
     if (i === 0 && now.min >= RANGE.end) continue; return { y, m, d }; }
   return null;
 }
+const multi = () => Array.isArray(SCHED.occurrences) && SCHED.occurrences.length > 1;   /* more than one position a month (the 1st and 3rd Thursday) */
 function rrule() { return SCHED.occurrences === 'weekly' ? `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[SCHED.day]}` : `RRULE:FREQ=MONTHLY;BYDAY=${SCHED.occurrences.map(o => o + BYDAY[SCHED.day]).join(',')}`; }
 function rhythm() { return SCHED.occurrences === 'weekly' ? `Every ${DAYS[SCHED.day]}` : `Every ${SCHED.occurrences.map(o => ORD[o - 1]).join(' and ')} ${DAYS[SCHED.day]}`; }
 /* One VEVENT per repeating position (Perry, 6 Oct 2026). "Monthly on the 1st and 3rd Thursday" in a single rule is valid,
    but Outlook can only repeat on one position, and refuses a file it can't represent; two entries (the 1st Thursday,
    the 3rd Thursday) open everywhere. A weekly or single-position schedule stays one entry. */
-function events(n, series, stamp, desc) {
+function events(n, series, stamp, desc, ord) {
   const one = (uid, y, m, d, rule) => ['BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${stamp}`,
     `DTSTART;TZID=America/New_York:${icsDate(y, m, d, RANGE.start)}`, `DTEND;TZID=America/New_York:${icsDate(y, m, d, RANGE.end)}`, ...(rule ? [rule] : []),
     `SUMMARY:${icsEsc(SCHED.name)}`, `LOCATION:${icsEsc(SCHED.zoom || '')}`, `URL:${SCHED.zoom || ''}`, `DESCRIPTION:${icsEsc(desc)}`, 'END:VEVENT'];
   if (!series) return one(`mcd-dwg-${n.y}${pad2(n.m)}${pad2(n.d)}@resources.mismo.org`, n.y, n.m, n.d, null);
+  if (ord) { const f = nextFor(ord); return f ? one(`mcd-dwg-series-${ord}${BYDAY[SCHED.day].toLowerCase()}@resources.mismo.org`, f.y, f.m, f.d, `RRULE:FREQ=MONTHLY;BYDAY=${ord}${BYDAY[SCHED.day]}`) : []; }
   if (SCHED.occurrences === 'weekly' || SCHED.occurrences.length === 1) return one('mcd-dwg-series@resources.mismo.org', n.y, n.m, n.d, rrule());
   return SCHED.occurrences.flatMap(o => { const f = nextFor(o); return f ? one(`mcd-dwg-series-${o}${BYDAY[SCHED.day].toLowerCase()}@resources.mismo.org`, f.y, f.m, f.d, `RRULE:FREQ=MONTHLY;BYDAY=${o}${BYDAY[SCHED.day]}`) : []; });
 }
-function buildICS(n, series = true) {
+function buildICS(n, series = true, ord = null) {
   const now = new Date(), stamp = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}T${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}Z`;
   const desc = `Join on Zoom: ${SCHED.zoom}\n${rhythm()}, ${timeLabel()}.\nInitiative overview: https://resources.mismo.org/initiative-hub/mcd-dashboard.html`;
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//MISMO//Initiative Hub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VTIMEZONE', 'TZID:America/New_York', 'X-LIC-LOCATION:America/New_York',
     'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT', 'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
     'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST', 'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD', 'END:VTIMEZONE',
-    ...events(n, series, stamp, desc), 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
+    ...events(n, series, stamp, desc, ord), 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
 }
-window.__buildICS = (series = true) => { const n = nextMeeting(); return n ? buildICS(n, series) : null; };
+window.__buildICS = (series = true, ord = null) => { const n = nextMeeting(); return n ? buildICS(n, series, ord) : null; };
 const etOffset = (y, m, d) => { const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'shortOffset' }).formatToParts(new Date(Date.UTC(y, m - 1, d, 17))).find(x => x.type === 'timeZoneName').value; const mm = p.match(/GMT([+-]\d+)(?::(\d\d))?/); return mm ? `${mm[1].startsWith('-') ? '-' : '+'}${pad2(Math.abs(+mm[1]))}:${mm[2] || '00'}` : '-05:00'; };
 function calLinks(n) {
   const desc = `Join on Zoom: ${SCHED.zoom}\n${rhythm()}, ${timeLabel()}.`;
@@ -820,11 +824,12 @@ function calLinks(n) {
 const inTestViewer = () => !!(window.claude && typeof window.claude.use === 'function');   /* a published test page: no calendar files */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ics]'); if (!b) return;
-  const n = nextMeeting(); if (!n) return; const series = b.dataset.ics === 'series';
+  const n = nextMeeting(); if (!n) return; const kind = b.dataset.ics, series = kind !== 'next', ord = /^series-\d$/.test(kind) ? +kind.slice(7) : null;
   if (inTestViewer()) { const note = $('#mpNote'); if (note) note.hidden = false; return; }
-  const url = URL.createObjectURL(new Blob([buildICS(n, series)], { type: 'text/calendar;charset=utf-8' }));
-  const a = document.createElement('a'); a.href = url; a.download = series ? 'MCD-DWG-meetings.ics' : `MCD-DWG-${n.y}-${pad2(n.m)}-${pad2(n.d)}.ics`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast(series ? `Calendar invite downloaded: every meeting, from ${MON[n.m - 1]} ${n.d}` : `Calendar invite downloaded: ${MON[n.m - 1]} ${n.d} only`);
+  const url = URL.createObjectURL(new Blob([buildICS(n, series, ord)], { type: 'text/calendar;charset=utf-8' }));
+  const a = document.createElement('a'); a.href = url; a.download = ord ? `MCD-DWG-${ORD[ord - 1]}-${DAYS[SCHED.day]}s.ics` : series ? 'MCD-DWG-meetings.ics' : `MCD-DWG-${n.y}-${pad2(n.m)}-${pad2(n.d)}.ics`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  const f = ord && nextFor(ord);
+  toast(ord ? `Calendar invite downloaded: every ${ORD[ord - 1]} ${DAYS[SCHED.day]}${f ? ', from ' + MON[f.m - 1] + ' ' + f.d : ''}` : series ? `Calendar invite downloaded: every meeting, from ${MON[n.m - 1]} ${n.d}` : `Calendar invite downloaded: ${MON[n.m - 1]} ${n.d} only`);
 });
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#mPop') && !$('#mPop').hidden) { $('#mPop').hidden = true; $('#mCal').setAttribute('aria-expanded', 'false'); $('#mCal').focus(); } });
