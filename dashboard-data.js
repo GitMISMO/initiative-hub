@@ -873,6 +873,8 @@
       cfg.path = 'data/' + opts.id + '.json';
     },
     load: load,
+    /* whether the last load actually read the data file (false after a failed read, so a page never mistakes it for "nothing saved") */
+    isLoaded: function () { return loadedRemote; },
     save: save,
     explain: explain,
     hasKey: hasKey,
