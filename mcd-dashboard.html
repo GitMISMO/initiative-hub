@@ -23,7 +23,7 @@ main{flex:1;min-width:0;padding:0 36px 72px}
 .band{margin:0 -36px;position:relative;background:linear-gradient(120deg,#0F314C 0%,#14486E 58%,#0F7A86 135%);color:#fff;padding:28px 36px 0} .waves{position:absolute;inset:0;overflow:hidden} .band-in{position:relative;max-width:calc(100% - 330px)}
 .tab-strip{position:relative;margin:18px -36px 0;padding:8px 36px 0;background:rgba(5,22,36,.28);border-top:1px solid rgba(255,255,255,.08);overflow-x:auto;scrollbar-width:none} .tab-strip::-webkit-scrollbar{display:none}
 .band-tabs{display:flex;align-items:flex-end;gap:14px;flex-wrap:nowrap;padding:0 14px}
-.band-tabs a{position:relative;flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 11px;border-radius:11px 11px 0 0;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.78);text-decoration:none;white-space:nowrap;transition:background .2s,color .2s}
+.band-tabs a{position:relative;flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 11px;border-radius:11px 11px 0 0;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.78);text-decoration:none;white-space:nowrap;transition:color .2s}   /* no background fade: the flares can't fade, so the whole tab switches at once (Perry, 6 Oct 2026) */
 .band-tabs a svg{opacity:.85;flex:0 0 auto} .band-tabs a:hover{color:#fff;background:rgba(255,255,255,.07)} .band-tabs a:focus-visible{outline:2px solid #8FD6C9;outline-offset:-2px}
 .band-tabs a.cur{background:var(--paper);color:var(--dc);font-weight:700} .band-tabs a.cur svg{opacity:1}
 .band-tabs a.cur::before,.band-tabs a.cur::after{content:"";position:absolute;bottom:0;width:14px;height:14px;pointer-events:none}
