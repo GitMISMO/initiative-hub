@@ -464,6 +464,28 @@ can't be read.
 - Keep `tools.json` in the panel's order and with every field the panel's built-in list uses: a
   missing `family` once dropped the Service Orders "Every company" row (caught by t-all).
 
+## People & Access: a Facilitators section (Perry, 6 Oct 2026)
+
+People & Access lists four sections: Staff, **Facilitators**, Contractors, Processes. The facilitators
+are Erin Bittenbender, Kathryn Williams, Kellie Stoll, Leeann Walker and Meghan Tidgewell (the
+`emails` of the `facilitators` entry in `PEOPLE_GROUPS`, `admin.html`).
+
+- **The relay keeps only `staff`, `contractor` and `process`** (`PEOPLE_GROUPS` in the relay, request 7
+  and request 8 alike) and refuses anything else with `BAD_GROUP`, which would fail the whole save. So
+  until it says otherwise, the five are SAVED as `contractor` and LISTED under Facilitators by email,
+  and their Section switch is locked (nobody else can be moved into Facilitators either).
+- **It switches over by itself.** When `GET /hub/access` returns `groups` including `facilitator`, the
+  panel moves the five to `facilitator`, offers the save, and unlocks the Section switch.
+- A person's section only organises the list: nothing reads it for access (checked 6 Oct).
+
+## For the next relay update (after request 8)
+
+1. **Keep the Facilitators section:** add `'facilitator'` to the relay's `PEOPLE_GROUPS`, and return
+   `groups: [...PEOPLE_GROUPS]` from `GET /{project}/access` so the panel knows (see above).
+2. **Team HQ's `ask` and `membersOnly` in `_internal/projects.json`** (Jonna, 5 Oct) are not read by the
+   relay, so they enforce nothing yet: anyone with Team HQ access can still save expenses. Confirm with
+   Jonna what she expects before building it.
+
 ## Potential initiatives: files and status updates (1 Oct 2026)
 
 - **Files follow the Hub.** `hub-files` is carried by the Initiative Hub row (`also`), so everyone who

@@ -178,7 +178,7 @@
     background:var(--adm-bg);color:var(--adm-ink);border-radius:3px;padding:1px 6px;line-height:16px}
 
   /* the lists: one row per person or type, the same width however many tools there are */
-  /* People & Access in three sections: Staff, Contractors, Processes */
+  /* People & Access in four sections: Staff, Facilitators, Contractors, Processes */
   .plists{display:flex;flex-direction:column;gap:20px}
   .pgh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 8px}
   .pgh h2{margin:0;font-size:16px;font-weight:700;color:var(--ink)}
@@ -710,14 +710,25 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   const PEOPLE_GROUPS = [
     { key:'staff',       stored:'staff',      label:'Staff',       one:'Staff',      note:'MISMO staff.',
       emails:['amoses@mismo.org', 'jcritchley@mismo.org', 'jkearns@mismo.org', 'kbradshaw@mismo.org', 'pwilliams@mba.org'] },
+    /* Facilitators (Perry, 6 Oct 2026). The relay running today keeps only staff, contractor and
+       process, so until it reports that it keeps 'facilitator' (see `storable` below) these five
+       are saved as contractors and listed here by email; once it does, they are moved for good. */
+    { key:'facilitators', stored:'facilitator', label:'Facilitators', one:'Facilitator', note:'MISMO facilitators.',
+      emails:['ebittenbender@mismo.org', 'kwilliams@mismo.org', 'kstoll@mismo.org', 'lwalker@mismo.org', 'mtidgewell@mismo.org'] },
     { key:'contractors', stored:'contractor', label:'Contractors', one:'Contractor', note:'Everyone else who signs in.' },
     { key:'processes',   stored:'process',    label:'Processes',   one:'Process',    note:'Accounts used by automated processes, not by a person.',
       emails:['sponsorship-mailer@mismo.org'] }
   ];
-  const defaultGroup = email => (PEOPLE_GROUPS.find(g => g.emails && g.emails.includes(email)) || PEOPLE_GROUPS[1]).stored;
+  const CONTRACTORS = PEOPLE_GROUPS.find(g => g.key === 'contractors'), FACILITATORS = PEOPLE_GROUPS.find(g => g.key === 'facilitators');
+  /* Which sections the relay will keep. It lists them as `groups`; one that doesn't says nothing,
+     and keeps the original three. A section it can't keep is saved as Contractor. */
+  const storable = g => (acc && acc.storable ? acc.storable : ['staff', 'contractor', 'process']).includes(g);
+  const listedFacilitator = email => FACILITATORS.emails.includes(email);
+  const defaultGroup = email => { const g = PEOPLE_GROUPS.find(x => x.emails && x.emails.includes(email)) || CONTRACTORS; return storable(g.stored) ? g.stored : 'contractor'; };
   const groupOf = email => {
     const st = (acc && acc.people[email] && acc.people[email].group) || defaultGroup(email);
-    return (PEOPLE_GROUPS.find(g => g.stored === st) || PEOPLE_GROUPS[1]).key;
+    if (st === 'contractor' && listedFacilitator(email) && !storable('facilitator')) return 'facilitators';   /* saved as contractors for now */
+    return (PEOPLE_GROUPS.find(g => g.stored === st) || CONTRACTORS).key;
   };
 
   const keysOf = t => [t.key].concat(t.also || []);
@@ -742,10 +753,16 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     try {
       const r = await S.access.get();
       acc = { people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),
-              selfService: (r.fields || []).includes('auth'), locks: r.auth || {} };
+              selfService: (r.fields || []).includes('auth'), locks: r.auth || {}, storable: Array.isArray(r.groups) ? r.groups : null };
       /* Once sections are kept, everyone starts in the one they are shown in, so the next
          save writes them all rather than only the ones someone moved. */
       if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
+      /* The first time the relay keeps 'facilitator', the listed facilitators move into it for good. */
+      if (acc.groups && storable('facilitator')) {
+        const moving = Object.entries(acc.people).filter(([email, p]) => listedFacilitator(email) && p.group === 'contractor');
+        if (moving.length) { moving.forEach(([, p]) => { p.group = 'facilitator'; }); acc.dirty = true;
+          setTimeout(() => setStatus('accStatus', 'dirty', 'Facilitators now have their own section. Save Access to keep it.'), 0); }
+      }
       /* Administrators have every tool, including any added to TOOLS later: filled in here,
          and written on the next save. Nothing in the panel can lower it. */
       /* Anyone whose keys for one tool disagree is brought into line with the row they see. */
@@ -827,8 +844,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const order = [], groups = {};
     TOOLS.forEach(t => { if (!groups[t.group]) { groups[t.group] = []; order.push(t.group); } groups[t.group].push(t); });
     const section = acc && acc.groups ? `<div class="grp">Section</div><div class="trow"><span class="tname">Listed under</span>` +
-      `<span class="seg" role="group" aria-label="Section">` + PEOPLE_GROUPS.map(g =>
-        `<button type="button" class="gp" aria-pressed="${groupOf(email) === g.key}" data-acc-group="${esc(email)}" data-group="${g.stored}">${esc(g.one)}</button>`).join('') + '</span></div>' : '';
+      `<span class="seg" role="group" aria-label="Section">` + PEOPLE_GROUPS.map(g => {
+        /* Until the relay keeps 'facilitator', the listed facilitators stay put and nobody else can move in. */
+        const locked = !storable('facilitator') && (listedFacilitator(email) || g.key === 'facilitators');
+        return `<button type="button" class="gp" aria-pressed="${groupOf(email) === g.key}" data-acc-group="${esc(email)}" data-group="${g.stored}"${locked ? ' disabled title="Facilitators get their own saved section with the next relay update"' : ''}>${esc(g.one)}</button>`; }).join('') + '</span></div>' +
+      (!storable('facilitator') && listedFacilitator(email) ? '<div class="trow"><small style="color:var(--ink3,#546F88)">Listed under Facilitators. Saved as a contractor until the next relay update, when it becomes their own section.</small></div>' : '') : '';
     return `<div class="drawer"><div class="dh"><strong>${esc(p.name)}</strong><small>${p.platformAdmin ? 'an administrator: every tool, and each tool’s settings' : 'every tool, grouped'}</small></div>` + section +
       order.map(g => `<div class="grp">${esc(g)}</div>` + (!p.platformAdmin && groups[g].every(t => t.family) ? allRow(email, groups[g], a) : '') + groups[g].map(t => {
         /* Said out loud rather than shown as a fourth segment, so the control stays three
