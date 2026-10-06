@@ -471,9 +471,9 @@ the shared one. Checked across every page on 6 Oct 2026.
 `mcd-dashboard.html` is **generated**: edit the builder in the private `initiative-hub-data`, `_dev/overview-builder/`
 (its README), then run `build_prod.py`. It saves `data/mcd.json` through the relay with the old fields kept and its own
 content under `overview`; roles come from the sign-in; no roster is built into the page. Still to do: the other five
-overviews in the new design (mock-ups first), connecting Meetings to Meeting Trackers, and taking the built-in rosters
-out of `ccs-`, `avm-testing-` and `lbds-dashboard.html` (they publish participants and attendance in the page itself;
-move each roster into its private data file first, since AVM Testing and LBDS have no data file yet).
+overviews in the new design (mock-ups first), connecting Meetings to Meeting Trackers, . **Done (6 Oct 2026):** no overview carries its roster,
+plans or attendance in the page any more; each takes them from its private `data/<id>.json` (Title Order, AVM Testing,
+TPA and LBDS got theirs then), and CCS's built-in leaderboard was emptied. RULE: nothing personal goes into a page.
 
 ## The Hub's data is private (6 Oct 2026)
 
