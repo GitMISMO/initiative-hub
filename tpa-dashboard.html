@@ -1431,32 +1431,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
   // Roadmap: lane data + task table renderer, embedded in the roster
   let laneData = {
-    general: {
-      goals: ['Complete the Discovery workshop at MISMO\'s Fall Summit (Aug 26, 2026) and determine whether to charter a formal Development Workgroup'],
-      roadblocks: ['Not yet chartered as a workgroup — cadence, leadership, and scope are all TBD'],
-      actions: []
-    },
-    originator: {
-      goals: ['Participate in the Discovery workshop at MISMO\'s Fall Summit (Aug 26, 2026)'],
-      roadblocks: [],
-      actions: []
-    },
-    warehouse: {
-      goals: ['Participate in the Discovery workshop at MISMO\'s Fall Summit (Aug 26, 2026)'],
-      roadblocks: [],
-      actions: []
-    },
-    investor: {
-      goals: ['Participate in the Discovery workshop at MISMO\'s Fall Summit (Aug 26, 2026)'],
-      roadblocks: [],
-      actions: []
-    },
-    tech: {
-      goals: ['Participate in the Discovery workshop at MISMO\'s Fall Summit (Aug 26, 2026)'],
-      roadblocks: [],
-      actions: []
-    }
-  };
+    general: { goals: [], roadblocks: [], actions: [] },
+    originator: { goals: [], roadblocks: [], actions: [] },
+    warehouse: { goals: [], roadblocks: [], actions: [] },
+    investor: { goals: [], roadblocks: [], actions: [] },
+    tech: { goals: [], roadblocks: [], actions: [] }
+  };   // the plans arrive from the private data too
 
   let currentLane = 'tech';
   let editingTaskIdx = null; // null = none, 'new' = adding, number = editing that index
@@ -1726,25 +1706,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   // roadblocks and targetDate are both new fields with no real source data yet for any
   // org here — left empty rather than inferred from notes text. Every org here is
   // not-planned since this workgroup hasn't started meeting yet.
-  let rosterData = [
-    {type:'Mortgage Originator', org:'PRMG', status:'not-planned', primaryContact:'', title:'', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Mortgage Originator', org:'Huntington National Bank', status:'not-planned', primaryContact:'', title:'', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Mortgage Originator', org:'Fairway', status:'not-planned', primaryContact:'', title:'', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'BOK Financial', status:'not-planned', primaryContact:'Matt Fair', title:'SVP, Director of Risk Management & Operations, Mortgage Finance', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'Origin Bank', status:'not-planned', primaryContact:'Cindy Gressett', title:'SVP, Warehouse Lending Operations', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'PCB Bank', status:'not-planned', primaryContact:'Joy Beam-Burns', title:'SVP Mortgage Warehouse Lending Manager', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'Scale Bank', status:'not-planned', primaryContact:'Susan Johnson', title:'SVP Mortgage Warehouse Funding', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'First Federal Bank', status:'not-planned', primaryContact:'Melanie Carrington', title:'SVP, Warehouse Division President', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'Bank of the Sierra', status:'not-planned', primaryContact:'Timothy McAvenia', title:'President, Warehouse Lending', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'FirstFunding', status:'not-planned', primaryContact:'Nathaniel Clear', title:'President', email:'nclear@firstam.com', participants:'1 attendee at the first (and so far only) workgroup meeting: Nathaniel Clear', notes:'Identified as a stakeholder company for this initiative; represented at the first meeting.', roadblocks:'', targetDate:''},
-    {type:'Warehouse Lenders', org:'Dallas Capital Bank', status:'not-planned', primaryContact:'John Thomson', title:'EVP, Managing Director, Mortgage Warehouse', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Investors/Aggregators', org:'Amerihome', status:'not-planned', primaryContact:'Kathleen Conte', title:'Tri-Party Agreements', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Investors/Aggregators', org:'Pennymac', status:'not-planned', primaryContact:'', title:'', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; no implementation activity yet.', roadblocks:'', targetDate:''},
-    {type:'Investors/Aggregators', org:'Planet Home Lending', status:'not-planned', primaryContact:'Evan Kaminski', title:'VP, Counterparty Diligence', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Identified as a stakeholder company for this initiative; attended the first workgroup meeting in person.', roadblocks:'', targetDate:''},
-    {type:'Investors/Aggregators', org:'Guild Mortgage', status:'not-planned', primaryContact:'Corinne Gibboney', title:'Loan Accounting Manager, AVP', email:'cgibboney@guildmortgage.net', participants:'1 attendee at the first (and so far only) workgroup meeting: Corinne Gibboney', notes:'Identified as a stakeholder company for this initiative; represented at the first meeting.', roadblocks:'', targetDate:''},
-    {type:'eMortgage Technology Providers', org:'Snapdocs', status:'not-planned', primaryContact:'Camelia Martin', title:'Work Request Sponsor', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Sponsor of this Work Request; Camelia Martin is the named contact.', roadblocks:'', targetDate:''},
-    {type:'eMortgage Technology Providers', org:'ICE', status:'not-planned', primaryContact:'', title:'', email:'', participants:'No roster data on file — attendance tracking not yet started', notes:'Additional organization already engaged, per direct confirmation.', roadblocks:'', targetDate:''}
-  ];
+  let rosterData = [];   // the roster arrives from the initiative's private data, after sign-in (6 Oct 2026)
 
   const statusOptions = [
     ['na', 'No Implementation Necessary'],

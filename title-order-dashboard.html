@@ -1477,15 +1477,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
   // Roadmap: lane data + task table renderer, embedded in the roster
   let laneData = {
-    general:   { goals: [], roadblocks: [], actions: [] },
-    lender:    { goals: [], roadblocks: [], actions: [] },
-    titleagent:{ goals: [], roadblocks: [], actions: [] },
-    tps:       { goals: [], roadblocks: [], actions: [] },
-    los:       { goals: [], roadblocks: [], actions: [] },
-    docprov:   { goals: [], roadblocks: [], actions: [] },
-    assoc:     { goals: [], roadblocks: [], actions: [] },
-    underwriter:{ goals: [], roadblocks: [], actions: [] }
-  };;
+    general: { goals: [], roadblocks: [], actions: [] },
+    lender: { goals: [], roadblocks: [], actions: [] },
+    titleagent: { goals: [], roadblocks: [], actions: [] },
+    tps: { goals: [], roadblocks: [], actions: [] },
+    los: { goals: [], roadblocks: [], actions: [] },
+    docprov: { goals: [], roadblocks: [], actions: [] },
+    assoc: { goals: [], roadblocks: [], actions: [] },
+    underwriter: { goals: [], roadblocks: [], actions: [] }
+  };   // the plans arrive from the private data too;
 
   let currentLane = 'titleagent';   // must match a key in laneData and the default activeType
   let editingTaskIdx = null; // null = none, 'new' = adding, number = editing that index
@@ -1760,12 +1760,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   // with targetDate as a planned implementation date), implemented (Implemented).
   // roadblocks and targetDate are both new fields with no real source data yet for any
   // org here — left empty rather than inferred from notes text.
-  let rosterData = [
-    {type:'Title Agent', org:'Stewart Lender Services', status:'not-planned', primaryContact:'Marvin Stone', title:'Work request sponsor', email:'', participants:'', notes:'Completed the preliminary discovery and identified the core data fields.', roadblocks:'', targetDate:''},
-    {type:'Trade Association', org:'ALTA', status:'not-planned', primaryContact:'Steve Gold', title:'Work request sponsor', email:'', participants:'', notes:'', roadblocks:'', targetDate:''},
-    {type:'LOS Provider', org:'ICE', status:'not-planned', primaryContact:'', title:'', email:'', participants:'', notes:'Named in the work request as a target LOS provider.', roadblocks:'', targetDate:''},
-    {type:'Title Agent', org:'Rocket Close', status:'not-planned', primaryContact:'Bryan Bedard', title:'Vice-Chair, Title and Closing Docs to Data DWG', email:'', participants:'', notes:'', roadblocks:'', targetDate:''},
-  ];
+  let rosterData = [];   // the roster arrives from the initiative's private data, after sign-in (6 Oct 2026)
 
   const statusOptions = [
     ['na', 'No Implementation Necessary'],

@@ -1476,57 +1476,14 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
   // Roadmap: lane data + task table renderer, embedded in the roster
   let laneData = {
-    general: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    },
-    servicer: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    },
-    originator: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    },
-    regulator: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    },
-    // RESTRUCTURED — the former combined "LOS & Servicing Systems" lane was split so that
-    // LOS Provider and Servicing System each own their own lane, per the one-lane-per-type
-    // rule. Both ship empty by deliberate decision; real content will be supplied later.
-    //
-    // The removed content is preserved here verbatim so nothing is lost. It was NOT
-    // redistributed automatically because assigning ICE is a judgement call — Byte and Dark
-    // Matter are LOS, Sagent is servicing, and ICE spans both:
-    //   goal:  'Engage core LOS/servicing vendors — Byte, Dark Matter, Sagent, ICE'
-    //   tasks: 'Draft stakeholder outreach list'      Leeann Walker   in-progress
-    //          'Get Byte to meeting on 8/12'          R. Macaulay     not-started
-    //          'Get Dark Matter to meeting on 8/12'   J. Prince       in-progress
-    //          'Get Sagent to meeting on 8/12'        J. Prince       blocked
-    //          'Get ICE to meeting'                   R. Emory        complete
-    los: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    },
-    servicing_system: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    },
-    // No roadmap content exists for this type yet. It is a Critical stakeholder type with
-    // no lane before this change; an empty lane is the honest representation.
-    aggregator: {
-      goals: [],
-      roadblocks: [],
-      actions: []
-    }
-  };
+    general: { goals: [], roadblocks: [], actions: [] },
+    servicer: { goals: [], roadblocks: [], actions: [] },
+    originator: { goals: [], roadblocks: [], actions: [] },
+    regulator: { goals: [], roadblocks: [], actions: [] },
+    los: { goals: [], roadblocks: [], actions: [] },
+    servicing_system: { goals: [], roadblocks: [], actions: [] },
+    aggregator: { goals: [], roadblocks: [], actions: [] }
+  };   // the plans arrive from the private data too
 
   let currentLane = 'originator';
   let editingTaskIdx = null; // null = none, 'new' = adding, number = editing that index
@@ -1797,21 +1754,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   // with targetDate as a planned implementation date), implemented (Implemented).
   // roadblocks and targetDate are both new fields with no real source data yet for any
   // org here — left empty rather than inferred from notes text.
-  let rosterData = [
-    {type:'Mortgage Originator', org:'Chase', status:'not-planned', primaryContact:'Mary Jane Jimenez', title:'', email:'', participants:'Mary Jane Jimenez (10/17), Carey Agarwal (8/17), Joseph Smurro (7/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Mortgage Originator', org:'Newrez', status:'not-planned', primaryContact:'Joseph Prince', title:'', email:'', participants:'Joseph Prince (15/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Mortgage Originator', org:'PrimeLending', status:'pilot-planned', primaryContact:'Rusty Emory', title:'', email:'', participants:'No one met the 1/3 attendance threshold — closest: Rusty Emory (3/17)', notes:'Planning a test use with Loancare, waiting on a loan package', roadblocks:'', targetDate:''},
-    {type:'Regulator', org:'Fannie Mae', status:'not-planned', primaryContact:'Mark Friend', title:'', email:'', participants:'Mark Friend (12/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Regulator', org:'Freddie Mac', status:'pilot-planned', primaryContact:'John Emans', title:'', email:'', participants:'John Emans (15/17), Tong Zhang (15/17), Prerana Karki (14/17), Anthony Burlbaugh (13/17), Victoria Morrison (7/17)', notes:'Freddie Mac is actively implementing LBDS', roadblocks:'', targetDate:''},
-    {type:'Regulator', org:'FHFA', status:'not-planned', primaryContact:'Adam Elaroussi', title:'', email:'', participants:'Adam Elaroussi (12/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Servicer', org:'ServiceMac', status:'pilot-planned', primaryContact:'Rachael Macaulay', title:'Co-Chair, LBDS', email:'', participants:'Rachael Macaulay (15/17)', notes:'Planning a test use with PrimeLending', roadblocks:'', targetDate:''},
-    {type:'Servicer', org:'Midland Mortgage', status:'not-planned', primaryContact:'Melissa Croom', title:'', email:'', participants:'Melissa Croom (13/17)', notes:'Tracked under parent company "MidFirst Bank" in the meeting tracker', roadblocks:'', targetDate:''},
-    {type:'Servicer', org:'Guild Mortgage', status:'not-planned', primaryContact:'Rebekah Valdez-Pound', title:'', email:'', participants:'No one met the 1/3 attendance threshold — closest: Susan Jarvis (4/17), Rebekah Valdez-Pound (4/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Servicer', org:'Cenlar', status:'not-planned', primaryContact:'Nicole Mastropiero', title:'', email:'', participants:'Nicole Mastropiero (6/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Servicer', org:'Mr. Cooper', status:'not-planned', primaryContact:'Pallavi Chakrabarti', title:'', email:'', participants:'No one met the 1/3 attendance threshold — closest: Pallavi Chakrabarti (0/17)', notes:'Real contact name found in meeting tracker — replaces earlier placeholder', roadblocks:'', targetDate:''},
-    {type:'Servicing System', org:'ICE', status:'not-planned', primaryContact:'Haris Jusic', title:'', email:'', participants:'No one met the 1/3 attendance threshold — closest: Haris Jusic (2/17)', notes:'—', roadblocks:'', targetDate:''},
-    {type:'Servicing System', org:'Sagent', status:'not-planned', primaryContact:'Barbara Bowser', title:'', email:'', participants:'Barbara Bowser (15/17)', notes:'—', roadblocks:'', targetDate:''}
-  ];
+  let rosterData = [];   // the roster arrives from the initiative's private data, after sign-in (6 Oct 2026)
 
   const statusOptions = [
     ['na', 'No Implementation Necessary'],
