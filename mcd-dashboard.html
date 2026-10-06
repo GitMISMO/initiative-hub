@@ -778,8 +778,26 @@ const icsDate = (y, m, d, min) => `${y}${pad2(m)}${pad2(d)}T${pad2(Math.floor(mi
 const icsEsc = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const fold = line => { const out = []; let s = line; while (new TextEncoder().encode(s).length > 75) { let i = 74; while (new TextEncoder().encode(s.slice(0, i)).length > 74) i--; out.push(s.slice(0, i)); s = ' ' + s.slice(i); } out.push(s); return out.join('\r\n'); };
 const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+function nextFor(ord) {                                            /* the next meeting in one position, e.g. the 3rd Thursday */
+  const now = etNow(), base = Date.UTC(now.y, now.m - 1, now.d);
+  for (let i = 0; i < 400; i++) { const dt = new Date(base + i * 864e5), y = dt.getUTCFullYear(), m = dt.getUTCMonth() + 1, d = dt.getUTCDate();
+    if (dt.getUTCDay() !== SCHED.day || Math.floor((d - 1) / 7) + 1 !== ord) continue;
+    if (i === 0 && now.min >= RANGE.end) continue; return { y, m, d }; }
+  return null;
+}
 function rrule() { return SCHED.occurrences === 'weekly' ? `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[SCHED.day]}` : `RRULE:FREQ=MONTHLY;BYDAY=${SCHED.occurrences.map(o => o + BYDAY[SCHED.day]).join(',')}`; }
 function rhythm() { return SCHED.occurrences === 'weekly' ? `Every ${DAYS[SCHED.day]}` : `Every ${SCHED.occurrences.map(o => ORD[o - 1]).join(' and ')} ${DAYS[SCHED.day]}`; }
+/* One VEVENT per repeating position (Perry, 6 Oct 2026). "Monthly on the 1st and 3rd Thursday" in a single rule is valid,
+   but Outlook can only repeat on one position, and refuses a file it can't represent; two entries (the 1st Thursday,
+   the 3rd Thursday) open everywhere. A weekly or single-position schedule stays one entry. */
+function events(n, series, stamp, desc) {
+  const one = (uid, y, m, d, rule) => ['BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=America/New_York:${icsDate(y, m, d, RANGE.start)}`, `DTEND;TZID=America/New_York:${icsDate(y, m, d, RANGE.end)}`, ...(rule ? [rule] : []),
+    `SUMMARY:${icsEsc(SCHED.name)}`, `LOCATION:${icsEsc(SCHED.zoom || '')}`, `URL:${SCHED.zoom || ''}`, `DESCRIPTION:${icsEsc(desc)}`, 'END:VEVENT'];
+  if (!series) return one(`mcd-dwg-${n.y}${pad2(n.m)}${pad2(n.d)}@resources.mismo.org`, n.y, n.m, n.d, null);
+  if (SCHED.occurrences === 'weekly' || SCHED.occurrences.length === 1) return one('mcd-dwg-series@resources.mismo.org', n.y, n.m, n.d, rrule());
+  return SCHED.occurrences.flatMap(o => { const f = nextFor(o); return f ? one(`mcd-dwg-series-${o}${BYDAY[SCHED.day].toLowerCase()}@resources.mismo.org`, f.y, f.m, f.d, `RRULE:FREQ=MONTHLY;BYDAY=${o}${BYDAY[SCHED.day]}`) : []; });
+}
 function buildICS(n, series = true) {
   const now = new Date(), stamp = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}T${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}Z`;
   const desc = `Join on Zoom: ${SCHED.zoom}\n${rhythm()}, ${timeLabel()}.\nInitiative overview: https://resources.mismo.org/initiative-hub/mcd-dashboard.html`;
@@ -787,9 +805,7 @@ function buildICS(n, series = true) {
     'BEGIN:VTIMEZONE', 'TZID:America/New_York', 'X-LIC-LOCATION:America/New_York',
     'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT', 'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
     'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST', 'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD', 'END:VTIMEZONE',
-    'BEGIN:VEVENT', series ? 'UID:mcd-dwg-series@resources.mismo.org' : `UID:mcd-dwg-${n.y}${pad2(n.m)}${pad2(n.d)}@resources.mismo.org`, `DTSTAMP:${stamp}`,
-    `DTSTART;TZID=America/New_York:${icsDate(n.y, n.m, n.d, RANGE.start)}`, `DTEND;TZID=America/New_York:${icsDate(n.y, n.m, n.d, RANGE.end)}`, ...(series ? [rrule()] : []),
-    `SUMMARY:${icsEsc(SCHED.name)}`, `LOCATION:${icsEsc(SCHED.zoom || '')}`, `URL:${SCHED.zoom || ''}`, `DESCRIPTION:${icsEsc(desc)}`, 'END:VEVENT', 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
+    ...events(n, series, stamp, desc), 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
 }
 window.__buildICS = (series = true) => { const n = nextMeeting(); return n ? buildICS(n, series) : null; };
 const etOffset = (y, m, d) => { const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'shortOffset' }).formatToParts(new Date(Date.UTC(y, m - 1, d, 17))).find(x => x.type === 'timeZoneName').value; const mm = p.match(/GMT([+-]\d+)(?::(\d\d))?/); return mm ? `${mm[1].startsWith('-') ? '-' : '+'}${pad2(Math.abs(+mm[1]))}:${mm[2] || '00'}` : '-05:00'; };
