@@ -99,7 +99,7 @@ const PBKDF2_KEYLEN = 32;
 const TOKEN_TTL_SECONDS = 4 * 60 * 60;   // four hours; typical sessions run one to two
 const ACCESS_PATH_DEFAULT = '_internal/access.json';
 /* The sections of People & Access in the admin panel. Kept with each person, set by admins. */
-const PEOPLE_GROUPS = new Set(['staff', 'contractor', 'process']);
+const PEOPLE_GROUPS = new Set(['staff', 'facilitator', 'contractor', 'process']);   /* facilitator: relay request 9 (Perry, 6 Oct 2026) */
 const ACCESS_CACHE_MS = 30000;           // a permission change lands within half a minute
 const FACILITATORS_CACHE_MS = 30_000;              // revocation lands within half a minute
 const PROJECTS_CACHE_MS = 60_000;                  // a newly added tool is live within a minute
@@ -365,7 +365,16 @@ async function projectConfig(key) {
    * It deliberately cannot make a path writable-but-not-readable: nothing wants that, and
    * it would let a caller write a file it cannot read back to check. */
   const readable = Array.from(new Set([...writable, ...cleanPrefixes(p.readable)]));
-  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable };
+  /* Relay request 9 (6 Oct 2026). 'ask': true lets the project use POST /{project}/ask, which spends money, so it is
+   * opt-in per tool by a reviewed commit. 'membersOnly' names data files whose items carry a members list, each with
+   * the emails that may see every item (see MEMBERS-ONLY FILES). */
+  const membersOnly = {};
+  if (p.membersOnly && typeof p.membersOnly === 'object' && !Array.isArray(p.membersOnly)) {
+    for (const [file, all] of Object.entries(p.membersOnly)) {
+      if (DASHBOARD_ID.test(file) && Array.isArray(all)) membersOnly[file] = all.filter(e => typeof e === 'string' && e.includes('@')).map(e => e.trim().toLowerCase());
+    }
+  }
+  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, membersOnly };
 }
 
 /* ---------- what /commit may write ----------
@@ -915,6 +924,72 @@ function parseBody(event, max = MAX_BODY_BYTES) {
   try { return { body: JSON.parse(text) }; } catch { return { error: respond(400, { error: 'BAD_JSON' }) }; }
 }
 
+/* ---------- ASK (relay request 9, Jonna's spec, 5 Oct 2026) ----------
+ * POST /{project}/ask {prompt, tier?: 'default'|'complex', files?: [{mediaType, data}]} passes one question, and up to
+ * three pictures or PDFs, to Anthropic's Messages API with the key held here (ANTHROPIC_API_KEY), so no key sits in a
+ * page. Checks in this order: signed in, project opted in ('ask': true), key set, a question present. An empty
+ * question answers 400 NO_PROMPT with what the route can read: that is how a page learns the route is ready, at no
+ * cost. View accounts may ask: asking writes nothing. Nothing is stored; logs hold counts only, never the question,
+ * the answer or a file. ANTHROPIC_MODEL (default claude-sonnet-5-5), ANTHROPIC_MODEL_COMPLEX (default: the same),
+ * ASK_PER_HOUR (default 40 a person, per container; the real ceiling is the console's monthly spend limit). */
+const ASK_MAX_BODY = 6_500_000;                       // above the ~6 MB a Lambda function URL delivers, so the file-size check answers first
+const ASK_MAX_PROMPT = 300_000;                       // characters; Team HQ's whole board is about 46,000
+const ASK_MAX_FILES = 3, ASK_MAX_FILE_BYTES = 4.5 * 1024 * 1024;
+const ASK_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
+const askRecent = new Map();                          // email -> recent question times, this container
+let currentContext = null;                            // the Lambda context, for the time left
+const askPerHour = () => Math.max(1, Number(process.env.ASK_PER_HOUR) || 40);
+const askTimeoutMs = () => {
+  const left = currentContext && typeof currentContext.getRemainingTimeInMillis === 'function' ? currentContext.getRemainingTimeInMillis() : 30_000;
+  return Math.max(1_000, left - 4_000);               // answer ASK_TIMEOUT a few seconds before the function's own timeout
+};
+async function askRoute(proj, who, event) {
+  if (!proj.ask) return respond(403, { error: 'ASK_OFF', message: 'Asking Claude is not switched on for this application.' });
+  if (who.viewAs) return respond(403, { error: 'VIEW_AS_READ_ONLY', message: 'Viewing as someone else is read-only.' });
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return respond(503, { error: 'ASK_NOT_SET_UP', message: 'Asking Claude is not set up on the relay yet.' });
+  const { body, error } = parseBody(event, ASK_MAX_BODY);
+  if (error) return error;
+  const prompt = body && typeof body.prompt === 'string' ? body.prompt : '';
+  if (!prompt.trim()) return respond(400, { error: 'NO_PROMPT', images: true, pdf: true });
+  if (prompt.length > ASK_MAX_PROMPT) return respond(413, { error: 'PROMPT_TOO_BIG', max: ASK_MAX_PROMPT });
+  const files = Array.isArray(body.files) ? body.files : [];
+  if (files.length > ASK_MAX_FILES) return respond(400, { error: 'TOO_MANY_FILES', max: ASK_MAX_FILES });
+  const blocks = []; let bytes = 0;
+  for (const f of files) {
+    if (!f || typeof f.data !== 'string' || !ASK_TYPES.has(f.mediaType)) return respond(400, { error: 'FILE_TYPE' });
+    bytes += Math.floor(f.data.replace(/=+$/, '').length * 3 / 4);
+    blocks.push(f.mediaType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.data } }
+      : { type: 'image', source: { type: 'base64', media_type: f.mediaType, data: f.data } });
+  }
+  if (bytes > ASK_MAX_FILE_BYTES) return respond(413, { error: 'FILE_TOO_BIG' });
+  const me = lowerOf(who.email), now = Date.now(), recent = (askRecent.get(me) || []).filter(t => now - t < 3_600_000);
+  if (recent.length >= askPerHour()) return respond(429, { error: 'RATE_LIMITED', message: 'That is a lot of questions this hour. Give it a little while.' });
+  recent.push(now); askRecent.set(me, recent);
+  const complex = body.tier === 'complex';
+  const model = (complex && process.env.ANTHROPIC_MODEL_COMPLEX) || process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), askTimeoutMs());
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctl.signal,
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model, max_tokens: complex ? 1500 : 1000, messages: [{ role: 'user', content: [...blocks, { type: 'text', text: prompt }] }] }) });
+  } catch (e) {
+    clearTimeout(timer);
+    return e && e.name === 'AbortError' ? respond(504, { error: 'ASK_TIMEOUT' }) : respond(502, { error: 'ASK_FAILED' });
+  }
+  clearTimeout(timer);
+  if (res.status === 429 || res.status === 529) return respond(429, { error: 'RATE_LIMITED' });
+  if (res.status === 401 || res.status === 403) return respond(502, { error: 'ASK_KEY', message: 'The relay\'s Anthropic key was refused. The site owner needs to check it.' });
+  if (!res.ok) return respond(502, { error: 'ASK_FAILED', status: res.status });
+  let j = {}; try { j = await res.json(); } catch {}
+  const text = (Array.isArray(j.content) ? j.content : []).filter(c => c && c.type === 'text').map(c => c.text).join('\n');
+  const usage = { in: (j.usage && j.usage.input_tokens) || 0, out: (j.usage && j.usage.output_tokens) || 0 };
+  console.log(JSON.stringify({ ask: proj.key, email: me, model: j.model || model, tier: complex ? 'complex' : 'default', files: files.length, in: usage.in, out: usage.out }));   // counts only
+  return respond(200, { text, model: j.model || model, usage });
+}
+
 /* Maps a GitHub write result to our response. */
 function writeOutcome(status, json, hadSha) {
   // 409: the sha is stale. 422 with no sha: the file was created since the caller read a
@@ -1388,7 +1463,8 @@ async function ownedData(rule, method, id, event, who, repo, branch) {
   return respond(409, { error: 'CONFLICT', message: 'Too many saves at once. Try again.' });
 }
 
-export async function handler(event) {
+export async function handler(event, context) {
+  currentContext = context || null;
   const method = (event.requestContext?.http?.method || 'GET').toUpperCase();
   const rawPath = event.rawPath || '/';
   const headers = Object.fromEntries(Object.entries(event.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
@@ -1525,7 +1601,8 @@ export async function handler(event) {
   const configMatch = subPath.match(/^\/config\/([a-z0-9-]+)$/);
   const commitMatch = subPath === '/commit';
   const isFacilitators = subPath === '/facilitators';
-  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess) return respond(404, { error: 'NOT_FOUND' });
+  const isAsk = subPath === '/ask';
+  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk) return respond(404, { error: 'NOT_FOUND' });
   if (configMatch && !CONFIG_FILES[configMatch[1]]) return respond(404, { error: 'NOT_FOUND' });
 
   const who = await authenticate(headers, repo, branch);
@@ -1557,10 +1634,12 @@ export async function handler(event) {
    * not this project's content, and it turns on whether the caller is a platform
    * administrator rather than on what they hold here. A platform administrator with
    * view access to one tool must still be able to manage people. */
-  if (!isAccess && method !== 'GET' && who.role === 'view') {
+  if (!isAccess && !isAsk && method !== 'GET' && who.role === 'view') {   /* asking writes nothing (relay request 9) */
     return respond(403, { error: 'VIEW_ONLY',
       message: 'Your account has view access to this application. You can read it but not save changes.' });
   }
+
+  if (isAsk) return method === 'POST' ? askRoute(proj, who, event) : respond(405, { error: 'METHOD' });
 
   /* ----- dashboards: staff or admin ----- */
   /* GET  /{project}/access — the whole directory, for the admin panel.
@@ -1585,7 +1664,7 @@ export async function handler(event) {
        * for one is only shown once the relay that saves it is deployed. */
       /* 'auth' means people can set their own passwords: the panel then shows locks and
        * emails reset links instead of showing a new password. */
-      const out = { people: dir.people, sha: dir.sha, fields: selfServiceOn() ? ['group', 'auth'] : ['group'] };
+      const out = { people: dir.people, sha: dir.sha, fields: selfServiceOn() ? ['group', 'auth'] : ['group'], groups: [...PEOPLE_GROUPS] };   /* the sections it keeps: the panel moves facilitators over when it sees 'facilitator' */
       if (selfServiceOn()) {
         const st = await readState();
         if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, failed: s.failed || 0 }]));
