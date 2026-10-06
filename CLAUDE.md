@@ -466,6 +466,15 @@ Anything published from a repository is public, so mock-ups and experiments don'
 `docs/mockups/` were removed for that reason). Service Orders is gated by its own older sign-in until it moves back to
 the shared one. Checked across every page on 6 Oct 2026.
 
+## The redesigned MCD overview (launched 6 Oct 2026)
+
+`mcd-dashboard.html` is **generated**: edit the builder in the private `initiative-hub-data`, `_dev/overview-builder/`
+(its README), then run `build_prod.py`. It saves `data/mcd.json` through the relay with the old fields kept and its own
+content under `overview`; roles come from the sign-in; no roster is built into the page. Still to do: the other five
+overviews in the new design (mock-ups first), connecting Meetings to Meeting Trackers, and taking the built-in rosters
+out of `ccs-`, `avm-testing-` and `lbds-dashboard.html` (they publish participants and attendance in the page itself;
+move each roster into its private data file first, since AVM Testing and LBDS have no data file yet).
+
 ## The Hub's data is private (6 Oct 2026)
 
 The relay project `hub` points at the private `GitMISMO/initiative-hub-data` (data/, stakeholder-types.json,
