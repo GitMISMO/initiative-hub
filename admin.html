@@ -418,7 +418,7 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .btn.g{background:#0B7268;border-color:#0B7268;color:var(--surface)}
 .nx .nx-empty{background:var(--surface);border:1px dashed var(--line-2,#C9D9E6);border-radius:12px;padding:28px;text-align:center;color:var(--ink-2,#546F88);font-size:13px}
 .nx .tag.admin{background:var(--accent-soft);color:var(--accent)} .nx .btn.g{background:#0B7268;border-color:#0B7268;color:#fff}
-.nx .lvsel{background-color:var(--surface);color:var(--ink)}
+.nx .lvsel{background-color:var(--surface);color:var(--ink)} .nx .lvsel.none{color:var(--ink-3,#7E98AE);font-weight:600} .nx .xgap{display:inline-block;width:20px}
 @media (max-width:1100px){ .nx .two{flex-direction:column} .nx .panel2{width:auto;position:static;max-height:none;align-self:stretch}
   .nx .phead{display:none} .nx .prow{grid-template-columns:32px minmax(0,1fr) auto} .nx .prow .psum,.nx .prow .pflags{grid-column:2 / -1;justify-content:flex-start} }
 </style>
@@ -1493,6 +1493,13 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const lv = levelOf(role);
     return `<select class="lvsel" aria-label="${esc(t.sum || t.label)} access" data-acc-pick="${esc(email)}" data-tool="${esc(t.key)}"><option value="edit"${lv === 'edit' ? ' selected' : ''}>Edit</option><option value="view"${lv === 'view' ? ' selected' : ''}>View</option></select><button type="button" class="x" title="Take this tool away" aria-label="Take ${esc(t.label)} away" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="none">\u00d7</button>`;
   }
+  /* One company in an opened Service Orders group (Perry, 7 Oct 2026): every company is listed, so one the person
+     doesn't have reads No access and has no x; choosing Edit or View grants it. */
+  function coSeg(email, t, role){
+    const lv = levelOf(role), opt = (v, txt) => `<option value="${v}"${lv === v ? ' selected' : ''}>${txt}</option>`;
+    return `<select class="lvsel${lv === 'none' ? ' none' : ''}" aria-label="${esc(t.sum || t.label)} access" data-acc-pick="${esc(email)}" data-tool="${esc(t.key)}">${lv === 'none' ? opt('none', 'No access') : ''}${opt('edit', 'Edit')}${opt('view', 'View')}</select>` +
+      (lv === 'none' ? '<span class="xgap"></span>' : `<button type="button" class="x" title="Take this company away" aria-label="Take ${esc(t.label)} away" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="none">\u00d7</button>`);
+  }
   document.addEventListener('change', e => {
     const sel = e.target.closest('[data-acc-pick]'); if (!sel) return;
     const host = sel.closest('#accList, #toolList') || document.body;
@@ -1534,11 +1541,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     else {
       let n = 0;
       areasOf().forEach(([area, ts]) => {
-        const have = ts.filter(t => levelOf(a[t.key]) !== 'none'); if (!have.length) return; n += have.length;
+        const have = ts.filter(t => levelOf(a[t.key]) !== 'none'); if (!have.length && soOpen !== area) return; n += have.length;
         if (isFamily(area, ts)) {
           const open = soOpen === area;
           body += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">${have.length} of ${ts.length} companies<small>${have.map(t => esc(t.label.split(' LLC')[0].split(' \u2014')[0])).join(', ')}</small></span><button type="button" class="btn sm" data-so="${esc(area)}">${open ? 'Done' : 'Choose'}</button></div>`;
-          if (open) body += allRow(email, ts, a).replace('class="trow allrow"', 'class="trow2 allrow"') + ts.map(t => `<div class="trow2 sub"><span class="tn">${esc(t.label)}</span>${lvSeg(email, t, a[t.key])}</div>`).join('');
+          if (open) body += allRow(email, ts, a).replace('class="trow allrow"', 'class="trow2 allrow"') + ts.map(t => `<div class="trow2 sub"><span class="tn">${esc(t.label)}</span>${coSeg(email, t, a[t.key])}</div>`).join('');
           return;
         }
         body += `<div class="label">${esc(area)}</div>` + have.map(t => `<div class="trow2"><span class="tn"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${a[t.key] === 'admin' ? '<small>also manages this tool\u2019s settings</small>' : ''}</span>${lvSeg(email, t, a[t.key])}</div>`).join('');
