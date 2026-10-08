@@ -1550,10 +1550,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     else {
       let n = 0;
       areasOf().forEach(([area, ts]) => {
-        const have = ts.filter(t => levelOf(a[t.key]) !== 'none'); if (!have.length && soOpen !== area) return; n += have.length;
+        const have = ts.filter(t => levelOf(a[t.key]) !== 'none');
+        /* Service Orders always shows, even at 0 of 5, so Choose and its Every company row are always within reach */
+        if (!have.length && soOpen !== area && !isFamily(area, ts)) return; n += have.length;
         if (isFamily(area, ts)) {
           const open = soOpen === area;
-          body += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">${have.length} of ${ts.length} companies<small>${have.map(t => esc(t.label.split(' LLC')[0].split(' \u2014')[0])).join(', ')}</small></span><button type="button" class="btn sm" data-so="${esc(area)}">${open ? 'Done' : 'Choose'}</button></div>`;
+          body += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">${have.length} of ${ts.length} companies<small>${have.length ? have.map(t => esc(t.label.split(' LLC')[0].split(' \u2014')[0])).join(', ') : 'None yet'}</small></span><button type="button" class="btn sm" data-so="${esc(area)}">${open ? 'Done' : 'Choose'}</button></div>`;
           if (open) body += allRow(email, ts, a).replace('class="trow allrow"', 'class="trow2 allrow"') + ts.map(t => `<div class="trow2 sub"><span class="tn">${esc(t.label)}</span>${coSeg(email, t, a[t.key])}</div>`).join('');
           return;
         }
