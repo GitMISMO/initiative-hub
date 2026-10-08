@@ -540,7 +540,7 @@ are Erin Bittenbender, Kathryn Williams, Kellie Stoll, Leeann Walker and Meghan 
 
 ## The QR Code Manager in the admin panel (30 Sept 2026)
 
-Jonna's tool at `/QR/` (repo `GitMISMO/QR`, so Pages serves `/QR/`; codes in the private `GitMISMO/qr-data`).
+Jonna's tool at `/qr/` (the repo is now `GitMISMO/qr`, lower case, so Pages serves `/qr/`; it was `QR` until early Oct 2026, and `/QR/` now 404s. Links use `/qr/`, which works either way. Codes in the private `GitMISMO/qr-data`).
 The codes it prints point to `/qr/` (lower case): `GitMISMO.github.io/qr/index.html` forwards those to `/QR/`
 with the query (a scan's `?c=CODE`) intact, in case GitHub treats the two differently. It uses two relay keys:
 `qr` (the codes) and `qr-routes` (the public list a phone reads on a scan). Every save writes both, so
