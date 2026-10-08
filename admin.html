@@ -402,7 +402,15 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:8px}
 .nx .tcard{background:var(--surface);border:1px solid var(--line-2,#D5E2ED);border-radius:12px;padding:12px 14px}
 .nx .tcard.on{border-color:var(--sky-soft,#9DC3E0);background:var(--sunk)}
-.nx .tc-head{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer;text-align:left;padding:0}
+.nx .tc-head{display:flex;align-items:center;gap:8px;width:100%;font-weight:700;color:var(--ink);text-align:left;padding:0}
+.nx .tcard{cursor:pointer;position:relative;transition:box-shadow .15s ease,border-color .15s ease}
+.nx .tcard:hover,.nx .tcard:focus-visible{border-color:var(--sky-soft,#9DC3E0);box-shadow:0 0 0 3px var(--accent-soft),0 8px 22px -12px rgba(20,72,110,.55);outline:none}
+.nx .avt{position:relative;display:inline-flex;margin-left:-6px} .nx .avt:first-child{margin-left:0} .nx .stack .avt .av2{margin-left:0}
+.nx .avt:hover::after,.nx .avt:focus-visible::after{content:attr(data-name);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);font-size:11.5px;font-weight:600;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:6;pointer-events:none}
+.nx .avt:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:50%}
+.nx button.more{margin-left:5px;border:1px solid var(--line-2,#D5E2ED);background:var(--surface);color:var(--ink-2,#456179);font:inherit;font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 7px;cursor:pointer} .nx button.more:hover,.nx button.more[aria-expanded="true"]{border-color:var(--accent);color:var(--ink)}
+.nx .morepop{position:absolute;left:14px;right:14px;top:calc(100% - 6px);background:var(--surface);border:1px solid var(--line-2,#D5E2ED);border-radius:10px;box-shadow:var(--shadow);padding:6px;z-index:7;display:flex;flex-direction:column;gap:2px;cursor:default}
+.nx .morepop span[role=listitem]{display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:12.5px;font-weight:500;color:var(--ink)}
 .nx .tc-head .fold{margin-left:auto;color:var(--ink-3,#7E98AE)}
 .nx .tc-head small{color:var(--ink-3,#7E98AE);font-weight:600}
 .nx .tc-row{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12px}
@@ -1567,16 +1575,19 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (!acc) { $('toolList').innerHTML = '<div class="nx-empty">The account list has not loaded, so nothing can be shown here.</div>'; return; }
     const people = Object.entries(acc.people).sort((a, b) => byLast(a[1].name, b[1].name));
     const who = (keys, lv) => people.filter(([, p]) => !p.platformAdmin && keys.some(k => levelOf((p.access || {})[k]) === lv)).map(([e, p]) => ({ email: e, name: p.name }));
-    const stack = ps => ps.length ? `<span class="stack">${ps.slice(0, 6).map(p => avh(p.name, 24)).join('')}${ps.length > 6 ? `<small>+${ps.length - 6}</small>` : ''}</span><b>${ps.length}</b>` : '<span class="muted">\u2014</span>';
-    const card = (t, keys, title, foldKey) => `<div class="tcard${toolSel === t.key && !foldKey ? ' on' : ''}"><button type="button" class="tc-head" ${foldKey ? `data-tool-fold="${esc(foldKey)}"` : `data-tool-open="${esc(t.key)}"`}><span class="dot" style="--c:${t.colour}"></span><span>${title}</span>${foldKey ? `<span class="fold">${toolOpen[foldKey] ? '\u25be' : '\u25b8'}</span>` : ''}</button>
-      <div class="tc-row"><span class="lv is-edit">Edit</span>${stack(who(keys, 'edit'))}</div><div class="tc-row"><span class="lv is-view">View</span>${stack(who(keys, 'view'))}</div></div>`;
+    /* A face shows its name on hover or focus; +N lists the rest without opening the card (Perry, 7 Oct 2026). */
+    const stack = (ps, id) => ps.length ? `<span class="stack">${ps.slice(0, 6).map(p => `<span class="avt" tabindex="0" data-name="${esc(p.name)}" aria-label="${esc(p.name)}">${avh(p.name, 24)}</span>`).join('')}` +
+      (ps.length > 6 ? `<button type="button" class="more" data-more="${esc(id)}" aria-expanded="${moreOpen === id}" aria-label="${ps.length - 6} more">+${ps.length - 6}</button>` : '') + '</span>' +
+      `<b>${ps.length}</b>` + (moreOpen === id && ps.length > 6 ? `<span class="morepop" role="list">${ps.slice(6).map(p => `<span role="listitem">${avh(p.name, 20)}${esc(p.name)}</span>`).join('')}</span>` : '') : '<span class="muted">\u2014</span>';
+    const card = (t, keys, title, foldKey) => `<div class="tcard${toolSel === t.key && !foldKey ? ' on' : ''}" role="button" tabindex="0" ${foldKey ? `data-tool-fold="${esc(foldKey)}" aria-expanded="${!!toolOpen[foldKey]}"` : `data-tool-open="${esc(t.key)}" aria-pressed="${toolSel === t.key}"`} aria-label="${esc(t.label)}${foldKey ? ': show the companies' : ': who can open it'}"><div class="tc-head"><span class="dot" style="--c:${t.colour}"></span><span>${title}</span>${foldKey ? `<span class="fold">${toolOpen[foldKey] ? '\u25be' : '\u25b8'}</span>` : ''}</div>
+      <div class="tc-row"><span class="lv is-edit">Edit</span>${stack(who(keys, 'edit'), (foldKey || t.key) + '|edit')}</div><div class="tc-row"><span class="lv is-view">View</span>${stack(who(keys, 'view'), (foldKey || t.key) + '|view')}</div></div>`;
     let html = '';
     areasOf().forEach(([area, ts0]) => {
       const ts = query ? ts0.filter(t => matches(t.label, t.sum, area)) : ts0; if (!ts.length) return;   /* the sidebar search filters tools too */
       if (isFamily(area, ts0) && query) { html += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="tgrid">${ts.map(t => card(t, [t.key], esc(t.label))).join('')}</div>`; return; }
       if (isFamily(area, ts)) {
         const keys = ts.map(t => t.key), label = esc(AREA_SHORT[area] || area);
-        html += `<div class="label">${label} <span class="muted">\u00b7 ${ts.length} companies</span></div><div class="tgrid">` + (toolOpen[area] ? ts.map(t => card(t, [t.key], esc(t.label))).join('') + `<div class="tcard" style="display:flex;align-items:center"><button type="button" class="tc-head" data-tool-fold="${esc(area)}"><span class="muted">\u25be Fold ${label}</span></button></div>` : card(ts[0], keys, `${label} <small>\u00b7 ${ts.length} companies</small>`, area)) + '</div>';
+        html += `<div class="label">${label} <span class="muted">\u00b7 ${ts.length} companies</span></div><div class="tgrid">` + (toolOpen[area] ? ts.map(t => card(t, [t.key], esc(t.label))).join('') + `<div class="tcard" style="display:flex;align-items:center" role="button" tabindex="0" data-tool-fold="${esc(area)}" aria-expanded="true"><div class="tc-head"><span class="muted">\u25be Fold ${label}</span></div></div>` : card(ts[0], keys, `${label} <small>\u00b7 ${ts.length} companies</small>`, area)) + '</div>';
         return;
       }
       html += `<div class="label">${esc(area)} <span class="muted">\u00b7 ${ts.length}</span></div><div class="tgrid">${ts.map(t => card(t, [t.key], esc(t.label))).join('')}</div>`;
@@ -1598,8 +1609,17 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   }
   const closeMenus = keep => document.querySelectorAll('.nx details.menu[open]').forEach(d => { if (d !== keep) d.removeAttribute('open'); });
   document.addEventListener('click', e => closeMenus(e.target.closest && e.target.closest('details.menu')), true);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(null); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeMenus(null); if (moreOpen) { moreOpen = null; renderTools(); } }
+    /* a card is a button: Enter or Space opens it */
+    const c = e.target.closest && e.target.closest('.tcard[role="button"]');
+    if (c && e.target === c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); c.click(); }
+  });
+  let moreOpen = null;
   document.addEventListener('click', e => {
+    const mo = e.target.closest('[data-more]'); if (mo) { moreOpen = moreOpen === mo.dataset.more ? null : mo.dataset.more; renderTools(); return; }
+    if (e.target.closest('.morepop')) return;
+    if (moreOpen && view === 'tools') { moreOpen = null; if (!e.target.closest('[data-tool-open],[data-tool-fold]')) { renderTools(); return; } }
     const f = e.target.closest('[data-tool-fold]'); if (f) { toolOpen[f.dataset.toolFold] = !toolOpen[f.dataset.toolFold]; renderTools(); return; }
     const o = e.target.closest('[data-tool-open]'); if (o) { toolSel = toolSel === o.dataset.toolOpen ? null : o.dataset.toolOpen; pickerOpen = false; renderTools(); return; }
     const so = e.target.closest('[data-so]'); if (so) { soOpen = soOpen === so.dataset.so ? null : so.dataset.so; renderCurrent(); return; }
