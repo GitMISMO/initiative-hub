@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Admin Panel · MISMO Resources</title>
+<title>Admin Console · MISMO Resources</title>
 <!--
   Admin panel, dressed as Summit HQ: the same masthead across the top and the same
   sections down the left, colour for colour (approved mockup, 2026-09-28).
@@ -313,6 +313,114 @@
     .trw .btn{justify-self:start}
   }
   @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+
+/* ===== the new console (Oct 2026): theme colours, scoped to its own sections ===== */
+body.next main.nx-main{max-width:1400px}
+.logoplate{transition:transform .15s ease}
+a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
+.nx-main{min-width:0}
+.nx-main h1{font-family:Archivo,sans-serif;font-size:22px;margin:0;color:var(--ink)}
+.nx-main .sub{color:var(--ink-2,#546F88);font-size:13px;margin-top:3px}
+.nx-main .view{display:block}
+.nx-main .view[hidden]{display:none}
+.nx-main .view .wrap, .nx-main .view .page{max-width:none;padding:0}
+.nx .nx-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nx .nx-bar .grow{flex:1}
+.nx .chip{border:1px solid var(--line-2,#D5E2ED);border-radius:999px;padding:5px 11px;background:var(--surface);font:inherit;font-weight:600;font-size:12px;color:var(--ink-2,#456179);cursor:pointer}
+.nx .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.nx .chip i{font-style:normal;opacity:.7;margin-left:4px}
+.nx .card2{background:var(--surface);border:1px solid var(--line-2,#D5E2ED);border-radius:12px;box-shadow:var(--shadow)}
+.nx .two{display:flex;gap:14px;align-items:flex-start}
+.nx .two>.card2.plist{flex:1;min-width:0}
+.nx .phead,.nx .prow{display:grid;grid-template-columns:32px minmax(0,1fr) 120px 230px 130px;align-items:center;gap:10px;width:100%;padding:9px 12px}
+.nx .phead{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3,#7E98AE);font-weight:700;border-bottom:1px solid var(--line);padding:10px 12px 8px}
+.nx .prow{border:0;border-top:1px solid var(--line);background:none;font:inherit;text-align:left;cursor:pointer;color:var(--ink)}
+.nx .phead + .prow{border-top:0}
+.nx .prow{transition:background .12s,box-shadow .12s}
+.nx .prow:hover,.nx .prow:focus-visible{background:var(--sunk);box-shadow:inset 3px 0 0 var(--sky-soft,#9DC3E0)}
+.nx .prow.on,.nx .prow.on:hover{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.nx .prow.fresh{background:var(--warn-soft)}
+.nx .prow .pn{min-width:0}
+.nx .prow .pn b{display:block;font-size:13.5px}
+.nx .prow .pn small{color:var(--ink-3,#7E98AE);font-size:11.5px}
+.nx .prow .tag{justify-self:start}
+.nx .prow .psum{font-size:12.5px;color:var(--ink)}
+.nx .prow .pflags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.nx .av2{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:var(--surface);font-weight:700;flex:none}
+.nx .tag{font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--line);color:var(--ink-2,#456179);white-space:nowrap}
+.nx .tag.admin{background:var(--accent-soft);color:var(--accent)}
+.nx .tag.lock{background:var(--bad-soft);color:var(--bad)}
+.nx .tag.exp{background:var(--warn-soft);color:var(--warn-ink)}
+.nx .lv{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px}
+.nx .lv.is-edit{background:var(--good-soft);color:var(--good)}
+.nx .lv.is-view{background:var(--accent-soft);color:var(--accent)}
+.nx .muted{color:var(--ink-3,#7E98AE)}
+.nx .nnote{font-size:12px;color:var(--ink-2,#546F88)}
+.nx .nnote.bad{color:var(--bad);background:var(--bad-soft);border-radius:8px;padding:7px 10px}
+.nx .panel2{width:400px;flex:none;background:var(--surface);border:1px solid var(--line-2,#D5E2ED);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;position:sticky;top:70px;max-height:calc(100vh - 90px);overflow:auto}
+.nx .panel2.empty2{color:var(--ink-3,#7E98AE);font-size:13px;min-height:120px;justify-content:center;align-items:center;text-align:center}
+.nx .ph{display:flex;gap:12px;align-items:center}
+.nx .ph .pn{flex:1;min-width:0}
+.nx .ph .pn b{font-family:Archivo,sans-serif;font-size:17px;display:block}
+.nx .ph .pn small{color:var(--ink-3,#7E98AE);font-size:12px}
+.nx details.menu{position:relative}
+.nx details.menu summary{list-style:none;cursor:pointer;padding:5px 10px}
+.nx details.menu summary::-webkit-details-marker{display:none}
+.nx .menu-list{position:absolute;right:0;top:36px;width:210px;background:var(--surface);border:1px solid var(--line-2,#D5E2ED);border-radius:10px;box-shadow:0 8px 24px rgba(15,49,76,.18);padding:6px;z-index:4;display:flex;flex-direction:column}
+.nx .menu-list button{text-align:left;background:none;border:0;font:inherit;font-size:12.5px;padding:7px 9px;border-radius:6px;cursor:pointer;color:var(--ink)}
+.nx .menu-list button:hover:not(:disabled){background:var(--sunk)}
+.nx .menu-list button:disabled{color:var(--ink-3,#B9C8D6);cursor:default}
+.nx .menu-list button.danger{color:var(--bad)}
+.nx .prow2{display:flex;gap:8px;align-items:center;font-size:12.5px;background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:8px 10px;flex-wrap:wrap}
+.nx .prow2 input[type=date]{font:inherit;font-size:12px;border:1px solid var(--line-2,#D5E2ED);border-radius:6px;padding:3px 6px}
+.nx .label{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3,#7E98AE);font-weight:700;margin-top:8px}
+.nx .label.strong{color:var(--ink);margin-top:0}
+.nx .label.sm{margin-top:4px}
+.nx .trow2{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}
+.nx .trow2.sub{padding-left:14px}
+.nx .trow2 .tn{flex:1;min-width:0}
+.nx .trow2 .tn small{color:var(--ink-3,#7E98AE);display:block;font-size:11px}
+.nx .trow2.allrow .tname{flex:1}
+.nx .seg{display:inline-flex;border:1px solid var(--line-2,#D5E2ED);border-radius:8px;overflow:hidden}
+.nx .seg button{padding:3px 9px;font:inherit;font-size:11.5px;font-weight:600;color:var(--ink-3,#7E98AE);border:0;border-left:1px solid var(--line);background:var(--surface);cursor:pointer}
+.nx .seg button:first-child{border-left:0}
+.nx .seg button[aria-pressed="true"][data-level="edit"],.nx .seg button.lv-edit[aria-pressed="true"]{background:var(--good-soft);color:var(--good)}
+.nx .seg button[aria-pressed="true"][data-level="view"],.nx .seg button.lv-view[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+.nx .seg button[aria-pressed="true"][data-level="none"],.nx .seg button.lv-none[aria-pressed="true"]{background:var(--sunk);color:var(--ink-2,#456179)}
+.nx .seg button[aria-pressed="true"]{background:var(--sunk);color:var(--ink)}
+.nx .seg button:disabled{color:var(--line-2,#C9D7E3);cursor:default}
+.nx button.x{border:0;background:none;color:var(--ink-3,#7E98AE);font-size:16px;cursor:pointer;padding:0 4px}
+.nx button.x:hover{color:var(--bad)}
+.nx .lvsel{appearance:none;-webkit-appearance:none;font:inherit;font-size:11.5px;font-weight:700;color:var(--ink);border:1px solid var(--line-2,#D5E2ED);border-radius:8px;padding:3px 22px 3px 9px;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237E98AE' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center;cursor:pointer}
+.nx .lvsel:hover{border-color:var(--sky-soft,#9DC3E0)}
+.nx .give{border:1.5px dashed var(--line-2,#C9D9E6);border-radius:9px;padding:9px 11px;color:var(--accent);font:inherit;font-weight:700;background:none;text-align:left;cursor:pointer;margin-top:8px}
+.nx .give:hover{background:var(--sunk)}
+.nx .picker{border:1px solid var(--sky-soft,#9DC3E0);border-radius:10px;padding:8px 10px 10px;margin-top:8px;background:var(--sunk);display:flex;flex-direction:column;gap:2px}
+.nx .dot{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--c,#888);margin-right:6px;vertical-align:middle}
+.nx .dot.big{width:38px;height:38px;border-radius:9px;margin:0}
+.nx .tcards{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.nx .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:8px}
+.nx .tcard{background:var(--surface);border:1px solid var(--line-2,#D5E2ED);border-radius:12px;padding:12px 14px}
+.nx .tcard.on{border-color:var(--sky-soft,#9DC3E0);background:var(--sunk)}
+.nx .tc-head{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer;text-align:left;padding:0}
+.nx .tc-head .fold{margin-left:auto;color:var(--ink-3,#7E98AE)}
+.nx .tc-head small{color:var(--ink-3,#7E98AE);font-weight:600}
+.nx .tc-row{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12px}
+.nx .tc-row b{margin-left:4px}
+.nx .stack{display:inline-flex;align-items:center}
+.nx .stack .av2{margin-left:-6px;border:2px solid var(--surface)}
+.nx .stack .av2:first-child{margin-left:0}
+.nx .stack small{margin-left:5px;color:var(--ink-3,#7E98AE)}
+.nx .topst{font-size:12.5px;color:var(--ink-2,#546F88);max-width:420px;text-align:right}
+.nx .savebar2{display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--surface);border-radius:10px;padding:10px 14px;font-size:12.5px}
+.nx .savebar2 .st{flex:1}
+.nx .savebar2 .btn{background:var(--surface);color:var(--ink)}
+.nx .btn.g{background:#0B7268;border-color:#0B7268;color:var(--surface)}
+.nx .nx-empty{background:var(--surface);border:1px dashed var(--line-2,#C9D9E6);border-radius:12px;padding:28px;text-align:center;color:var(--ink-2,#546F88);font-size:13px}
+.nx .tag.admin{background:var(--accent-soft);color:var(--accent)} .nx .btn.g{background:#0B7268;border-color:#0B7268;color:#fff}
+.nx .lvsel{background-color:var(--surface);color:var(--ink)}
+@media (max-width:1100px){ .nx .two{flex-direction:column} .nx .panel2{width:auto;position:static;max-height:none;align-self:stretch}
+  .nx .phead{display:none} .nx .prow{grid-template-columns:32px minmax(0,1fr) auto} .nx .prow .psum,.nx .prow .pflags{grid-column:2 / -1;justify-content:flex-start} }
 </style>
 </head>
 <body class="out">
@@ -347,9 +455,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 </defs></svg>
 
 <header class="hqtop">
-  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <a class="logoplate" href="/" title="MISMO Resources home"><svg role="img" aria-label="MISMO Resources home" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></a>
   <span class="mastrule"></span>
-  <span class="hqname">Admin Panel</span>
+  <span class="hqname">Admin Console</span>
   <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
     <!-- The shared account bubble every tool shows in this spot (session.js fills it). -->
     <div id="rs-account"></div></span>
@@ -366,9 +474,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     <input type="search" id="railQ" autocomplete="off" spellcheck="false" placeholder="Search" aria-label="Search this section">
   </div>
   <nav aria-label="Admin sections">
-    <button type="button" data-view="people" title="People &amp; Access">
+    <button type="button" data-view="people" title="People">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 004 17.5V19"/><circle cx="10" cy="7.5" r="3.5"/><path d="M20 19v-1.5a3.5 3.5 0 00-2.5-3.35M15.5 4.3a3.5 3.5 0 010 6.4"/></svg>
-      <span>People &amp; Access</span><b class="count" id="nPeople"></b></button>
+      <span>People</span><b class="count" id="nPeople"></b></button>
+    <button type="button" data-view="tools" title="Tools">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+      <span>Tools</span><b class="count" id="nTools"></b></button>
+    <button type="button" data-view="requests" title="Requests">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4.5M5 4.5h11l-2 4 2 4H5"/></svg>
+      <span>Requests</span></button>
   </nav>
   <div class="railgrp"><span>Initiative Hub</span>
     <nav aria-label="Initiative Hub settings">
@@ -383,33 +497,26 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         <span>Architects</span><b class="count" id="nArch"></b></button>
     </nav>
   </div>
+  <div class="railgrp"><span>Record</span>
+    <nav aria-label="Record"><button type="button" data-view="activity" title="Activity">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>
+      <span>Activity</span></button></nav>
+  </div>
   <div class="foot">
     <button class="theme-btn" id="themeBtn" type="button"></button>
   </div>
 </aside>
 
-<main>
-  <!-- ===== opening ===== -->
-  <section class="opening" id="signin">
+<main class="nx-main">
+<section class="opening" id="signin">
     <h1 id="siState">Opening the admin panel…</h1>
     <div class="note err" id="siErr" hidden style="margin-top:10px"></div>
   </section>
-
-  <!-- ===== People & Access ===== -->
-  <section class="view" id="view-people" hidden>
-    <header class="mast"><div><div class="eyebrow">Every Tool</div><h1>People &amp; Access</h1>
-      <div class="sub" id="accSub">Everyone who can sign in, and what they can do in each tool. Changes take effect within about a minute, and nobody is signed out.</div></div>
-      <button class="btn p" type="button" id="accAddOpen" hidden>+ Add a Person</button></header>
-
-    <div id="accUnavailable" class="note info" hidden></div>
-    <div id="accReady" hidden style="display:flex;flex-direction:column;gap:14px">
-      <div class="legend">
-        <span class="k"><span class="pill p-edit">Edit</span>opens the tool and saves changes</span>
-        <span class="k"><span class="pill p-view">View</span>reads everything, cannot save</span>
-        <span class="k"><span class="pill p-none">No access</span>the tool is not accessible</span>
-        <span class="k"><span class="adm">Admin</span>can change this list</span></div>
-
-      <div class="addcard" id="accAddCard" hidden>
+<div class="err" id="globalErr" hidden role="alert"></div>
+<section class="view nx" id="view-people">
+  <div class="nx-bar"><div class="grow"><h1>People</h1><div class="sub" id="accSub">Who can sign in, and what they can open.</div></div><span class="st topst" id="accStatus">No changes</span><button class="btn" type="button" id="accReload">Discard</button><button class="btn g" type="button" id="accSave" disabled>Save Access</button><button class="btn p" type="button" id="accAddOpen" hidden>+ Add a person</button></div>
+  <div id="accUnavailable" class="nnote bad" hidden></div>
+  <div class="addcard" id="accAddCard" hidden>
         <div class="hd"><h2>Add a person</h2><small>A password is generated here and shown once</small></div>
         <div class="bd">
           <div class="fields">
@@ -421,17 +528,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
           <div class="formacts"><button class="btn" type="button" id="accAddCancel">Cancel</button><button class="btn p" type="button" id="accAdd">Create account</button></div>
         </div>
       </div>
-
-      <div class="plists" id="accList"></div>
-      <div class="note err" id="accErr" hidden></div>
-      <div class="savebar"><span class="st" id="accStatus">No changes</span>
-        <button class="btn" type="button" id="accReload">Discard</button>
-        <button class="btn p" type="button" id="accSave" disabled>Save Access</button></div>
-    </div>
-  </section>
-
-  <!-- ===== Stakeholder Types ===== -->
-  <section class="view" id="view-types" hidden>
+  <div id="accReady" hidden>
+    <div class="nx-bar" id="pplChips" style="margin-bottom:12px"></div>
+    <div class="two" id="accList"></div>
+    <div class="err" id="accErr" hidden role="alert"></div>
+  </div></section>
+<section class="view nx" id="view-tools" hidden>
+  <div class="nx-bar"><div class="grow"><h1>Tools</h1><div class="sub">Every tool on MISMO Resources and who can open it. Grouped tools start folded.</div></div><span class="st topst" id="accStatus2">No changes</span><button class="btn g" type="button" data-acc-save disabled>Save Access</button></div>
+  <div class="two" id="toolList"></div></section>
+<section class="view" id="view-types" hidden>
     <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Stakeholder Types</h1>
       <div class="sub" id="typeSub"></div></div>
       <button class="btn p" type="button" id="typeAddOpen">+ Add a Type</button></header>
@@ -457,9 +562,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <button class="btn" type="button" id="typeReload">Discard</button>
       <button class="btn p" type="button" id="typeSave" disabled>Save Types</button></div>
   </section>
-
-  <!-- ===== Facilitators ===== -->
-  <section class="view" id="view-fac" hidden>
+<section class="view" id="view-fac" hidden>
     <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Facilitators</h1>
       <div class="sub" id="facSub"></div></div>
       <button class="btn p" type="button" id="facAddOpen">+ Add a Facilitator</button></header>
@@ -487,9 +590,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <button class="btn" type="button" id="facReload">Discard</button>
       <button class="btn p" type="button" id="facSave" disabled>Save Facilitators</button></div>
   </section>
-
-  <!-- ===== Architects ===== -->
-  <section class="view" id="view-arch" hidden>
+<section class="view" id="view-arch" hidden>
     <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Architects</h1>
       <div class="sub" id="archSub"></div></div>
       <button class="btn p" type="button" id="archAddOpen">+ Add an Architect</button></header>
@@ -516,11 +617,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <button class="btn" type="button" id="archReload">Discard</button>
       <button class="btn p" type="button" id="archSave" disabled>Save Architects</button></div>
   </section>
-
-  <div class="note err" id="globalErr" hidden></div>
+<section class="view nx" id="view-requests" hidden><div class="nx-bar"><div class="grow"><h1>Requests</h1><div class="sub">Break-glass requests to approve or decline, and View as.</div></div></div>
+  <div class="nx-empty">Nothing here yet. Requests arrive with the next relay update (Relay Request 9): two administrators together can open one members-only item in Team HQ, and an administrator can view the site as someone else, read-only.</div></section>
+<section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people, access and the lists: who made it, and when.</div></div></div>
+  <div class="nx-empty">The record will appear here with the next relay update. Every save is already kept in the private accounts repository; the update adds the route that reads it back as a list.</div></section>
 </main>
-
-<!-- password reveal -->
 <div class="overlay" id="reveal" hidden role="dialog" aria-modal="true" aria-labelledby="revealTitle">
   <div class="modal">
     <h2 id="revealTitle">Password</h2>
@@ -529,7 +630,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     <div class="formacts"><button class="btn" type="button" id="revealCopy">Copy</button><button class="btn p" type="button" id="revealClose">Done</button></div>
   </div>
 </div>
-
 <script>
 (function(){
   'use strict';
@@ -624,7 +724,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   }
 
   /* ---------- helpers ---------- */
-  function setStatus(id, state, text){
+  function setStatus(id, state, text){ setStatus0(id, state, text); if (id === 'accStatus' && $('accStatus2')) { $('accStatus2').className = $('accStatus').className; $('accStatus2').textContent = $('accStatus').textContent; } }
+  function setStatus0(id, state, text){
     const el = $(id);
     el.textContent = text || (state === 'dirty' ? 'Unsaved changes' : 'No changes');
     el.classList.toggle('dirty', state === 'dirty'); el.classList.toggle('ok', state === 'ok');
@@ -898,7 +999,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (exp.value) p.expires = exp.value; else delete p.expires;
     markAcc();
   });
-  $('accList').addEventListener('click', async e => {
+  const accClick = async e => {
     if (!acc) return;
     const mg = e.target.closest('[data-acc-manage]');
     if (mg) {
@@ -987,7 +1088,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         delete acc.people[email]; if (openDrawer === email) openDrawer = null; markAcc();
       }
     }
-  });
+  };
+  $('accList').addEventListener('click', accClick); $('toolList').addEventListener('click', accClick);
   addPanel('accAddOpen', 'accAddCard', 'accAddCancel', 'accName');
   $('accAdd').addEventListener('click', async () => {
     showErr('accAddErr');
@@ -1356,6 +1458,150 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   })();
   if (document.documentElement.classList.contains('railmini')) setMini(true);
   window.addEventListener('hashchange', () => { if (!document.body.classList.contains('out')) show(viewFromHash()); });
+
+
+  /* ===== the new console's drawing (Oct 2026). Everything above is today's admin panel, unchanged. ===== */
+  document.body.classList.add('next');
+  /* Requests and Activity need Relay Request 9: hidden until it is deployed. Set LATER to false then. */
+  const LATER = true;
+  Object.assign(VIEWS, LATER ? { tools:'view-tools' } : { tools:'view-tools', requests:'view-requests', activity:'view-activity' });
+  if (LATER) { document.querySelectorAll('.rail [data-view="requests"], .rail [data-view="activity"]').forEach(b => { b.hidden = true; });
+    const rec = document.querySelector('.rail [data-view="activity"]'); if (rec && rec.closest('.railgrp')) rec.closest('.railgrp').hidden = true; }
+  Object.assign(HASH, { tools:'tools', requests:'requests', activity:'activity' });
+  Object.assign(SEARCH, { tools:'Search tools', requests:'Search requests', activity:'Search activity' });
+  let secFilter = 'all', flagFilter = '', pickerOpen = false, soOpen = null, toolSel = null, toolOpen = {};
+  const AV = ['#2C74A6','#0B7268','#7A5AC8','#B5650B','#C1666B','#5B8C6C'];
+  const avh = (name, s) => { s = s || 30; let h = 0; for (const c of String(name || '')) h += c.charCodeAt(0);
+    return `<span class="av2" style="width:${s}px;height:${s}px;background:${AV[h % AV.length]};font-size:${Math.round(s * .38)}px">${esc(initials(name))}</span>`; };
+  const AREA_SHORT = { 'Service Orders and Agreements':'Service Orders', 'Service Orders \u2014 Hours Only (No Rates)':'Service Orders, hours only' };
+  const areasOf = () => { const order = [], g = {}; TOOLS.forEach(t => { if (!g[t.group]) { g[t.group] = []; order.push(t.group); } g[t.group].push(t); }); return order.map(a => [a, g[a]]); };
+  const isFamily = (area, ts) => ts.every(t => t.family) || /^Service Orders/.test(area);   /* both Service Orders groups fold (Perry, 7 Oct 2026) */
+  const secLabel = email => (PEOPLE_GROUPS.find(g => g.key === groupOf(email)) || {}).label || '';
+  /* Alphabetical by last name (Perry, 7 Oct 2026): the last word of the name, then the whole name. */
+  const lastOf = n => String(n || '').trim().split(/\s+/).slice(-1)[0].toLowerCase();
+  const byLast = (a, b) => lastOf(a).localeCompare(lastOf(b)) || String(a).localeCompare(String(b));
+  const isLocked = email => !!(acc && acc.locks && acc.locks[email] && acc.locks[email].locked);
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); }
+  function markAcc(){ acc.dirty = true; setStatus('accStatus', 'dirty'); showErr('accErr'); renderCurrent(); }
+  function summarise(p){
+    if (p.platformAdmin) return '<span class="tag admin">Administrator \u00b7 every tool</span>';
+    const a = p.access || {}; const edit = TOOLS.filter(t => levelOf(a[t.key]) === 'edit').length, vw = TOOLS.filter(t => levelOf(a[t.key]) === 'view').length;
+    if (!edit && !vw) return '<span class="muted">No tools yet</span>';
+    return `<b>${edit + vw}</b> <span class="muted">tools</span>${edit ? ` <span class="muted">\u00b7</span> ${edit} edit` : ''}${vw ? ` <span class="muted">\u00b7</span> ${vw} view` : ''}`;
+  }
+  function lvSeg(email, t, role){
+    const lv = levelOf(role);
+    return `<select class="lvsel" aria-label="${esc(t.sum || t.label)} access" data-acc-pick="${esc(email)}" data-tool="${esc(t.key)}"><option value="edit"${lv === 'edit' ? ' selected' : ''}>Edit</option><option value="view"${lv === 'view' ? ' selected' : ''}>View</option></select><button type="button" class="x" title="Take this tool away" aria-label="Take ${esc(t.label)} away" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="none">\u00d7</button>`;
+  }
+  document.addEventListener('change', e => {
+    const sel = e.target.closest('[data-acc-pick]'); if (!sel) return;
+    const host = sel.closest('#accList, #toolList') || document.body;
+    const b = document.createElement('button'); b.type = 'button'; b.hidden = true; b.dataset.accLevel = sel.dataset.accPick; b.dataset.tool = sel.dataset.tool; b.dataset.level = sel.value;
+    host.appendChild(b); b.click(); b.remove();
+  });
+  function renderAccess(){
+    if (!acc) return;
+    const all = Object.entries(acc.people).sort((a, b) => byLast(a[1].name, b[1].name));
+    $('nPeople').textContent = all.length; if ($('nTools')) $('nTools').textContent = TOOLS.length;
+    const counts = {}; all.forEach(([e]) => { counts[groupOf(e)] = (counts[groupOf(e)] || 0) + 1; });
+    const rows = all.filter(([e, p]) => matches(p.name, e) && (secFilter === 'all' || groupOf(e) === secFilter) && (flagFilter !== 'locked' || isLocked(e)) && (flagFilter !== 'expiring' || expiryNote(p.expires).soon));
+    const chips = [['all', 'All', all.length]].concat(PEOPLE_GROUPS.map(g => [g.key, g.label, counts[g.key] || 0]));
+    const nLocked = all.filter(([e]) => isLocked(e)).length, nExp = all.filter(([, p]) => expiryNote(p.expires).soon).length;
+    $('pplChips').innerHTML = chips.map(([k, l, n]) => `<button type="button" class="chip" aria-pressed="${secFilter === k}" data-sec="${k}">${esc(l)}<i>${n}</i></button>`).join('') +
+      `<button type="button" class="chip" aria-pressed="${flagFilter === 'locked'}" data-flag="locked">Locked<i>${nLocked}</i></button><button type="button" class="chip" aria-pressed="${flagFilter === 'expiring'}" data-flag="expiring">Expiring<i>${nExp}</i></button>`;
+    const rowHTML = ([email, p]) => { const open = openDrawer === email;
+      return `<button type="button" class="prow${open ? ' on' : ''}${freshRow === email ? ' fresh' : ''}" data-acc-manage="${esc(email)}" aria-expanded="${open}">${avh(p.name)}<span class="pn"><b>${esc(p.name)}</b><small>${esc(email)}</small></span><span class="tag">${esc(secLabel(email))}</span><span class="psum">${summarise(p)}</span><span class="pflags">${isLocked(email) ? '<span class="tag lock">Locked</span>' : ''}${p.expires ? `<span class="tag exp">${expiryNote(p.expires).soon ? 'Expires' : 'Until'} ${esc(p.expires)}</span>` : ''}</span></button>`; };
+    const list = rows.length ? rows.map(rowHTML).join('') : `<div class="empty">${query || secFilter !== 'all' || flagFilter ? 'Nobody matches.' : 'No accounts yet.'}</div>`;
+    const panel = openDrawer && acc.people[openDrawer] ? drawerFor(openDrawer, acc.people[openDrawer]) : '<div class="panel2 empty2">Select a person to see what they can open.</div>';
+    const head = '<div class="phead"><span></span><span>Name</span><span>Section</span><span>Access</span><span></span></div>';
+    $('accList').innerHTML = `<div class="card2 plist">${head}${list}</div>${panel}`;
+    $('accSub').textContent = `${all.length} accounts. Changes take effect within about a minute, and nobody is signed out.`;
+    $('accSave').disabled = !acc.dirty; document.querySelectorAll('[data-acc-save]').forEach(b => { b.disabled = !acc.dirty; });
+  }
+  function drawerFor(email, p){
+    const a = p.access || {};
+    const menu = `<details class="menu"><summary class="btn sm" aria-label="More actions">\u22ef</summary><div class="menu-list">
+      <button type="button" disabled title="With the next relay update">View as ${esc(p.name.split(' ')[0])}</button>
+      <button type="button" data-acc-reset="${esc(email)}">${acc.selfService ? 'Send reset link' : 'Reset password'}</button>
+      <button type="button" class="danger" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Administrators are removed in the repository"' : ''}>Remove account</button></div></details>`;
+    const section = acc.groups ? '<span class="seg" role="group" aria-label="Section">' + PEOPLE_GROUPS.map(g => {
+        const lockedG = !storable('facilitator') && (listedFacilitator(email) || g.key === 'facilitators');
+        return `<button type="button" aria-pressed="${groupOf(email) === g.key}" data-acc-group="${esc(email)}" data-group="${g.stored}"${lockedG ? ' disabled title="Facilitators get their own section with the next relay update"' : ''}>${esc(g.one || g.label)}</button>`; }).join('') + '</span>'
+      : `<b>${esc(secLabel(email))}</b>`;
+    const expiry = `<input type="date" data-acc-exp="${esc(email)}" value="${esc(p.expires || '')}" aria-label="Access for ${esc(p.name)} expires">`;
+    let body = '';
+    if (p.platformAdmin) body = '<div class="nnote">An administrator: every tool, and each tool\u2019s settings. Nothing here can lower it.</div>';
+    else {
+      let n = 0;
+      areasOf().forEach(([area, ts]) => {
+        const have = ts.filter(t => levelOf(a[t.key]) !== 'none'); if (!have.length) return; n += have.length;
+        if (isFamily(area, ts)) {
+          const open = soOpen === area;
+          body += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">${have.length} of ${ts.length} companies<small>${have.map(t => esc(t.label.split(' LLC')[0].split(' \u2014')[0])).join(', ')}</small></span><button type="button" class="btn sm" data-so="${esc(area)}">${open ? 'Done' : 'Choose'}</button></div>`;
+          if (open) body += allRow(email, ts, a).replace('class="trow allrow"', 'class="trow2 allrow"') + ts.map(t => `<div class="trow2 sub"><span class="tn">${esc(t.label)}</span>${lvSeg(email, t, a[t.key])}</div>`).join('');
+          return;
+        }
+        body += `<div class="label">${esc(area)}</div>` + have.map(t => `<div class="trow2"><span class="tn"><span class="dot" style="--c:${t.colour}"></span>${esc(t.label)}${a[t.key] === 'admin' ? '<small>also manages this tool\u2019s settings</small>' : ''}</span>${lvSeg(email, t, a[t.key])}</div>`).join('');
+      });
+      const picker = pickerOpen ? '<div class="picker"><div class="label strong">Give access to</div>' + areasOf().map(([area, ts]) => {
+          const miss = ts.filter(t => levelOf(a[t.key]) === 'none'); if (!miss.length) return '';
+          return `<div class="label sm">${esc(AREA_SHORT[area] || area)}</div>` + miss.map(t => `<div class="trow2"><span class="tn">${esc(t.label)}</span><span class="seg"><button type="button" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="edit">Edit</button><button type="button" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="view">View</button></span></div>`).join(''); }).join('') +
+        '<button type="button" class="btn sm" data-picker="close" style="margin-top:8px;align-self:flex-start">Close</button></div>'
+        : '<button type="button" class="give" data-picker="open">+ Give access to a tool\u2026</button>';
+      body = `<div class="label strong">Has access to ${n} ${n === 1 ? 'tool' : 'tools'}</div>` + (body || '<div class="nnote">No tools yet.</div>') + picker;
+    }
+    return `<div class="panel2"><div class="ph">${avh(p.name, 44)}<div class="pn"><b>${esc(p.name)}</b><small>${esc(email)}</small></div>${menu}</div>
+      <div class="prow2"><span class="label" style="margin:0">Section</span>${section}<span class="label" style="margin:0 0 0 auto">Expires</span>${expiry}</div>
+      ${isLocked(email) ? '<div class="nnote bad">Locked after 5 wrong passwords. A reset link unlocks them.</div>' : ''}
+      <div>${body}</div></div>`;
+  }
+  function renderTools(){
+    if ($('nTools')) $('nTools').textContent = TOOLS.length;
+    if (!acc) { $('toolList').innerHTML = '<div class="nx-empty">The account list has not loaded, so nothing can be shown here.</div>'; return; }
+    const people = Object.entries(acc.people).sort((a, b) => byLast(a[1].name, b[1].name));
+    const who = (keys, lv) => people.filter(([, p]) => !p.platformAdmin && keys.some(k => levelOf((p.access || {})[k]) === lv)).map(([e, p]) => ({ email: e, name: p.name }));
+    const stack = ps => ps.length ? `<span class="stack">${ps.slice(0, 6).map(p => avh(p.name, 24)).join('')}${ps.length > 6 ? `<small>+${ps.length - 6}</small>` : ''}</span><b>${ps.length}</b>` : '<span class="muted">\u2014</span>';
+    const card = (t, keys, title, foldKey) => `<div class="tcard${toolSel === t.key && !foldKey ? ' on' : ''}"><button type="button" class="tc-head" ${foldKey ? `data-tool-fold="${esc(foldKey)}"` : `data-tool-open="${esc(t.key)}"`}><span class="dot" style="--c:${t.colour}"></span><span>${title}</span>${foldKey ? `<span class="fold">${toolOpen[foldKey] ? '\u25be' : '\u25b8'}</span>` : ''}</button>
+      <div class="tc-row"><span class="lv is-edit">Edit</span>${stack(who(keys, 'edit'))}</div><div class="tc-row"><span class="lv is-view">View</span>${stack(who(keys, 'view'))}</div></div>`;
+    let html = '';
+    areasOf().forEach(([area, ts0]) => {
+      const ts = query ? ts0.filter(t => matches(t.label, t.sum, area)) : ts0; if (!ts.length) return;   /* the sidebar search filters tools too */
+      if (isFamily(area, ts0) && query) { html += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="tgrid">${ts.map(t => card(t, [t.key], esc(t.label))).join('')}</div>`; return; }
+      if (isFamily(area, ts)) {
+        const keys = ts.map(t => t.key), label = esc(AREA_SHORT[area] || area);
+        html += `<div class="label">${label} <span class="muted">\u00b7 ${ts.length} companies</span></div><div class="tgrid">` + (toolOpen[area] ? ts.map(t => card(t, [t.key], esc(t.label))).join('') + `<div class="tcard" style="display:flex;align-items:center"><button type="button" class="tc-head" data-tool-fold="${esc(area)}"><span class="muted">\u25be Fold ${label}</span></button></div>` : card(ts[0], keys, `${label} <small>\u00b7 ${ts.length} companies</small>`, area)) + '</div>';
+        return;
+      }
+      html += `<div class="label">${esc(area)} <span class="muted">\u00b7 ${ts.length}</span></div><div class="tgrid">${ts.map(t => card(t, [t.key], esc(t.label))).join('')}</div>`;
+    });
+    const t = TOOLS.find(x => x.key === toolSel);
+    let panel = '<div class="panel2 empty2">Select a tool to see who can open it.</div>';
+    if (t) {
+      const ed = who([t.key], 'edit'), vw = who([t.key], 'view'), admins = people.filter(([, p]) => p.platformAdmin).map(([, p]) => p.name);
+      const none = people.filter(([, p]) => !p.platformAdmin && levelOf((p.access || {})[t.key]) === 'none');
+      const row = (p, role) => `<div class="trow2">${avh(p.name, 24)}<span class="tn">${esc(p.name)}</span>${lvSeg(p.email, t, role)}</div>`;
+      const picker = pickerOpen ? '<div class="picker"><div class="label strong">Give access to</div>' + (none.map(([e, p]) => `<div class="trow2">${avh(p.name, 24)}<span class="tn">${esc(p.name)}</span><span class="seg"><button type="button" data-acc-level="${esc(e)}" data-tool="${esc(t.key)}" data-level="edit">Edit</button><button type="button" data-acc-level="${esc(e)}" data-tool="${esc(t.key)}" data-level="view">View</button></span></div>`).join('') || '<div class="nnote">Everyone already has it.</div>') + '<button type="button" class="btn sm" data-picker="close" style="margin-top:8px;align-self:flex-start">Close</button></div>'
+        : '<button type="button" class="give" data-picker="open">+ Give someone access\u2026</button>';
+      panel = `<div class="panel2"><div class="ph"><span class="dot big" style="--c:${t.colour}"></span><div class="pn"><b>${esc(t.label)}</b><small>${esc(AREA_SHORT[t.group] || t.group)}</small></div></div>
+        <div class="label strong">${ed.length + vw.length} people have access</div><div class="nnote">${esc(admins.join(' and '))} have every tool as administrators.</div>
+        ${ed.length ? `<div class="label">Edit \u00b7 ${ed.length}</div>` + ed.map(p => row(p, 'staff')).join('') : ''}${vw.length ? `<div class="label">View \u00b7 ${vw.length}</div>` + vw.map(p => row(p, 'view')).join('') : ''}${picker}</div>`;
+    }
+    $('toolList').innerHTML = `<div class="tcards">${html || '<div class="nx-empty">No tool matches that search.</div>'}</div>${panel}`;
+    document.querySelectorAll('[data-acc-save]').forEach(b => { b.disabled = !acc.dirty; });
+  }
+  const closeMenus = keep => document.querySelectorAll('.nx details.menu[open]').forEach(d => { if (d !== keep) d.removeAttribute('open'); });
+  document.addEventListener('click', e => closeMenus(e.target.closest && e.target.closest('details.menu')), true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(null); });
+  document.addEventListener('click', e => {
+    const f = e.target.closest('[data-tool-fold]'); if (f) { toolOpen[f.dataset.toolFold] = !toolOpen[f.dataset.toolFold]; renderTools(); return; }
+    const o = e.target.closest('[data-tool-open]'); if (o) { toolSel = toolSel === o.dataset.toolOpen ? null : o.dataset.toolOpen; pickerOpen = false; renderTools(); return; }
+    const so = e.target.closest('[data-so]'); if (so) { soOpen = soOpen === so.dataset.so ? null : so.dataset.so; renderCurrent(); return; }
+    const pk = e.target.closest('[data-picker]'); if (pk) { pickerOpen = pk.dataset.picker === 'open'; renderCurrent(); return; }
+    const sc = e.target.closest('[data-sec]'); if (sc) { secFilter = sc.dataset.sec; renderAccess(); return; }
+    const fl = e.target.closest('[data-flag]'); if (fl) { flagFilter = flagFilter === fl.dataset.flag ? '' : fl.dataset.flag; renderAccess(); return; }
+    if (e.target.closest('[data-acc-manage]')) { pickerOpen = false; soOpen = null; renderAccess(); }
+  });
+  document.querySelectorAll('[data-acc-save]').forEach(b => b.addEventListener('click', saveAccessNow));
 
   /* ---------- boot ---------- */
   open();
