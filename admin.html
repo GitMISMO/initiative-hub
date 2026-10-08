@@ -1532,6 +1532,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     $('accList').innerHTML = `<div class="card2 plist">${head}${list}</div>${panel}`;
     $('accSub').textContent = `${all.length} accounts. Changes take effect within about a minute, and nobody is signed out.`;
     $('accSave').disabled = !acc.dirty; document.querySelectorAll('[data-acc-save]').forEach(b => { b.disabled = !acc.dirty; });
+    if (view === 'tools') renderTools();   /* the list arrived while Tools was showing */
   }
   function drawerFor(email, p){
     const a = p.access || {};
@@ -1572,7 +1573,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   }
   function renderTools(){
     if ($('nTools')) $('nTools').textContent = TOOLS.length;
-    if (!acc) { $('toolList').innerHTML = '<div class="nx-empty">The account list has not loaded, so nothing can be shown here.</div>'; return; }
+    /* Opened before the account list arrives (straight to #tools, or a reload): say it's loading, or why it can't;
+       renderAccess redraws this page when the list lands (Perry, 7 Oct 2026). */
+    if (!acc) { const why = $('accUnavailable') && !$('accUnavailable').hidden ? $('accUnavailable').innerHTML : 'Loading the account list\u2026';
+      $('toolList').innerHTML = `<div class="nx-empty">${why}</div>`; return; }
     const people = Object.entries(acc.people).sort((a, b) => byLast(a[1].name, b[1].name));
     const who = (keys, lv) => people.filter(([, p]) => !p.platformAdmin && keys.some(k => levelOf((p.access || {})[k]) === lv)).map(([e, p]) => ({ email: e, name: p.name }));
     /* A face shows its name on hover or focus; +N lists the rest without opening the card (Perry, 7 Oct 2026). */
