@@ -433,6 +433,10 @@ const fmtPlan = s => s.length === 7 ? (x => `${MONTHS[x.getMonth()]} ${x.getFull
 const frac = d => d.getFullYear() + (Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 864e5)) / ((d.getFullYear() % 4 === 0) ? 366 : 365);
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const short = s => { const d = parse(s); return `${MON[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`; };
+/* A comment period with only a target close opens 30 days before it (every comment period is 30 days unless known
+   otherwise: Perry, 7 Oct 2026), so a target period draws like a recorded one: open, then the band to the close. */
+const openFromClose = s => { const t = parse(s); t.setDate(t.getDate() - 30); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+const planOpen = (d, plan) => !d.ev.comment && !plan.comment && plan.commentEnd ? openFromClose(plan.commentEnd) : null;
 const long = s => { const d = parse(s); return `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
 const period = (a, b) => b ? `${long(a)} – ${long(b)}` : `opened ${long(a)}`;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -511,7 +515,8 @@ function timeline() {
     ORDER.forEach(k => { if (d.ev[k]) evs.push({ y: frac(parse(d.ev[k])), k, c: STAGE[k][1], lab: short(d.ev[k]), done: true });
       else if (plan[k] && !(k === 'cr' && d.ev.final)) evs.push({ y: frac(parse(plan[k])), k, c: STAGE[k][1], lab: 'Target ' + short(plan[k]), done: false }); });
     const cEnd = d.ev.commentEnd || plan.commentEnd;
-    if (!d.ev.comment && !plan.comment && plan.commentEnd) evs.push({ y: frac(parse(plan.commentEnd)), k: 'comment', c: STAGE.comment[1], lab: 'Comment closes ' + short(plan.commentEnd), done: false });
+    const pOpen = planOpen(d, plan);
+    if (pOpen) evs.push({ y: frac(parse(pOpen)), k: 'comment', c: STAGE.comment[1], lab: 'Target ' + short(pOpen), done: false });
     evs.sort((a, b) => a.y - b.y);
     if (fl) evs.forEach(e => { e.c = RED; });
     const doneY = evs.filter(e => e.done).map(e => e.y), lastDone = doneY.length ? Math.max(...doneY) : null;
@@ -521,7 +526,7 @@ function timeline() {
       if (to > from) h += `<div class="tl-bar plan" style="left:${x(from)}px;width:${x(to) - x(from)}px;top:${cy - 1}px;border-top-color:${fl ? RED : 'var(--line3)'}"></div>`;
     }
     /* the comment period, opened to closed: a band, solid once it has happened */
-    const cStart = d.ev.comment || plan.comment;
+    const cStart = d.ev.comment || plan.comment || pOpen;
     if (cStart && cEnd && cEnd > cStart) h += `<div class="tl-cband ${d.ev.commentEnd ? '' : 'plan'}" style="left:${x(frac(parse(cStart)))}px;width:${Math.max(4, x(frac(parse(cEnd))) - x(frac(parse(cStart))))}px;top:${cy - 4}px" title="Public comment ${d.ev.commentEnd ? period(cStart, cEnd) : 'target ' + fmtPlan(cStart) + ' – ' + fmtPlan(cEnd)}"></div>`;
     let prev = null;
     evs.forEach((e, j) => {
@@ -564,7 +569,7 @@ function tracker(d) {
   let s = step('started', 'Work started', done('started') ? rec('started') : tgt('started') + (nxt === 'started' ? btn('Record today', 'started') : ''));
   const cBody = done('comment')
     ? `<div class="muted2">${d.ev.commentEnd ? period(d.ev.comment, d.ev.commentEnd) : `Opened ${long(d.ev.comment)}${plan.commentEnd ? `, closes ${fmtPlan(plan.commentEnd)} (target)` : ''}`}</div>` + (!d.ev.commentEnd ? btn('Record it closed today', 'commentEnd') : '')
-    : (plan.comment || plan.commentEnd ? `<div class="muted2">Target ${plan.comment ? fmtPlan(plan.comment) + (plan.commentEnd ? ' – ' + fmtPlan(plan.commentEnd) : '') : 'closes ' + fmtPlan(plan.commentEnd)}</div>` : `<div class="muted">Not yet scheduled</div>`) + (nxt === 'comment' ? btn('Record it opened today', 'comment') : '');
+    : (plan.comment || plan.commentEnd ? `<div class="muted2">Target ${fmtPlan(plan.comment || planOpen(d, plan)) + (plan.commentEnd ? ' – ' + fmtPlan(plan.commentEnd) : '')}</div>` : `<div class="muted">Not yet scheduled</div>`) + (nxt === 'comment' ? btn('Record it opened today', 'comment') : '');
   s += step('comment', 'Public comment', cBody);
   s += step('cr', 'Candidate Recommendation', done('cr') ? rec('cr') : done('final') ? `<div class="muted">Released directly as Final</div>` : tgt('cr') + (nxt === 'cr' && done('comment') ? btn('Record today', 'cr') : ''));
   s += step('final', 'Recommendation or Final', done('final') ? rec('final') : tgt('final') + ((nxt === 'cr' || nxt === 'final') && done('comment') ? btn(done('cr') ? 'Record Recommendation today' : 'Record Final today', 'final') : ''));
