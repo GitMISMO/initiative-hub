@@ -96,7 +96,8 @@ const GITHUB_API = 'https://api.github.com';
 const FACILITATORS_PATH = '_internal/facilitators.json';
 const PBKDF2_ITERATIONS = 210000;        // OWASP's 2023 floor for PBKDF2-HMAC-SHA256
 const PBKDF2_KEYLEN = 32;
-const TOKEN_TTL_SECONDS = 4 * 60 * 60;   // four hours; typical sessions run one to two
+const TOKEN_TTL_SECONDS = 4 * 60 * 60;
+const VIEW_AS_SECONDS = 30 * 60;           // View as lasts half an hour (relay request 9)   // four hours; typical sessions run one to two
 const ACCESS_PATH_DEFAULT = '_internal/access.json';
 /* The sections of People & Access in the admin panel. Kept with each person, set by admins. */
 const PEOPLE_GROUPS = new Set(['staff', 'facilitator', 'contractor', 'process']);   /* facilitator: relay request 9 (Perry, 6 Oct 2026) */
@@ -812,7 +813,7 @@ async function authenticate(headers, repo, branch) {
       if (!perm.error) {
         const dirNow = await loadAccess();
         if (!dirNow.error && tokenIsStale(payload, personByEmail(dirNow.people, payload.sub))) return { error: 'TOKEN_STALE' };
-        return { email: payload.sub, name: perm.name, role: perm.role };
+        return { email: payload.sub, name: perm.name, role: perm.role, viewAs: payload.va || null };
       }
       if (perm.error === 'NO_DIRECTORY') {
         /* No directory yet. The token has already proved who this is, so the role comes
@@ -990,6 +991,218 @@ async function askRoute(proj, who, event) {
   return respond(200, { text, model: j.model || model, usage });
 }
 
+
+/* =====================================================================================
+ * MEMBERS-ONLY FILES (relay request 9; Jonna's spec, 5 Oct 2026)
+ *
+ * A project's 'membersOnly' names data files of the form {docs: {<id>: {..., members: [email, ...]}}}, each with the
+ * emails that may see every doc in it. A read returns the docs whose members include the caller (or every doc, for
+ * someone on that file's list). A member's save changes only their own docs: anything they are in becomes what was
+ * sent (left out: deleted); docs they are not in stay exactly as stored and can't be touched; a new doc must list
+ * them; on an existing doc they may take only themselves off. A see-all save writes the whole file and must carry
+ * the version it read. No administrator override: the one way in is BREAK GLASS below. View as sees none of them.
+ * /file and /commit refuse these files, so they can't be read or written around the rules.
+ * ===================================================================================== */
+const docsOf = d => (d && typeof d.docs === 'object' && d.docs && !Array.isArray(d.docs)) ? d.docs : {};
+const membersOf = doc => (doc && Array.isArray(doc.members) ? doc.members : []).map(lowerOf);
+const DOC_ID = /^[^/\\]{1,120}$/;
+const membersPaths = proj => new Set(Object.keys(proj.membersOnly || {}).map(f => `data/${f}.json`));
+async function membersData(proj, all, method, id, event, who) {
+  const me = lowerOf(who.email), path = `data/${id}.json`, seeAll = all.includes(me);
+  if (method === 'GET') {
+    const file = await readFile(proj.repo, proj.branch, path);
+    if (file.status !== 200 && file.status !== 404) return respond(502, { error: 'GITHUB', status: file.status });
+    const docs = file.status === 404 ? {} : docsOf(file.data);
+    if (who.viewAs) return respond(200, { sha: file.sha || null, data: { docs: {} }, scope: 'members', hidden: true });
+    let view = {}; const readOnly = [];
+    if (seeAll) view = docs;
+    else {
+      const g = await bgGrants(proj.key, id, me);
+      for (const [k, d] of Object.entries(docs)) {
+        const m = membersOf(d);
+        if (m.includes(me)) view[k] = d;
+        else if (g.persons.some(x => m.includes(x))) { view[k] = d; readOnly.push(k); }   /* break glass: read-only */
+      }
+      if (readOnly.length) await bgOpened(g.ids, me, proj.key, id);
+    }
+    return respond(200, { sha: file.sha || null, data: { docs: view }, scope: 'members', ...(readOnly.length ? { readOnly } : {}) });
+  }
+  if (method !== 'PUT') return respond(405, { error: 'METHOD' });
+  const { body, error } = parseBody(event); if (error) return error;
+  const sent = docsOf(body && body.content);
+  for (const [k, d] of Object.entries(sent)) if (!DOC_ID.test(k) || !d || typeof d !== 'object' || !Array.isArray(d.members)) return respond(400, { error: 'BAD_DOC', id: k });
+  for (let tries = 0; tries < 4; tries++) {
+    const file = await readFile(proj.repo, proj.branch, path);
+    if (file.status !== 200 && file.status !== 404) return respond(502, { error: 'GITHUB', status: file.status });
+    const stored = file.status === 404 ? {} : docsOf(file.data), sha = file.sha || null;
+    let next;
+    if (seeAll) {
+      if ((body.sha || null) !== sha) return respond(409, { error: 'CONFLICT', message: 'Someone saved since you read this. Reload, then save again.' });
+      next = sent;
+    } else {
+      next = {};
+      for (const [k, d] of Object.entries(stored)) if (!membersOf(d).includes(me)) next[k] = d;        /* not theirs: exactly as stored */
+      for (const [k, d] of Object.entries(sent)) {
+        const old = stored[k], nm = membersOf(d);
+        if (old && !membersOf(old).includes(me)) return respond(403, { error: 'NOT_A_MEMBER', id: k, message: 'That isn\u2019t yours to change.' });
+        if (!old && !nm.includes(me)) return respond(403, { error: 'NOT_A_MEMBER', id: k, message: 'A new item has to include you.' });
+        if (old && membersOf(old).some(x => x !== me && !nm.includes(x))) return respond(403, { error: 'MEMBERS_REMOVED', id: k, message: 'You can take yourself off, but not someone else.' });
+        next[k] = d;
+      }
+    }
+    const content = { ...((file.data && typeof file.data === 'object') ? file.data : {}), docs: next };
+    const { status, json } = await github('PUT', `/repos/${proj.repo}/contents/${path}`, { message: `Save ${id} (${me})`, content: encodeBase64Utf8(content),
+      branch: proj.branch, sha: sha || undefined, author: authorFor(who.name || me) });
+    if (status === 200 || status === 201) {
+      const view = seeAll ? next : Object.fromEntries(Object.entries(next).filter(([, d]) => membersOf(d).includes(me)));
+      return respond(200, { sha: json && json.content && json.content.sha, data: { docs: view }, scope: 'members' });
+    }
+    if (seeAll || (status !== 409 && status !== 422)) return writeOutcome(status, json, !!sha);
+  }
+  return respond(409, { error: 'CONFLICT' });
+}
+
+/* =====================================================================================
+ * BREAK GLASS (relay request 9; Perry and Jonna, 6 Oct 2026)
+ *
+ * One administrator asks to open one person's members-only items in one tool (Team HQ's Sync Ups), with a reason;
+ * every other administrator is emailed; any one of them may approve or decline, never the one who asked. Approved:
+ * read-only, for 24 hours. Unanswered for 3 days: lapsed. Every request, decision and opening is kept in
+ * break-glass.json beside the account list. The item's members are not told.
+ * ===================================================================================== */
+const BG_LAPSE_MS = 3 * 24 * 3_600_000, BG_ACCESS_MS = 24 * 3_600_000;
+const bgOpenSeen = new Map();
+async function bgGrants(projectKey, file, me) {
+  const r = await acctRead(BG_PATH); if (r.error) return { persons: [], ids: [] };
+  const now = Date.now();
+  const live = (Array.isArray(r.data.requests) ? r.data.requests : []).filter(q => q.status === 'approved' && lowerOf(q.by) === me && q.project === projectKey
+    && Array.isArray(q.files) && q.files.includes(file) && Date.parse(q.expiresAt) > now);
+  return { persons: live.map(q => lowerOf(q.person)), ids: live.map(q => q.id) };
+}
+async function bgOpened(ids, me, project, file) {
+  const now = Date.now(), due = ids.filter(id => now - (bgOpenSeen.get(id) || 0) > 3_600_000);   /* recorded at most hourly */
+  if (!due.length) return;
+  due.forEach(id => bgOpenSeen.set(id, now));
+  await acctUpdate(BG_PATH, d => { (d.requests || []).forEach(q => { if (due.includes(q.id)) (q.opened = q.opened || []).push(new Date(now).toISOString()); }); return d; },
+    `Break glass: ${me} opened ${file} in ${project}`);
+}
+const ADMIN_URL = 'https://resources.mismo.org/initiative-hub/admin.html#requests';
+function bgMail(kind, q) {
+  const what = `${q.personName || q.person}\u2019s members-only items in ${q.project} (${(q.files || []).join(', ')})`;
+  const m = kind === 'request'
+    ? { subject: `Break glass: ${q.byName || q.by} asks to open ${q.personName || q.person}\u2019s items`,
+        text: `${q.byName || q.by} has asked to open ${what}, read-only, for 24 hours.\n\nReason: \u201c${q.reason}\u201d\n\nApprove or decline it in the Admin Console: ${ADMIN_URL}\n\nAny administrator other than the one who asked can decide. If nobody does within 3 days, the request lapses. The item\u2019s members are not told.` }
+    : { subject: `Break glass ${kind}: ${q.personName || q.person}\u2019s items`,
+        text: kind === 'approved' ? `${q.decidedByName || q.decidedBy} approved your request to open ${what}. You can read it until ${new Date(q.expiresAt).toUTCString()}; it opens read-only in the tool itself.`
+                                  : `${q.decidedByName || q.decidedBy} declined your request to open ${what}.` };
+  return { subject: m.subject, text: m.text, html: htmlOf(m.text) };
+}
+async function breakGlass(method, subPath, event, who) {
+  const me = lowerOf(who.email);
+  const pa = await isPlatformAdmin(me);   /* { ok: true } or { error }: an object either way, so test .ok */
+  if (!pa.ok) return respond(403, { error: pa.error || 'NOT_PLATFORM_ADMIN' });
+  const id = (subPath.match(/^\/breakglass\/([A-Za-z0-9-]+)$/) || [])[1];
+  if (method === 'GET' && !id) {
+    const r = await acctRead(BG_PATH); if (r.error) return respond(502, { error: r.error });
+    const now = Date.now();
+    const list = (Array.isArray(r.data.requests) ? r.data.requests : []).map(q => ({ ...q,
+      status: q.status === 'pending' && now - Date.parse(q.at) > BG_LAPSE_MS ? 'lapsed' : (q.status === 'approved' && Date.parse(q.expiresAt) <= now ? 'ended' : q.status) }));
+    return respond(200, { requests: list.slice(0, 200), me });
+  }
+  if (method === 'POST' && !id) {
+    const { body, error } = parseBody(event); if (error) return error;
+    const project = String((body && body.project) || ''), reason = String((body && body.reason) || '').trim().slice(0, 500);
+    const target = project ? await projectConfig(project) : null;
+    const mo = Object.keys((target && target.membersOnly) || {});
+    const files = (Array.isArray(body && body.files) ? body.files : mo).filter(f => mo.includes(f));
+    if (!target || !files.length) return respond(400, { error: 'NOTHING_TO_OPEN', message: 'That tool has no members-only files.' });
+    if (!reason) return respond(400, { error: 'NO_REASON', message: 'Give a reason.' });
+    const dir = await loadAccess(); if (dir.error) return respond(502, { error: dir.error });
+    const person = personByEmail(dir.people, lowerOf(body.person)); if (!person) return respond(404, { error: 'NO_ACCOUNT' });
+    const others = Object.entries(dir.people).filter(([e, x]) => x.platformAdmin === true && lowerOf(e) !== me && !isExpired(x));
+    if (!others.length) return respond(409, { error: 'NO_SECOND_ADMIN', message: 'Break glass needs a second administrator to approve it.' });
+    const q = { id: 'bg-' + randomBytes(6).toString('hex'), project, files, person: person.email, personName: person.name || person.email, reason,
+                by: me, byName: who.name || me, at: new Date().toISOString(), status: 'pending' };
+    const w = await acctUpdate(BG_PATH, d => ({ ...d, requests: [q, ...(Array.isArray(d.requests) ? d.requests : [])].slice(0, 500) }), `Break glass requested by ${me}: ${project}, ${person.email}`);
+    if (w.error) return respond(502, { error: w.error });
+    for (const [e] of others) await sendMail({ kind: 'break-glass-request', to: e, ...bgMail('request', q) });
+    return respond(200, { request: q });
+  }
+  if (method === 'POST' && id) {
+    const { body, error } = parseBody(event); if (error) return error;
+    const decision = body && body.decision; if (decision !== 'approve' && decision !== 'decline') return respond(400, { error: 'BAD_DECISION' });
+    let decided = null;
+    const w = await acctUpdate(BG_PATH, d => {
+      const q = (Array.isArray(d.requests) ? d.requests : []).find(x => x.id === id);
+      if (!q) return { __error: 'NOT_FOUND' };
+      if (lowerOf(q.by) === me) return { __error: 'OWN_REQUEST' };
+      if (q.status !== 'pending') return { __error: 'ALREADY_DECIDED' };
+      if (Date.now() - Date.parse(q.at) > BG_LAPSE_MS) return { __error: 'LAPSED' };
+      q.status = decision === 'approve' ? 'approved' : 'declined'; q.decidedBy = me; q.decidedByName = who.name || me; q.decidedAt = new Date().toISOString();
+      if (decision === 'approve') q.expiresAt = new Date(Date.now() + BG_ACCESS_MS).toISOString();
+      decided = q; return d;
+    }, `Break glass ${decision === 'approve' ? 'approved' : 'declined'} by ${me}: ${id}`);
+    if (w.error) return respond({ NOT_FOUND: 404, OWN_REQUEST: 403, ALREADY_DECIDED: 409, LAPSED: 409 }[w.error] || 502,
+      { error: w.error, message: { OWN_REQUEST: 'Another administrator has to decide your own request.', ALREADY_DECIDED: 'Someone has already decided this.', LAPSED: 'This request lapsed after 3 days.' }[w.error] });
+    await sendMail({ kind: 'break-glass-decision', to: decided.by, ...bgMail(decision === 'approve' ? 'approved' : 'declined', decided) });
+    return respond(200, { request: decided });
+  }
+  return respond(405, { error: 'METHOD' });
+}
+
+/* =====================================================================================
+ * ACTIVITY (relay request 9): GET /{project}/activity, platform administrators only. Every save of the account list,
+ * turned into what changed (from the repository's own history: each version is read once and kept, since a commit
+ * never changes), with View as, break glass and sign-in records beside it. Nothing new is stored.
+ * ===================================================================================== */
+const versionCache = new Map();
+const LEVEL = r => ({ admin: 'Admin', staff: 'Edit', facilitator: 'Edit', view: 'View' }[r] || (r ? String(r) : ''));
+function diffPeople(a, b) {
+  const out = [], keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  for (const e of keys) {
+    const x = (a || {})[e], y = (b || {})[e], name = (y || x || {}).name || e;
+    if (!x) { out.push({ person: e, name, change: 'added' }); continue; }
+    if (!y) { out.push({ person: e, name, change: 'removed' }); continue; }
+    for (const f of ['name', 'group', 'expires', 'platformAdmin']) if (JSON.stringify(x[f] ?? null) !== JSON.stringify(y[f] ?? null)) out.push({ person: e, name, field: f, before: x[f] ?? null, after: y[f] ?? null });
+    const ax = x.access || {}, ay = y.access || {};
+    for (const k of new Set([...Object.keys(ax), ...Object.keys(ay)])) if (LEVEL(ax[k]) !== LEVEL(ay[k])) out.push({ person: e, name, tool: k, before: LEVEL(ax[k]) || null, after: LEVEL(ay[k]) || null });
+  }
+  return out;
+}
+async function activity(event, who) {
+  const pa = await isPlatformAdmin(lowerOf(who.email));
+  if (!pa.ok) return respond(403, { error: pa.error || 'NOT_PLATFORM_ADMIN' });
+  const loc = directoryLoc(); if (!loc.private) return respond(404, { error: 'NO_DIRECTORY' });
+  const hist = await github('GET', `/repos/${loc.repo}/commits?path=${encodeURIComponent(loc.path)}&sha=${encodeURIComponent(loc.branch)}&per_page=25`);
+  if (hist.status !== 200 || !Array.isArray(hist.json)) return respond(502, { error: 'HISTORY_UNREADABLE' });
+  const at = async sha => { if (versionCache.has(sha)) return versionCache.get(sha);
+    const f = await readFile(loc.repo, sha, loc.path); const v = f.status === 200 ? ((f.data && f.data.people) || {}) : (f.status === 404 ? {} : null);
+    if (v) versionCache.set(sha, v); return v; };
+  const entries = [];
+  for (const c of hist.json) {
+    const now = await at(c.sha); if (!now) continue;
+    const before = c.parents && c.parents[0] ? await at(c.parents[0].sha) : {};
+    const changes = diffPeople(before || {}, now);
+    if (!changes.length) continue;
+    entries.push({ kind: changes.some(x => x.change || x.field) ? 'Account' : 'Access', at: c.commit.author.date, by: c.commit.author.name, message: String(c.commit.message).split('\n')[0], changes });
+  }
+  const log = await acctRead(LOG_PATH);
+  for (const v of (log.data && Array.isArray(log.data.entries) ? log.data.entries : [])) entries.push({ kind: 'View as', at: v.at, by: v.by, as: v.as, until: v.until });
+  const bg = await acctRead(BG_PATH);
+  for (const q of (bg.data && Array.isArray(bg.data.requests) ? bg.data.requests : [])) {
+    entries.push({ kind: 'Break glass', at: q.at, by: q.by, event: 'requested', person: q.person, project: q.project, reason: q.reason, id: q.id });
+    if (q.decidedAt) entries.push({ kind: 'Break glass', at: q.decidedAt, by: q.decidedBy, event: q.status === 'declined' ? 'declined' : 'approved', person: q.person, project: q.project, id: q.id });
+    for (const o of (q.opened || [])) entries.push({ kind: 'Break glass', at: o, by: q.by, event: 'opened', person: q.person, project: q.project, id: q.id });
+  }
+  const st = await github('GET', `/repos/${loc.repo}/commits?path=${encodeURIComponent(process.env.AUTH_STATE_PATH || 'auth-state.json')}&sha=${encodeURIComponent(loc.branch)}&per_page=40`);
+  if (st.status === 200 && Array.isArray(st.json)) for (const c of st.json) {
+    const msg = String(c.commit.message).split('\n')[0];
+    if (/^(Locked|Reset requested|Password (set|changed)|Unlocked|Reset link)/i.test(msg)) entries.push({ kind: 'Sign-in', at: c.commit.author.date, by: c.commit.author.name, message: msg });
+  }
+  entries.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  return respond(200, { entries: entries.slice(0, 200) });
+}
+
 /* Maps a GitHub write result to our response. */
 function writeOutcome(status, json, hadSha) {
   // 409: the sha is stale. 422 with no sha: the file was created since the caller read a
@@ -1110,6 +1323,29 @@ async function updateState(email, change, message) {
   }
   return { error: 'CONFLICT' };
 }
+
+/* Small JSON records beside the account list (relay request 9): break-glass.json and access-log.json. Read fresh;
+ * changed by re-reading and retrying if someone else wrote first, as updateState does. */
+async function acctRead(path) {
+  const loc = directoryLoc(); if (!loc.private) return { error: 'NO_DIRECTORY' };
+  const file = await readFile(loc.repo, loc.branch, path);
+  if (file.status === 404) return { data: {}, sha: null };
+  if (file.status !== 200) return { error: 'RECORD_UNREADABLE' };
+  return { data: (file.data && typeof file.data === 'object') ? file.data : {}, sha: file.sha };
+}
+async function acctUpdate(path, change, message) {
+  const loc = directoryLoc(); if (!loc.private) return { error: 'NO_DIRECTORY' };
+  for (let tries = 0; tries < 4; tries++) {
+    const cur = await acctRead(path); if (cur.error) return cur;
+    const next = change(JSON.parse(JSON.stringify(cur.data)));
+    if (next && next.__error) return { error: next.__error, detail: next.__detail };
+    const { status } = await github('PUT', `/repos/${loc.repo}/contents/${path}`, { message, content: encodeBase64Utf8(next), branch: loc.branch, sha: cur.sha || undefined });
+    if (status === 200 || status === 201) return { ok: true, data: next };
+    if (status !== 409 && status !== 422) return { error: 'GITHUB', status };
+  }
+  return { error: 'CONFLICT' };
+}
+const BG_PATH = 'break-glass.json', LOG_PATH = 'access-log.json';
 
 /* Emails that match no account still count down and lock, in this container's memory, so the
  * warnings look the same whether or not an account exists and cannot be used to find out. */
@@ -1290,6 +1526,7 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
   const auth = headers['authorization'] || '';
   const payload = auth.startsWith('Bearer ') ? verifyToken(auth.slice(7).trim(), process.env.AUTH_SECRET) : { error: 'TOKEN_BAD' };
   if (payload.error) return respond(401, { error: payload.error });
+  if (payload.va) return respond(403, { error: 'VIEW_AS_READ_ONLY', message: 'Viewing as someone else is read-only.' });   /* relay request 9 */
   const me = personByEmail(dir.people, payload.sub);
   if (!me || isExpired(me) || tokenIsStale(payload, me)) return respond(401, { error: 'TOKEN_STALE', message: 'Sign in again.' });
 
@@ -1342,7 +1579,9 @@ async function attemptSignIn(email, password, origin) {
     await updateState(id, x => ({ ...x, failed, lastFailedAt: now }), `Incorrect password for ${id}`);
     return { response: failedResponse(MAX_FAILED - failed) };
   }
-  if (s.failed) await updateState(id, x => { const { failed, lastFailedAt, ...rest } = x; return rest; }, `Signed in: ${id}`);
+  /* the last sign-in is recorded (relay request 9), at most once an hour so signing in doesn't mean a commit each time */
+  const stale = !s.lastSignInAt || Date.parse(now) - Date.parse(s.lastSignInAt) > 3_600_000;
+  if (s.failed || stale) await updateState(id, x => { const { failed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: now }; }, `Signed in: ${id}`);
   return { found: person };
 }
 
@@ -1581,7 +1820,35 @@ export async function handler(event, context) {
     if (tokenIsStale(payload, me)) return respond(401, { error: 'TOKEN_STALE', message: 'Your password was changed. Sign in again.' });
     const access = {};
     for (const [k, role] of Object.entries(me.access || {})) { const r = normaliseRole(role); if (r) access[k] = r; }
-    return respond(200, { name: me.name || me.email, email: me.email, access, platformAdmin: me.platformAdmin === true, passwords: selfServiceOn() });
+    return respond(200, { name: me.name || me.email, email: me.email, access, platformAdmin: me.platformAdmin === true, passwords: selfServiceOn(),
+      ...(payload.va ? { viewAs: { by: payload.va, until: new Date(payload.exp * 1000).toISOString() } } : {}) });
+  }
+  /* POST /{project}/auth/view-as {email} (relay request 9): a platform administrator sees the site as someone else,
+   * read-only, for 30 minutes. Never as another administrator. Each use is recorded in access-log.json before the
+   * token is issued (no record, no token). Every save made with the token is refused (see the guard below). */
+  if (method === 'POST' && subPath === '/auth/view-as') {
+    if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
+    const o = headers['origin']; if (o && o !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This relay does not serve that site.' });
+    if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET' });
+    const auth = headers['authorization'] || '';
+    const payload = auth.startsWith('Bearer ') ? verifyToken(auth.slice(7).trim(), process.env.AUTH_SECRET) : { error: 'TOKEN_BAD' };
+    if (payload.error) return respond(401, { error: payload.error });
+    if (payload.va) return respond(403, { error: 'VIEW_AS_READ_ONLY', message: 'Viewing as someone else is read-only.' });
+    const dir = await loadAccess(); if (dir.error) return respond(502, { error: dir.error });
+    const me = personByEmail(dir.people, payload.sub);
+    if (!me || isExpired(me) || tokenIsStale(payload, me)) return respond(401, { error: 'TOKEN_STALE', message: 'Sign in again.' });
+    if (me.platformAdmin !== true) return respond(403, { error: 'NOT_PLATFORM_ADMIN' });
+    const { body, error } = parseBody(event); if (error) return error;
+    const target = personByEmail(dir.people, lowerOf(body && body.email));
+    if (!target || isExpired(target)) return respond(404, { error: 'NO_ACCOUNT' });
+    if (target.platformAdmin === true) return respond(403, { error: 'VIEW_AS_ADMIN', message: 'An administrator can\u2019t be viewed as.' });
+    const now = Math.floor(Date.now() / 1000), until = now + VIEW_AS_SECONDS, untilIso = new Date(until * 1000).toISOString();
+    const logged = await acctUpdate(LOG_PATH, d => ({ entries: [{ kind: 'view-as', by: me.email, as: target.email, at: new Date().toISOString(), until: untilIso },
+      ...(Array.isArray(d.entries) ? d.entries : [])].slice(0, 500) }), `View as ${target.email} (by ${me.email})`);
+    if (logged.error) return respond(502, { error: 'NOT_RECORDED', message: 'View as could not be recorded, so it wasn\u2019t started.' });
+    const token = signToken({ sub: target.email, name: target.name || target.email, iat: now, exp: until, va: me.email }, process.env.AUTH_SECRET);
+    const access = {}; for (const [k, role] of Object.entries(target.access || {})) { const r = normaliseRole(role); if (r) access[k] = r; }
+    return respond(200, { token, name: target.name || target.email, email: target.email, access, platformAdmin: false, expiresAt: until * 1000, viewAs: { by: me.email, until: untilIso } });
   }
   const pwRoute = await passwordRoutes(method, subPath, event, headers, proj);
   if (pwRoute) return pwRoute;
@@ -1602,7 +1869,8 @@ export async function handler(event, context) {
   const commitMatch = subPath === '/commit';
   const isFacilitators = subPath === '/facilitators';
   const isAsk = subPath === '/ask';
-  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk) return respond(404, { error: 'NOT_FOUND' });
+  const isBreakglass = /^\/breakglass(\/[A-Za-z0-9-]+)?$/.test(subPath), isActivity = subPath === '/activity';
+  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk && !isBreakglass && !isActivity) return respond(404, { error: 'NOT_FOUND' });
   if (configMatch && !CONFIG_FILES[configMatch[1]]) return respond(404, { error: 'NOT_FOUND' });
 
   const who = await authenticate(headers, repo, branch);
@@ -1634,12 +1902,17 @@ export async function handler(event, context) {
    * not this project's content, and it turns on whether the caller is a platform
    * administrator rather than on what they hold here. A platform administrator with
    * view access to one tool must still be able to manage people. */
-  if (!isAccess && !isAsk && method !== 'GET' && who.role === 'view') {   /* asking writes nothing (relay request 9) */
+  /* View as is read-only everywhere (relay request 9). Answered as VIEW_ONLY, which every page already handles (the
+   * shared sign-in's access probe reads it as View), with viewAs set so a page can say why. */
+  if (who.viewAs && method !== 'GET') return respond(403, { error: 'VIEW_ONLY', viewAs: true, message: 'Viewing as someone else is read-only.' });
+  if (!isAccess && !isAsk && !isBreakglass && method !== 'GET' && who.role === 'view') {   /* asking writes nothing (relay request 9) */
     return respond(403, { error: 'VIEW_ONLY',
       message: 'Your account has view access to this application. You can read it but not save changes.' });
   }
 
   if (isAsk) return method === 'POST' ? askRoute(proj, who, event) : respond(405, { error: 'METHOD' });
+  if (isBreakglass) return breakGlass(method, subPath, event, who);
+  if (isActivity) return method === 'GET' ? activity(event, who) : respond(405, { error: 'METHOD' });
 
   /* ----- dashboards: staff or admin ----- */
   /* GET  /{project}/access — the whole directory, for the admin panel.
@@ -1667,7 +1940,7 @@ export async function handler(event, context) {
       const out = { people: dir.people, sha: dir.sha, fields: selfServiceOn() ? ['group', 'auth'] : ['group'], groups: [...PEOPLE_GROUPS] };   /* the sections it keeps: the panel moves facilitators over when it sees 'facilitator' */
       if (selfServiceOn()) {
         const st = await readState();
-        if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, failed: s.failed || 0 }]));
+        if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, failed: s.failed || 0, lastSignInAt: s.lastSignInAt || null }]));
       }
       return respond(200, out);
     }
@@ -1769,6 +2042,12 @@ export async function handler(event, context) {
   if (OWNED_FILES[proj.key] && (fileMatch || commitMatch)) {
     return respond(403, { error: 'NOT_ALLOWED', message: 'Work requests are read and saved one person at a time.' });
   }
+  if (membersPaths(proj).size && (fileMatch || commitMatch)) {
+    const mp = membersPaths(proj); let paths = [];
+    if (fileMatch) paths = [decodeURIComponent(fileMatch[1])];
+    else { const pb = parseBody(event); paths = (pb.body && Array.isArray(pb.body.files) ? pb.body.files : []).map(f => String((f && f.path) || '')); }
+    if (paths.some(x => mp.has(x.replace(/^\.?\/+/, '')))) return respond(403, { error: 'MEMBERS_ONLY', message: 'That file is read and saved one person at a time.' });
+  }
   if (fileMatch && method === 'GET') {
     const wanted = decodeURIComponent(fileMatch[1]);
     if (wanted.includes('..') || wanted.startsWith('/')) return respond(400, { error: 'BAD_PATH' });
@@ -1796,6 +2075,7 @@ export async function handler(event, context) {
     /* Work Requests: each person's own (see WORK REQUESTS: EACH PERSON'S OWN). */
     const ownRule = OWNED_FILES[proj.key] && OWNED_FILES[proj.key][id];
     if (ownRule) return ownedData(ownRule, method, id, event, who, repo, branch);
+    if (proj.membersOnly && Object.prototype.hasOwnProperty.call(proj.membersOnly, id)) return membersData(proj, proj.membersOnly[id], method, id, event, who);
     const filePath = `data/${id}.json`;
 
     if (method === 'GET') {
