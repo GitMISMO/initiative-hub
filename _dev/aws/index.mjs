@@ -639,7 +639,9 @@ async function roleFor(email, projectKey) {
   const person = Object.entries(dir.people).find(([addr]) => addr.toLowerCase() === String(email).toLowerCase())?.[1];
   if (!person) return { error: 'NO_ACCOUNT' };
   if (isExpired(person)) return { error: 'ACCOUNT_EXPIRED' };
-  const role = normaliseRole(person.access && person.access[projectKey]);
+  /* Administrators have every tool, including ones added after their access was last saved (relay request 9; Perry,
+   * 8 Oct 2026: a new tool, IIF Planning HQ, turned its own administrator away until People & Access was saved). */
+  const role = person.platformAdmin === true ? 'admin' : normaliseRole(person.access && person.access[projectKey]);
   if (!role) return { error: 'NO_ACCESS' };
   return { name: person.name || email, role };
 }

@@ -159,6 +159,14 @@ ok("an access change shows who, what and before/after", accE && accE.by === 'Jon
 ok('View as and break glass appear too', d.entries.some(x => x.kind === 'View as' && x.as === 'amy@example.org') && d.entries.some(x => x.kind === 'Break glass' && x.event === 'approved') && d.entries.some(x => x.kind === 'Break glass' && x.event === 'opened'));
 ok('newest first', d.entries.every((x, i) => !i || String(d.entries[i - 1].at) >= String(x.at)));
 
+/* ---------- administrators have every tool, even one not written in their access ---------- */
+{ const cfg = JSON.parse(JSON.stringify(repo['Org/Config:projects.json'][repo['Org/Config:projects.json'].length - 1].data)); cfg['new-tool'] = { repo: 'Org/NewTool', origin: ORIGIN, writable: ['data/'] }; put('Org/Config:projects.json', cfg); put('Org/NewTool:data/plan.json', { items: [1] }); }
+relay.__resetProjectsCache && relay.__resetProjectsCache();
+r = await call('GET', 'new-tool', '/data/plan', T.perry);
+ok("an administrator opens a new tool that isn't in his written access", r.statusCode === 200, J(r));
+r = await call('GET', 'new-tool', '/data/plan', T.amy);
+ok('anyone else still needs it written', r.statusCode === 403 && J(r).error === 'NO_ACCESS', J(r));
+
 /* ---------- last sign-in ---------- */
 const st = () => (latest('Org/Accounts:auth-state.json').data.accounts || {});
 ok('signing in records the time', !!(st()['ken@example.org'] || {}).lastSignInAt);
