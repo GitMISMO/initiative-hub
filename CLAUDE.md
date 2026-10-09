@@ -444,8 +444,9 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
    (Its private `-data` repository needs nothing on the relay's token: since 8 Oct 2026 it covers every GitMISMO
    repository.)
    The admin panel's People & Access and every account menu read tools.json, so one entry covers both.
-3. **Who gets access**, set from the console: ask Perry (for example, admins only, staff Edit, or
-   named people), then set it in People & Access. Administrators' access is always managed in the Admin Console.
+3. **Who gets access beyond the administrators.** Perry and Jonna always have every tool, as administrators,
+   managed in the Admin Console: that is never the question. Ask Perry **who else** gets access, and at what level
+   (Edit or View), or nobody yet; then set it in People & Access (Perry, 9 Oct 2026).
 4. **Which of its pages appear on the home page**: suggest options for Perry to choose from (its
    main page, and the two or three tasks people come to do, worded as tasks, for example
    “Make a QR code” opening Make a New Code), with the words people might search for each.
