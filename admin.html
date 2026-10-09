@@ -523,6 +523,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 <div class="err" id="globalErr" hidden role="alert"></div>
 <section class="view nx" id="view-people">
   <div class="nx-bar"><div class="grow"><h1>People</h1><div class="sub" id="accSub">Who can sign in, and what they can open.</div></div><span class="st topst" id="accStatus">No changes</span><button class="btn" type="button" id="accReload">Discard</button><button class="btn g" type="button" id="accSave" disabled>Save Access</button><button class="btn p" type="button" id="accAddOpen" hidden>+ Add a person</button></div>
+  <div class="err" id="accErr" hidden role="alert" style="margin-bottom:12px"></div>
   <div id="accUnavailable" class="nnote bad" hidden></div>
   <div class="addcard" id="accAddCard" hidden>
         <div class="hd"><h2>Add a person</h2><small>A password is generated here and shown once</small></div>
@@ -539,10 +540,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   <div id="accReady" hidden>
     <div class="nx-bar" id="pplChips" style="margin-bottom:12px"></div>
     <div class="two" id="accList"></div>
-    <div class="err" id="accErr" hidden role="alert"></div>
   </div></section>
 <section class="view nx" id="view-tools" hidden>
   <div class="nx-bar"><div class="grow"><h1>Tools</h1><div class="sub">Every tool on MISMO Resources and who can open it. Grouped tools start folded.</div></div><span class="st topst" id="accStatus2">No changes</span><button class="btn g" type="button" data-acc-save disabled>Save Access</button></div>
+  <div class="err" id="accErr2" hidden role="alert" style="margin-bottom:12px"></div>
   <div class="two" id="toolList"></div></section>
 <section class="view" id="view-types" hidden>
     <header class="mast"><div><div class="eyebrow">Initiative Hub</div><h1>Stakeholder Types</h1>
@@ -738,7 +739,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     el.textContent = text || (state === 'dirty' ? 'Unsaved changes' : 'No changes');
     el.classList.toggle('dirty', state === 'dirty'); el.classList.toggle('ok', state === 'ok');
   }
-  function showErr(id, msg){ const el = $(id); if (!msg) { el.hidden = true; el.textContent = ''; return; } el.textContent = msg; el.hidden = false; }
+  function showErr(id, msg){ showErr0(id, msg); if (id === 'accErr') { if ($('accErr2')) showErr0('accErr2', msg); if (msg) { setStatus('accStatus', 'dirty', 'Not saved'); const t = $('accErr'); if (view === 'people' && t.getBoundingClientRect().top < 0) t.scrollIntoView({ block: 'center' }); } } }
+  function showErr0(id, msg){ const el = $(id); if (!msg) { el.hidden = true; el.textContent = ''; return; } el.textContent = msg; el.hidden = false; }
   let revealBack = null;
   function reveal(name, code, what){
     revealBack = document.activeElement;
@@ -1552,7 +1554,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       areasOf().forEach(([area, ts]) => {
         const have = ts.filter(t => levelOf(a[t.key]) !== 'none');
         /* Service Orders always shows, even at 0 of 5, so Choose and its Every company row are always within reach */
-        if (!have.length && soOpen !== area && !isFamily(area, ts)) return; n += have.length;
+        if (!have.length && soOpen !== area) return; n += have.length;   /* none of these companies: offered in the picker instead */
         if (isFamily(area, ts)) {
           const open = soOpen === area;
           body += `<div class="label">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">${have.length} of ${ts.length} companies<small>${have.length ? have.map(t => esc(t.label.split(' LLC')[0].split(' \u2014')[0])).join(', ') : 'None yet'}</small></span><button type="button" class="btn sm" data-so="${esc(area)}">${open ? 'Done' : 'Choose'}</button></div>`;
@@ -1563,6 +1565,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       });
       const picker = pickerOpen ? '<div class="picker"><div class="label strong">Give access to</div>' + areasOf().map(([area, ts]) => {
           const miss = ts.filter(t => levelOf(a[t.key]) === 'none'); if (!miss.length) return '';
+          if (isFamily(area, ts)) {
+            if (miss.length < ts.length) return '';   /* they have some already: the group is in the panel, with Choose */
+            const keys = ts.map(t => t.key).join(',');
+            return `<div class="label sm">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">Every company<small>${ts.length} companies, or choose some</small></span><span class="seg"><button type="button" data-acc-all="${esc(email)}" data-keys="${keys}" data-level="edit">Edit</button><button type="button" data-acc-all="${esc(email)}" data-keys="${keys}" data-level="view">View</button></span><button type="button" class="btn sm" data-so="${esc(area)}">Choose\u2026</button></div>`;
+          }
           return `<div class="label sm">${esc(AREA_SHORT[area] || area)}</div>` + miss.map(t => `<div class="trow2"><span class="tn">${esc(t.label)}</span><span class="seg"><button type="button" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="edit">Edit</button><button type="button" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="view">View</button></span></div>`).join(''); }).join('') +
         '<button type="button" class="btn sm" data-picker="close" style="margin-top:8px;align-self:flex-start">Close</button></div>'
         : '<button type="button" class="give" data-picker="open">+ Give access to a tool\u2026</button>';
@@ -1628,7 +1635,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (moreOpen && view === 'tools') { moreOpen = null; if (!e.target.closest('[data-tool-open],[data-tool-fold]')) { renderTools(); return; } }
     const f = e.target.closest('[data-tool-fold]'); if (f) { toolOpen[f.dataset.toolFold] = !toolOpen[f.dataset.toolFold]; renderTools(); return; }
     const o = e.target.closest('[data-tool-open]'); if (o) { toolSel = toolSel === o.dataset.toolOpen ? null : o.dataset.toolOpen; pickerOpen = false; renderTools(); return; }
-    const so = e.target.closest('[data-so]'); if (so) { soOpen = soOpen === so.dataset.so ? null : so.dataset.so; renderCurrent(); return; }
+    const so = e.target.closest('[data-so]'); if (so) { soOpen = soOpen === so.dataset.so ? null : so.dataset.so; if (so.closest('.picker')) pickerOpen = false; renderCurrent(); return; }
     const pk = e.target.closest('[data-picker]'); if (pk) { pickerOpen = pk.dataset.picker === 'open'; renderCurrent(); return; }
     const sc = e.target.closest('[data-sec]'); if (sc) { secFilter = sc.dataset.sec; renderAccess(); return; }
     const fl = e.target.closest('[data-flag]'); if (fl) { flagFilter = flagFilter === fl.dataset.flag ? '' : fl.dataset.flag; renderAccess(); return; }
