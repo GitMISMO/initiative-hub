@@ -866,7 +866,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     await loadToolList();
     try {
       const r = await S.access.get();
-      acc = { people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),
+      acc = { base: canon(r.people || {}), people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),
               selfService: (r.fields || []).includes('auth'), locks: r.auth || {}, storable: Array.isArray(r.groups) ? r.groups : null };
       /* Once sections are kept, everyone starts in the one they are shown in, so the next
          save writes them all rather than only the ones someone moved. */
@@ -1131,7 +1131,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     try {
       const r = await S.access.put(acc.people, acc.sha);
       acc.sha = r.sha; acc.dirty = false; freshRow = null;
-      setStatus('accStatus', 'ok', `Saved. ${r.count} ${r.count === 1 ? 'person' : 'people'}.`);
+      acc.base = canon(acc.people); acc.pending = false; setStatus('accStatus', 'ok', `Saved. ${r.count} ${r.count === 1 ? 'person' : 'people'}.`);
       renderAccess();
       return { ok: true };
     } catch (e) {
@@ -1495,7 +1495,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   const byLast = (a, b) => lastOf(a).localeCompare(lastOf(b)) || String(a).localeCompare(String(b));
   const isLocked = email => !!(acc && acc.locks && acc.locks[email] && acc.locks[email].locked);
   function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); }
-  function markAcc(){ acc.dirty = true; setStatus('accStatus', 'dirty'); showErr('accErr'); renderCurrent(); }
+  /* Changed means different from what was loaded (or last saved): add a tool and take it away again, and it's back to
+     No changes, with no warning on leaving (Perry, 8 Oct 2026). A change the console made itself on loading (pending)
+     still needs its save. Keys sorted, so the order things were added in doesn't count. */
+  function canon(o){ return JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((a, x) => (a[x] = v[x], a), {}) : v); }
+  function markAcc(){
+    if (acc.pending === undefined) acc.pending = false;
+    acc.dirty = !!acc.pending || canon(acc.people) !== acc.base;
+    if (acc.dirty) setStatus('accStatus', 'dirty'); else setStatus('accStatus');
+    showErr('accErr'); renderCurrent(); }
   function summarise(p){
     if (p.platformAdmin) return '<span class="tag admin">Administrator \u00b7 every tool</span>';
     const a = p.access || {}; const edit = TOOLS.filter(t => levelOf(a[t.key]) === 'edit').length, vw = TOOLS.filter(t => levelOf(a[t.key]) === 'view').length;
@@ -1521,6 +1529,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   });
   function renderAccess(){
     if (!acc) return;
+    if (acc.pending === undefined) acc.pending = !!acc.dirty;   /* the first draw after loading: what loading itself changed */
     const all = Object.entries(acc.people).sort((a, b) => byLast(a[1].name, b[1].name));
     $('nPeople').textContent = all.length; if ($('nTools')) $('nTools').textContent = TOOLS.length;
     const counts = {}; all.forEach(([e]) => { counts[groupOf(e)] = (counts[groupOf(e)] || 0) + 1; });
