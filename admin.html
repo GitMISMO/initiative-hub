@@ -395,6 +395,8 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .lvsel:hover{border-color:var(--sky-soft,#9DC3E0)}
 .nx .give{border:1.5px dashed var(--line-2,#C9D9E6);border-radius:9px;padding:9px 11px;color:var(--accent);font:inherit;font-weight:700;background:none;text-align:left;cursor:pointer;margin-top:8px}
 .nx .give:hover{background:var(--sunk)}
+.nx .trow2.just-added{animation:nxJustAdded 2.4s ease-out;border-radius:7px}
+@keyframes nxJustAdded{0%{background:rgba(80,164,219,.34);box-shadow:0 0 0 3px rgba(80,164,219,.5)}70%{background:rgba(80,164,219,.16);box-shadow:0 0 0 3px rgba(80,164,219,.22)}100%{background:transparent;box-shadow:0 0 0 0 rgba(80,164,219,0)}}
 .nx .pk-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px}
 .nx .picker{border:1px solid var(--sky-soft,#9DC3E0);border-radius:10px;padding:8px 10px 10px;margin-top:8px;background:var(--sunk);display:flex;flex-direction:column;gap:2px}
 .nx .dot{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--c,#888);margin-right:6px;vertical-align:middle}
@@ -1629,6 +1631,21 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const c = e.target.closest && e.target.closest('.tcard[role="button"]');
     if (c && e.target === c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); c.click(); }
   });
+  /* Something given from the box: its new row glows in the list, and the box (with its Save) stays in view, since the
+     list above it just grew (Perry, 8 Oct 2026). Noted before the handlers redraw, applied after. */
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.picker [data-acc-level], .picker [data-acc-all]');
+    if (!b || b.dataset.level === 'none') return;
+    const add = { email: b.dataset.accLevel || b.dataset.accAll, key: b.dataset.tool || (b.dataset.keys || '').split(',')[0] };
+    setTimeout(() => {
+      const scope = document.querySelector('.view:not([hidden]) .panel2'); if (!scope) return;
+      const tool = TOOLS.find(t => t.key === add.key) || {}, area = tool.group;
+      const hit = scope.querySelector(`select[data-acc-pick="${CSS.escape(add.email)}"][data-tool="${CSS.escape(add.key)}"]`) || (area ? scope.querySelector(`[data-so="${CSS.escape(area)}"]`) : null);
+      const row = hit && hit.closest('.trow2');
+      if (row) { row.classList.remove('just-added'); void row.offsetWidth; row.classList.add('just-added'); setTimeout(() => row.classList.remove('just-added'), 2400); }
+      const box = scope.querySelector('.picker'); if (box) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 0);
+  }, true);
   let moreOpen = null;
   document.addEventListener('click', e => {
     const mo = e.target.closest('[data-more]'); if (mo) { moreOpen = moreOpen === mo.dataset.more ? null : mo.dataset.more; renderTools(); return; }
