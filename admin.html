@@ -395,6 +395,7 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .lvsel:hover{border-color:var(--sky-soft,#9DC3E0)}
 .nx .give{border:1.5px dashed var(--line-2,#C9D9E6);border-radius:9px;padding:9px 11px;color:var(--accent);font:inherit;font-weight:700;background:none;text-align:left;cursor:pointer;margin-top:8px}
 .nx .give:hover{background:var(--sunk)}
+.nx .pk-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px}
 .nx .picker{border:1px solid var(--sky-soft,#9DC3E0);border-radius:10px;padding:8px 10px 10px;margin-top:8px;background:var(--sunk);display:flex;flex-direction:column;gap:2px}
 .nx .dot{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--c,#888);margin-right:6px;vertical-align:middle}
 .nx .dot.big{width:38px;height:38px;border-radius:9px;margin:0}
@@ -1571,7 +1572,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
             return `<div class="label sm">${esc(AREA_SHORT[area] || area)}</div><div class="trow2"><span class="tn">Every company<small>${ts.length} companies, or choose some</small></span><span class="seg"><button type="button" data-acc-all="${esc(email)}" data-keys="${keys}" data-level="edit">Edit</button><button type="button" data-acc-all="${esc(email)}" data-keys="${keys}" data-level="view">View</button></span><button type="button" class="btn sm" data-so="${esc(area)}">Choose\u2026</button></div>`;
           }
           return `<div class="label sm">${esc(AREA_SHORT[area] || area)}</div>` + miss.map(t => `<div class="trow2"><span class="tn">${esc(t.label)}</span><span class="seg"><button type="button" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="edit">Edit</button><button type="button" data-acc-level="${esc(email)}" data-tool="${esc(t.key)}" data-level="view">View</button></span></div>`).join(''); }).join('') +
-        '<button type="button" class="btn sm" data-picker="close" style="margin-top:8px;align-self:flex-start">Close</button></div>'
+        '<div class="pk-foot"><button type="button" class="btn sm" data-picker="close">Close</button><button type="button" class="btn g sm" data-acc-save data-from-picker>Save Access</button></div></div>'
         : '<button type="button" class="give" data-picker="open">+ Give access to a tool\u2026</button>';
       body = `<div class="label strong">Has access to ${n} ${n === 1 ? 'tool' : 'tools'}</div>` + (body || '<div class="nnote">No tools yet.</div>') + picker;
     }
@@ -1611,7 +1612,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       const ed = who([t.key], 'edit'), vw = who([t.key], 'view'), admins = people.filter(([, p]) => p.platformAdmin).map(([, p]) => p.name);
       const none = people.filter(([, p]) => !p.platformAdmin && levelOf((p.access || {})[t.key]) === 'none');
       const row = (p, role) => `<div class="trow2">${avh(p.name, 24)}<span class="tn">${esc(p.name)}</span>${lvSeg(p.email, t, role)}</div>`;
-      const picker = pickerOpen ? '<div class="picker"><div class="label strong">Give access to</div>' + (none.map(([e, p]) => `<div class="trow2">${avh(p.name, 24)}<span class="tn">${esc(p.name)}</span><span class="seg"><button type="button" data-acc-level="${esc(e)}" data-tool="${esc(t.key)}" data-level="edit">Edit</button><button type="button" data-acc-level="${esc(e)}" data-tool="${esc(t.key)}" data-level="view">View</button></span></div>`).join('') || '<div class="nnote">Everyone already has it.</div>') + '<button type="button" class="btn sm" data-picker="close" style="margin-top:8px;align-self:flex-start">Close</button></div>'
+      const picker = pickerOpen ? '<div class="picker"><div class="label strong">Give access to</div>' + (none.map(([e, p]) => `<div class="trow2">${avh(p.name, 24)}<span class="tn">${esc(p.name)}</span><span class="seg"><button type="button" data-acc-level="${esc(e)}" data-tool="${esc(t.key)}" data-level="edit">Edit</button><button type="button" data-acc-level="${esc(e)}" data-tool="${esc(t.key)}" data-level="view">View</button></span></div>`).join('') || '<div class="nnote">Everyone already has it.</div>') + '<div class="pk-foot"><button type="button" class="btn sm" data-picker="close">Close</button><button type="button" class="btn g sm" data-acc-save data-from-picker>Save Access</button></div></div>'
         : '<button type="button" class="give" data-picker="open">+ Give someone access\u2026</button>';
       panel = `<div class="panel2"><div class="ph"><span class="dot big" style="--c:${t.colour}"></span><div class="pn"><b>${esc(t.label)}</b><small>${esc(AREA_SHORT[t.group] || t.group)}</small></div></div>
         <div class="label strong">${ed.length + vw.length} people have access</div><div class="nnote">${esc(admins.join(' and '))} have every tool as administrators.</div>
@@ -1636,12 +1637,17 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const f = e.target.closest('[data-tool-fold]'); if (f) { toolOpen[f.dataset.toolFold] = !toolOpen[f.dataset.toolFold]; renderTools(); return; }
     const o = e.target.closest('[data-tool-open]'); if (o) { toolSel = toolSel === o.dataset.toolOpen ? null : o.dataset.toolOpen; pickerOpen = false; renderTools(); return; }
     const so = e.target.closest('[data-so]'); if (so) { soOpen = soOpen === so.dataset.so ? null : so.dataset.so; if (so.closest('.picker')) pickerOpen = false; renderCurrent(); return; }
-    const pk = e.target.closest('[data-picker]'); if (pk) { pickerOpen = pk.dataset.picker === 'open'; renderCurrent(); return; }
+    const sv = e.target.closest('[data-acc-save]');
+    if (sv) { if (sv.disabled) return; const fromPicker = sv.hasAttribute('data-from-picker');
+      Promise.resolve(saveAccessNow()).then(r => { if (fromPicker && r && r.ok) { pickerOpen = false; renderCurrent(); } }); return; }
+    const pk = e.target.closest('[data-picker]'); if (pk) { pickerOpen = pk.dataset.picker === 'open'; renderCurrent();
+      /* opening it brings the whole list into view, Save included (Perry, 8 Oct 2026) */
+      if (pickerOpen) requestAnimationFrame(() => { const box = document.querySelector('.view:not([hidden]) .panel2 .picker'); if (box) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+      return; }
     const sc = e.target.closest('[data-sec]'); if (sc) { secFilter = sc.dataset.sec; renderAccess(); return; }
     const fl = e.target.closest('[data-flag]'); if (fl) { flagFilter = flagFilter === fl.dataset.flag ? '' : fl.dataset.flag; renderAccess(); return; }
     if (e.target.closest('[data-acc-manage]')) { pickerOpen = false; soOpen = null; renderAccess(); }
   });
-  document.querySelectorAll('[data-acc-save]').forEach(b => b.addEventListener('click', saveAccessNow));
 
   /* ---------- boot ---------- */
   open();
