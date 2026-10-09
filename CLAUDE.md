@@ -292,6 +292,9 @@ access is the one thing not yet checked (see pending items).
 
 Right after the deploy every request failed with `CONFIG_UNAVAILABLE`: GitHub answered
 `401` to the relay's token. **The token is a fine-grained token in Perry's GitHub account.**
+**Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
+repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
+repositories it touches, so treat changes to that list like code changes.
 Perry regenerated it and IT pasted the new value; IT also set a new `AUTH_SECRET`, since
 both had appeared in a screenshot, which signed everyone out once. The log line
 `project config unavailable … returned N` names the cause: 401 token rejected or expired,
@@ -438,6 +441,8 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
 1. **The home page** (`GitMISMO.github.io/index.html`): its tool, in its section, with a colour and icon.
 2. **The admin console**: an entry in `GitMISMO.github.io/assets/tools.json` (key, label, group =
    the section, colour, path; `also` for extra relay keys), plus its keys in `_internal/projects.json`.
+   (Its private `-data` repository needs nothing on the relay's token: since 8 Oct 2026 it covers every GitMISMO
+   repository.)
    The admin panel's People & Access and every account menu read tools.json, so one entry covers both.
 3. **Who gets access**, set from the console: ask Perry (for example, admins only, staff Edit, or
    named people), then set it in People & Access.
