@@ -436,7 +436,7 @@ to search-core.js.
 
 Whenever a new tool or service is added to MISMO Resources (by Claude, by Jonna, or found already
 uploaded), **ask Perry which section it belongs in** (today: Standards & Tools, Planning,
-Sponsorship, Service Orders and Agreements, or a new one), and make a note to add it to all four:
+Sponsorship, Service Orders and Agreements, or a new one), and make a note to add it to all five:
 
 1. **The home page** (`GitMISMO.github.io/index.html`): its tool, in its section, with a colour and icon.
 2. **The admin console**: an entry in `GitMISMO.github.io/assets/tools.json` (key, label, group =
@@ -449,8 +449,12 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
 4. **Which of its pages appear on the home page**: suggest options for Perry to choose from (its
    main page, and the two or three tasks people come to do, worded as tasks, for example
    “Make a QR code” opening Make a New Code), with the words people might search for each.
+5. **If it asks Claude** (Ask, receipts, agents: `"ask": true` in `_internal/projects.json`): **ask Perry what
+   data it sends to Anthropic, and record the answer before switching it on** (Perry, 9 Oct 2026). For example,
+   Team HQ sends board data and receipts (Jonna agreed, Oct 6). One API key serves every tool; spending shows per
+   tool at `/hub/ask-usage` (relay request 9), against the relay workspace's monthly limit in the Claude Console.
 
-Don't consider a new tool finished until all four are done or Perry has said to skip one.
+Don't consider a new tool finished until all five are done or Perry has said to skip one.
 
 ## RULE: every application is behind the sign-in (Perry, 6 Oct 2026)
 

@@ -990,6 +990,7 @@ async function askRoute(proj, who, event) {
   const text = (Array.isArray(j.content) ? j.content : []).filter(c => c && c.type === 'text').map(c => c.text).join('\n');
   const usage = { in: (j.usage && j.usage.input_tokens) || 0, out: (j.usage && j.usage.output_tokens) || 0 };
   console.log(JSON.stringify({ ask: proj.key, email: me, model: j.model || model, tier: complex ? 'complex' : 'default', files: files.length, in: usage.in, out: usage.out }));   // counts only
+  recordUsage(proj.key, j.model || model, usage.in, usage.out); await flushUsage(false);   /* spending by tool */
   return respond(200, { text, model: j.model || model, usage });
 }
 
@@ -1203,6 +1204,47 @@ async function activity(event, who) {
   }
   entries.sort((x, y) => String(y.at).localeCompare(String(x.at)));
   return respond(200, { entries: entries.slice(0, 200) });
+}
+
+
+/* =====================================================================================
+ * SPENDING BY TOOL (relay request 9; Perry, 9 Oct 2026). Every Ask is counted against its tool: requests, and the
+ * tokens Claude read and wrote (what Anthropic bills by), per tool, per model, per month, in ask-usage.json beside
+ * the account list. Counts gather in this container and are written at most every ten minutes, and on the
+ * five-minute keep-warm ping (/version), so a question doesn't mean a commit. GET /{project}/ask-usage shows them
+ * to platform administrators, unwritten counts included. One key serves every tool; this is how spend splits.
+ * ===================================================================================== */
+const USAGE_PATH = 'ask-usage.json', USAGE_FLUSH_MS = 10 * 60_000;
+const usagePending = new Map();
+let usageFlushedAt = Date.now();
+function recordUsage(project, model, inTok, outTok) {
+  const k = `${new Date().toISOString().slice(0, 7)}|${project}|${model}`;
+  const v = usagePending.get(k) || { requests: 0, in: 0, out: 0 };
+  v.requests += 1; v.in += inTok || 0; v.out += outTok || 0; usagePending.set(k, v);
+}
+function addUsage(months, k, v) {
+  const [month, project, model] = k.split('|');
+  const p = ((months[month] = months[month] || {})[project] = months[month][project] || { requests: 0, in: 0, out: 0, models: {} });
+  p.requests += v.requests; p.in += v.in; p.out += v.out;
+  const m = (p.models[model] = p.models[model] || { requests: 0, in: 0, out: 0 });
+  m.requests += v.requests; m.in += v.in; m.out += v.out;
+}
+async function flushUsage(force) {
+  if (!usagePending.size || (!force && Date.now() - usageFlushedAt < USAGE_FLUSH_MS)) return;
+  const pending = new Map(usagePending); usagePending.clear(); usageFlushedAt = Date.now();
+  const n = [...pending.values()].reduce((s, v) => s + v.requests, 0);
+  let w; try { w = await acctUpdate(USAGE_PATH, d => { d.months = d.months || {}; for (const [k, v] of pending) addUsage(d.months, k, v); return d; }, `Ask usage: ${n} request${n === 1 ? '' : 's'}`); } catch (e) { w = { error: 'THROWN' }; }
+  if (w.error) for (const [k, v] of pending) {   /* not written: keep them for the next try */
+    const c = usagePending.get(k) || { requests: 0, in: 0, out: 0 };
+    usagePending.set(k, { requests: c.requests + v.requests, in: c.in + v.in, out: c.out + v.out });
+  }
+}
+async function askUsage(who) {
+  const pa = await isPlatformAdmin(lowerOf(who.email)); if (!pa.ok) return respond(403, { error: pa.error || 'NOT_PLATFORM_ADMIN' });
+  const r = await acctRead(USAGE_PATH); if (r.error) return respond(502, { error: r.error });
+  const months = JSON.parse(JSON.stringify(r.data.months || {}));
+  for (const [k, v] of usagePending) addUsage(months, k, v);
+  return respond(200, { months, unwritten: [...usagePending.values()].reduce((s, v) => s + v.requests, 0) });
 }
 
 /* Maps a GitHub write result to our response. */
@@ -1732,6 +1774,7 @@ export async function handler(event, context) {
   /* GET /version — no project, no credentials, reveals nothing that is not already in the
    * public repository. See SOURCE_SHA256 above. */
   if (method === 'GET' && (event.rawPath === '/version' || event.rawPath === '/version/')) {
+    await flushUsage(true).catch(() => {});   /* the keep-warm ping writes out the Ask counts (spending by tool) */
     return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
              body: JSON.stringify({ sha256: SOURCE_SHA256 }) };
   }
@@ -1871,8 +1914,8 @@ export async function handler(event, context) {
   const commitMatch = subPath === '/commit';
   const isFacilitators = subPath === '/facilitators';
   const isAsk = subPath === '/ask';
-  const isBreakglass = /^\/breakglass(\/[A-Za-z0-9-]+)?$/.test(subPath), isActivity = subPath === '/activity';
-  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk && !isBreakglass && !isActivity) return respond(404, { error: 'NOT_FOUND' });
+  const isBreakglass = /^\/breakglass(\/[A-Za-z0-9-]+)?$/.test(subPath), isActivity = subPath === '/activity', isUsage = subPath === '/ask-usage';
+  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk && !isBreakglass && !isActivity && !isUsage) return respond(404, { error: 'NOT_FOUND' });
   if (configMatch && !CONFIG_FILES[configMatch[1]]) return respond(404, { error: 'NOT_FOUND' });
 
   const who = await authenticate(headers, repo, branch);
@@ -1915,6 +1958,7 @@ export async function handler(event, context) {
   if (isAsk) return method === 'POST' ? askRoute(proj, who, event) : respond(405, { error: 'METHOD' });
   if (isBreakglass) return breakGlass(method, subPath, event, who);
   if (isActivity) return method === 'GET' ? activity(event, who) : respond(405, { error: 'METHOD' });
+  if (isUsage) return method === 'GET' ? askUsage(who) : respond(405, { error: 'METHOD' });
 
   /* ----- dashboards: staff or admin ----- */
   /* GET  /{project}/access — the whole directory, for the admin panel.

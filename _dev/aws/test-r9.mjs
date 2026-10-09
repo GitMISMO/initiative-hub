@@ -28,6 +28,7 @@ const mails = []; const b64 = o => Buffer.from(JSON.stringify(o)).toString('base
 globalThis.fetch = async (url, opts = {}) => {
   const method = (opts.method || 'GET').toUpperCase();
   if (url === 'https://flow.example/mail') { mails.push(JSON.parse(opts.body)); return { status: 202, json: async () => ({}) }; }
+  if (url === 'https://api.anthropic.com/v1/messages') return { status: 200, ok: true, headers: { get: () => null }, json: async () => ({ content: [{ type: 'text', text: 'Hello' }], model: 'claude-sonnet-5-5', usage: { input_tokens: 120, output_tokens: 30 } }) };
   const cm = url.match(/^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/commits\?(.*)$/);
   if (cm) { const q = new URLSearchParams(cm[2]); const h = repo[cm[1] + ':' + q.get('path')] || [];
     return { status: 200, ok: true, headers: { get: () => null }, json: async () => h.map((v, i) => ({ sha: v.sha, commit: { message: v.message, author: { name: v.author, date: v.date } }, parents: i ? [{ sha: h[i - 1].sha }] : [] })).reverse() }; }
@@ -166,6 +167,24 @@ r = await call('GET', 'new-tool', '/data/plan', T.perry);
 ok("an administrator opens a new tool that isn't in his written access", r.statusCode === 200, J(r));
 r = await call('GET', 'new-tool', '/data/plan', T.amy);
 ok('anyone else still needs it written', r.statusCode === 403 && J(r).error === 'NO_ACCESS', J(r));
+
+/* ---------- spending by tool ---------- */
+process.env.ANTHROPIC_API_KEY = 'sk-test';
+const month = new Date().toISOString().slice(0, 7);
+for (let i = 0; i < 2; i++) { r = await call('POST', 'team-hq', '/ask', T.amy, { prompt: 'Plan my day' }); }
+ok('two questions in Team HQ are answered', r.statusCode === 200 && J(r).text === 'Hello', J(r));
+ok('nothing written yet (counts gather, written at most every ten minutes)', !repo['Org/Accounts:ask-usage.json']);
+r = await call('GET', 'hub', '/ask-usage', T.amy);
+ok('spending by tool is for administrators', r.statusCode === 403);
+r = await call('GET', 'hub', '/ask-usage', T.perry); d = J(r);
+ok("an administrator sees Team HQ's two requests and their tokens, unwritten included", d.months[month]['team-hq'].requests === 2 && d.months[month]['team-hq'].in === 240 && d.months[month]['team-hq'].out === 60 && d.unwritten === 2 && d.months[month]['team-hq'].models['claude-sonnet-5-5'].requests === 2, d);
+r = await handler({ rawPath: '/version' });   /* the keep-warm ping: a scheduled event, no browser request details */
+const u = latest('Org/Accounts:ask-usage.json').data.months[month]['team-hq'];
+ok('the keep-warm ping answers and writes the counts out', r.statusCode === 200 && u.requests === 2 && u.in === 240, u);
+await call('POST', 'team-hq', '/ask', T.amy, { prompt: 'Again' });
+d = J(await call('GET', 'hub', '/ask-usage', T.perry));
+ok('a later question adds on top of what was written', d.months[month]['team-hq'].requests === 3 && d.unwritten === 1, d);
+delete process.env.ANTHROPIC_API_KEY;
 
 /* ---------- last sign-in ---------- */
 const st = () => (latest('Org/Accounts:auth-state.json').data.accounts || {});
