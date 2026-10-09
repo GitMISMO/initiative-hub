@@ -445,10 +445,12 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
    repository.)
    The admin panel's People & Access and every account menu read tools.json, so one entry covers both.
 3. **Who gets access**, set from the console: ask Perry (for example, admins only, staff Edit, or
-   named people), then set it in People & Access.
+   named people), then set it in People & Access. Administrators' access is always managed in the Admin Console.
 4. **Which of its pages appear on the home page**: suggest options for Perry to choose from (its
    main page, and the two or three tasks people come to do, worded as tasks, for example
    “Make a QR code” opening Make a New Code), with the words people might search for each.
+   **If no sub-pages or tasks are identified, the home page gets only the main page's button, labelled with the
+   tool's own name (for example, "Member 360"), and no shortcuts** (Perry, 9 Oct 2026).
 5. **If it asks Claude** (Ask, receipts, agents: `"ask": true` in `_internal/projects.json`): **ask Perry what
    data it sends to Anthropic, and record the answer before switching it on** (Perry, 9 Oct 2026). For example,
    Team HQ sends board data and receipts (Jonna agreed, Oct 6). One API key serves every tool; spending shows per
