@@ -464,6 +464,23 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .nx-empty.bad{color:#A23B36}
 @media (max-width:700px){.nx .act-row{grid-template-columns:30px minmax(0,1fr) 22px}.nx .act-row .act-tag,.nx .act-row .act-time{display:none}.nx .act-det{margin-left:16px}}
 
+/* Requests: break glass (relay request 9) */
+.nx .bg-card{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:start;background:var(--card,#fff);border:1px solid var(--line,#D5E2ED);border-radius:12px;padding:12px 14px;margin:8px 0;font-size:14px;line-height:1.45}
+.nx .bg-card.st-pending{border-left:4px solid #D99A2B}
+.nx .bg-card.st-approved{border-left:4px solid #0B6B47}
+.nx .bg-meta{margin-top:4px;font-size:12.5px;color:var(--ink3,#7E98AE)}
+.nx .bg-side{display:flex;gap:8px;align-items:center}
+.nx .bg-wait{font-size:12.5px;color:var(--ink3,#7E98AE)}
+.nx .bg-past{margin-top:18px} .nx .bg-past summary{cursor:pointer}
+.nx .bg-ok{margin:0 0 12px;padding:10px 12px;border-radius:9px;background:#E2F3EC;color:#0B6B47;font-size:13.5px}
+.nx .bg-form{padding:16px;margin:0 0 16px;display:grid;gap:12px;max-width:640px}
+.nx .bg-form label{display:grid;gap:5px;font-size:13px;font-weight:700} .nx .bg-form label small{font-weight:400;color:var(--ink3,#7E98AE)}
+.nx .bg-form select,.nx .bg-form textarea{font:inherit;font-weight:400;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:8px 10px;background:var(--card,#fff);color:inherit}
+.nx .bg-form fieldset{border:0;padding:0;margin:0;display:flex;gap:16px;flex-wrap:wrap} .nx .bg-form legend{font-size:13px;font-weight:700;margin-bottom:5px}
+.nx .bg-form .chk{display:inline-flex;gap:6px;align-items:center;font-weight:400}
+.nx .bg-acts{display:flex;gap:8px;justify-content:flex-end}
+.rail .bg-count{margin-left:auto;background:#D99A2B;color:#fff;border-radius:999px;padding:1px 7px;font-size:11.5px}
+
 </style>
 </head>
 <body class="out">
@@ -661,8 +678,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <button class="btn" type="button" id="archReload">Discard</button>
       <button class="btn p" type="button" id="archSave" disabled>Save Architects</button></div>
   </section>
-<section class="view nx" id="view-requests" hidden><div class="nx-bar"><div class="grow"><h1>Requests</h1><div class="sub">Break-glass requests to approve or decline, and View as.</div></div></div>
-  <div class="nx-empty">Nothing here yet. Requests arrive with the next relay update (Relay Request 9): two administrators together can open one members-only item in Team HQ, and an administrator can view the site as someone else, read-only.</div></section>
+<section class="view nx" id="view-requests" hidden><div class="nx-bar"><div class="grow"><h1>Requests</h1><div class="sub">Break glass: open one person’s members-only items, read-only, for 24 hours. Another administrator has to approve it, and everything is recorded in Activity.</div></div><span class="act-stamp" id="bgStamp" role="status"></span><button type="button" class="btn" id="bgRefresh">Refresh</button><button type="button" class="btn p" id="bgNew">+ New request</button></div>
+  <div class="err" id="bgErr" hidden role="alert" style="margin-bottom:12px"></div><div class="bg-ok" id="bgOk" hidden role="status"></div>
+  <div id="bgForm"></div><div id="bgList"><div class="nx-empty">Loading requests…</div></div></section>
 <section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people and access, and every sign-in event: who did it, and when.</div></div><span class="act-stamp" id="actStamp" role="status"></span><button type="button" class="btn" id="actRefresh">Refresh</button><button type="button" class="btn" id="actCsv">Export CSV</button></div>
   <div class="act-filters"><input type="search" id="actQ" placeholder="Search activity, a person or a tool…" aria-label="Search activity"><div class="act-kinds" id="actKinds" role="group" aria-label="Kind"></div><select id="actRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="0">Everything</option></select></div>
   <div class="act-grid"><div class="act-list" id="actList"><div class="nx-empty">Loading the record…</div></div><aside class="act-side" id="actSide"></aside></div></section>
@@ -1509,7 +1527,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   /* ===== the new console's drawing (Oct 2026). Everything above is today's admin panel, unchanged. ===== */
   document.body.classList.add('next');
   /* Relay request 9 is deployed (Oct 9, 2026): Activity is on. Requests (break glass, View as) follows when its page is built. */
-  const ACT_ON = true, REQ_ON = false;
+  const ACT_ON = true, REQ_ON = true;
   Object.assign(VIEWS, { tools:'view-tools' }, ACT_ON ? { activity:'view-activity' } : {}, REQ_ON ? { requests:'view-requests' } : {});
   if (!REQ_ON) document.querySelectorAll('.rail [data-view="requests"]').forEach(b => { b.hidden = true; });
   if (!ACT_ON) { const rec = document.querySelector('.rail [data-view="activity"]'); if (rec) { rec.hidden = true; if (rec.closest('.railgrp')) rec.closest('.railgrp').hidden = true; } }
@@ -1536,7 +1554,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const diff = Math.round((day(now) - day(d)) / 864e5), time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     return 'Last signed in ' + (diff === 0 ? 'today at ' + time : diff === 1 ? 'yesterday at ' + time : d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }) + ' at ' + time);
   }
-  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); }
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); else if (view === 'requests') renderRequests(); }
   /* Changed means different from what was loaded (or last saved): add a tool and take it away again, and it's back to
      No changes, with no warning on leaving (Perry, 8 Oct 2026). A change the console made itself on loading (pending)
      still needs its save. Keys sorted, so the order things were added in doesn't count. */
@@ -1850,6 +1868,93 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   });
   document.addEventListener('input', e => { if (e.target && e.target.id === 'actQ') { act.q = e.target.value; drawActivity(); } });
   document.addEventListener('change', e => { if (e.target && e.target.id === 'actRange') { act.range = Number(e.target.value); drawActivity(); } });
+
+  /* ===== Requests: break glass (relay request 9). GET /hub/breakglass lists them (pending, approved, declined, lapsed
+     after 3 days, ended after 24 hours); POST asks; POST /<id> {decision} approves or declines (never your own).
+     The relay emails the other administrators and the asker, and records it all. ===== */
+  const MO = { 'team-hq': [['syncs', 'Sync Ups'], ['syncitems', 'Sync Up items'], ['expenses', 'Expenses']] };   /* members-only files, as in the relay's project list */
+  const moLabel = (proj, f) => ((MO[proj] || []).find(x => x[0] === f) || [f, f])[1];
+  const bg = { list: null, me: '', loading: false, err: '', form: null, at: 0, ok: '', actErr: '' };   /* actErr: from an action; stays until the next one */
+  function relayPost(path, body){
+    const s = RS && RS.current && RS.current();
+    return fetch(RELAY_URL + '/hub' + path, { method: 'POST', cache: 'no-store', headers: Object.assign({ 'Content-Type': 'application/json' }, s && s.token ? { 'Authorization': 'Bearer ' + s.token } : {}), body: JSON.stringify(body) })
+      .then(res => res.json().catch(() => ({})).then(b => { if (!res.ok) { const e = new Error((b && (b.message || b.error)) || ('HTTP ' + res.status)); e.code = b && b.error; e.status = res.status; throw e; } return b; }));
+  }
+  function loadBg(force){
+    if (bg.loading) return; if (!force && bg.list && Date.now() - bg.at < 60000) return;
+    bg.loading = true; drawBg();
+    relayGet('/breakglass').then(r => { bg.list = Array.isArray(r.requests) ? r.requests : []; bg.me = String(r.me || '').toLowerCase(); bg.at = Date.now(); bg.err = ''; })
+      .catch(e => { bg.err = e.status === 403 ? 'Only platform administrators can see requests.' : 'Requests could not be loaded (' + e.message + '). Try Refresh.'; })
+      .then(() => { bg.loading = false; drawBg(); });
+  }
+  function renderRequests(){ drawBg(); loadBg(false); }
+  const bgWhen = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+  const bgItems = q => (q.files || []).map(f => moLabel(q.project, f)).join(', ');
+  function bgBadge(){
+    const btn = document.querySelector('.rail [data-view="requests"]'); if (!btn) return;
+    const n = (bg.list || []).filter(q => q.status === 'pending' && String(q.by).toLowerCase() !== bg.me).length;
+    let b = btn.querySelector('.bg-count'); if (!b) { b = document.createElement('b'); b.className = 'bg-count'; btn.appendChild(b); }
+    b.textContent = n || ''; b.hidden = !n; btn.title = n ? n + ' waiting for your decision' : 'Requests';
+  }
+  function drawBg(){
+    bgBadge();
+    const list = $('bgList'), form = $('bgForm'), stamp = $('bgStamp'); if (!list) return;
+    if (stamp) stamp.textContent = bg.loading && bg.list ? 'Updating\u2026' : bg.at ? 'Updated ' + actTime(new Date(bg.at).toISOString()) : '';
+    showErr('bgErr', bg.actErr || (bg.err && bg.list ? bg.err : ''));
+    const ok = $('bgOk'); if (ok) { ok.hidden = !bg.ok; ok.textContent = bg.ok; }
+    /* the form */
+    if (bg.form) { const f = bg.form, tools = Object.keys(MO);
+      const people = Object.entries(acc ? acc.people : {}).filter(([e, p]) => p.access && p.access[f.project]).sort((a, b) => byLast(a[1].name, b[1].name));
+      form.innerHTML = `<div class="card2 bg-form"><div class="label strong">New break-glass request</div>
+        <label>Tool<select id="bgTool">${tools.map(k => `<option value="${esc(k)}"${k === f.project ? ' selected' : ''}>${esc(toolName(k))}</option>`).join('')}</select></label>
+        <label>Whose items<select id="bgPerson"><option value="">Choose a person\u2026</option>${people.map(([e, p]) => `<option value="${esc(e)}"${e === f.person ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <fieldset><legend>Which items</legend>${(MO[f.project] || []).map(([k, l]) => `<label class="chk"><input type="checkbox" data-bg-file="${esc(k)}"${f.files.includes(k) ? ' checked' : ''}> ${esc(l)}</label>`).join('')}</fieldset>
+        <label>Reason <small>(required; the other administrators see it)</small><textarea id="bgReason" maxlength="500" rows="3" placeholder="Why do you need to see them?">${esc(f.reason)}</textarea></label>
+        <div class="bg-acts"><button type="button" class="btn" id="bgCancel">Cancel</button><button type="button" class="btn p" id="bgSend"${f.busy ? ' disabled' : ''}>${f.busy ? 'Sending\u2026' : 'Send request'}</button></div>
+        <p class="act-note" style="border:0;margin:6px 0 0;padding:0">Every other administrator is emailed. Any one of them can approve it; you can\u2019t approve your own. Approved, the items open read-only for 24 hours in the tool itself. Unanswered, it lapses after 3 days.</p></div>`;
+    } else form.innerHTML = '';
+    if (!bg.list) { list.innerHTML = bg.err ? `<div class="nx-empty bad">${esc(bg.err)}</div>` : '<div class="nx-empty">Loading requests\u2026</div>'; return; }
+    const card = (q, actions) => `<div class="bg-card st-${esc(q.status)}">${avh(q.byName || personName(q.by), 32)}<div class="bg-body"><div>${B(q.byName || personName(q.by))} asked to open ${B((q.personName || personName(q.person)) + '\u2019s ' + bgItems(q))} in ${esc(toolName(q.project))}.</div>`
+      + `<div class="act-why">\u201c${esc(q.reason || '')}\u201d</div><div class="bg-meta">${actions.meta}</div></div><div class="bg-side">${actions.side || ''}</div></div>`;
+    const mine = q => String(q.by).toLowerCase() === bg.me;
+    const pending = bg.list.filter(q => q.status === 'pending'), open = bg.list.filter(q => q.status === 'approved'), past = bg.list.filter(q => !['pending', 'approved'].includes(q.status));
+    let html = `<div class="label sm">Waiting for a decision${pending.length ? ' (' + pending.length + ')' : ''}</div>`;
+    html += pending.length ? pending.map(q => card(q, { meta: 'Asked ' + esc(bgWhen(q.at)) + ' \u00b7 lapses ' + esc(bgWhen(new Date(Date.parse(q.at) + 3 * 864e5).toISOString())),
+      side: mine(q) ? '<span class="bg-wait">Waiting for another administrator</span>' : `<button type="button" class="btn" data-bg-decide="${esc(q.id)}" data-decision="decline">Decline</button><button type="button" class="btn p" data-bg-decide="${esc(q.id)}" data-decision="approve">Approve</button>` })).join('')
+      : '<div class="nx-empty">Nothing waiting.</div>';
+    html += `<div class="label sm" style="margin-top:18px">Open now</div>`;
+    html += open.length ? open.map(q => card(q, { meta: 'Approved by ' + esc(q.decidedByName || personName(q.decidedBy)) + ' \u00b7 readable until ' + esc(bgWhen(q.expiresAt)) + ' \u00b7 opened ' + ((q.opened || []).length) + ' time' + ((q.opened || []).length === 1 ? '' : 's'),
+      side: mine(q) ? `<a class="btn" href="${esc(((TOOLS.find(t => t.key === q.project) || {}).path) || '/')}">Open ${esc(toolName(q.project))}</a>` : '' })).join('')
+      : '<div class="nx-empty">Nothing open.</div>';
+    if (past.length) html += `<details class="bg-past"><summary class="label sm">Past (${past.length})</summary>${past.map(q => card(q, { meta: ({ declined: 'Declined by ' + esc(q.decidedByName || personName(q.decidedBy)), lapsed: 'Lapsed after 3 days without a decision', ended: 'Approved by ' + esc(q.decidedByName || personName(q.decidedBy)) + '; the 24 hours ended' })[q.status] + ' \u00b7 asked ' + esc(bgWhen(q.at)) })).join('')}</details>`;
+    list.innerHTML = html;
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest('#bgNew')) { bg.ok = ''; bg.actErr = ''; const first = Object.keys(MO)[0]; bg.form = { project: first, person: '', files: (MO[first] || []).map(x => x[0]), reason: '', busy: false }; drawBg(); const sel = $('bgPerson'); if (sel) sel.focus(); return; }
+    if (e.target.closest('#bgCancel')) { bg.form = null; bg.actErr = ''; drawBg(); return; }
+    if (e.target.closest('#bgRefresh')) { bg.ok = ''; loadBg(true); return; }
+    if (e.target.closest('#bgSend')) { const f = bg.form; if (!f) return;
+      const need = !f.person ? 'Choose whose items to open.' : !f.files.length ? 'Choose at least one item.' : !f.reason.trim() ? 'Give a reason: the other administrators see it.' : '';
+      if (need) { bg.actErr = need; drawBg(); return; }
+      f.busy = true; bg.actErr = ''; drawBg();
+      relayPost('/breakglass', { project: f.project, person: f.person, files: f.files, reason: f.reason.trim() })
+        .then(() => { bg.form = null; bg.ok = 'Sent. The other administrators have been emailed; any one of them can approve it.'; loadBg(true); })
+        .catch(err => { f.busy = false; bg.actErr = 'Not sent: ' + err.message; drawBg(); });
+      return; }
+    const d = e.target.closest('[data-bg-decide]'); if (d) { const q = (bg.list || []).find(x => x.id === d.dataset.bgDecide); if (!q) return; const yes = d.dataset.decision === 'approve';
+      if (!window.confirm(`${yes ? 'Approve' : 'Decline'} ${q.byName || personName(q.by)}\u2019s request to open ${(q.personName || personName(q.person))}\u2019s ${bgItems(q)} in ${toolName(q.project)}?${yes ? '\n\nThey can read them, read-only, for 24 hours.' : ''}`)) return;
+      d.disabled = true; bg.ok = ''; bg.actErr = '';
+      relayPost('/breakglass/' + encodeURIComponent(q.id), { decision: yes ? 'approve' : 'decline' })
+        .then(() => { bg.ok = (yes ? 'Approved' : 'Declined') + '. ' + (q.byName || personName(q.by)) + ' has been emailed.'; loadBg(true); })
+        .catch(err => { d.disabled = false; bg.actErr = 'Not ' + (yes ? 'approved' : 'declined') + ': ' + err.message; loadBg(true); });
+      return; }
+  });
+  document.addEventListener('change', e => { const f = bg.form; if (!f) return;
+    if (e.target.id === 'bgTool') { f.project = e.target.value; f.person = ''; f.files = (MO[f.project] || []).map(x => x[0]); drawBg(); }
+    else if (e.target.id === 'bgPerson') f.person = e.target.value;
+    else if (e.target.dataset && e.target.dataset.bgFile) { const k = e.target.dataset.bgFile; f.files = e.target.checked ? [...new Set(f.files.concat(k))] : f.files.filter(x => x !== k); } });
+  document.addEventListener('input', e => { if (bg.form && e.target.id === 'bgReason') bg.form.reason = e.target.value; });
+  if (REQ_ON) setTimeout(() => loadBg(false), 1800);   /* quietly, so the sidebar can show what's waiting */
 
 
   /* ---------- boot ---------- */
