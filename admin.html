@@ -481,6 +481,16 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .bg-acts{display:flex;gap:8px;justify-content:flex-end}
 .rail .bg-count{margin-left:auto;background:#D99A2B;color:#fff;border-radius:999px;padding:1px 7px;font-size:11.5px}
 
+/* Claude usage: spending by tool (relay request 9) */
+.nx #useMonth{height:38px;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:0 10px;font:inherit;background:var(--card,#fff);color:inherit}
+.nx .use-card{overflow:auto}
+.nx .use-t{width:100%;border-collapse:collapse;font-size:14px}
+.nx .use-t th{text-align:right;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3,#7E98AE);padding:10px 14px;border-bottom:1px solid var(--line,#E6EDF3)}
+.nx .use-t td{text-align:right;padding:10px 14px;border-bottom:1px solid var(--line,#EEF3F7);font-variant-numeric:tabular-nums}
+.nx .use-t th:first-child,.nx .use-t td:first-child{text-align:left}
+.nx .use-t td small{display:block;color:var(--ink3,#7E98AE);font-size:12px;margin-top:2px}
+.nx .use-t tfoot td{font-weight:800;border-bottom:0}
+
 </style>
 </head>
 <body class="out">
@@ -560,7 +570,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   <div class="railgrp"><span>Record</span>
     <nav aria-label="Record"><button type="button" data-view="activity" title="Activity">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>
-      <span>Activity</span></button></nav>
+      <span>Activity</span></button><button type="button" data-view="usage" title="Claude usage">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-6"/></svg>
+      <span>Claude usage</span></button></nav>
   </div>
   <div class="foot">
     <button class="theme-btn" id="themeBtn" type="button"></button>
@@ -681,6 +693,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 <section class="view nx" id="view-requests" hidden><div class="nx-bar"><div class="grow"><h1>Requests</h1><div class="sub">Break glass: open one person’s members-only items, read-only, for 24 hours. Another administrator has to approve it, and everything is recorded in Activity.</div></div><span class="act-stamp" id="bgStamp" role="status"></span><button type="button" class="btn" id="bgRefresh">Refresh</button><button type="button" class="btn p" id="bgNew">+ New request</button></div>
   <div class="err" id="bgErr" hidden role="alert" style="margin-bottom:12px"></div><div class="bg-ok" id="bgOk" hidden role="status"></div>
   <div id="bgForm"></div><div id="bgList"><div class="nx-empty">Loading requests…</div></div></section>
+<section class="view nx" id="view-usage" hidden><div class="nx-bar"><div class="grow"><h1>Claude usage</h1><div class="sub">What each tool spends asking Claude, through the relay’s one key. Costs are estimates from Anthropic’s list prices; the Claude Console’s bill is the authority.</div></div><span class="act-stamp" id="useStamp" role="status"></span><select id="useMonth" aria-label="Month"></select><button type="button" class="btn" id="useRefresh">Refresh</button></div>
+  <div id="useBody"><div class="nx-empty">Loading usage…</div></div></section>
 <section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people and access, and every sign-in event: who did it, and when.</div></div><span class="act-stamp" id="actStamp" role="status"></span><button type="button" class="btn" id="actRefresh">Refresh</button><button type="button" class="btn" id="actCsv">Export CSV</button></div>
   <div class="act-filters"><input type="search" id="actQ" placeholder="Search activity, a person or a tool…" aria-label="Search activity"><div class="act-kinds" id="actKinds" role="group" aria-label="Kind"></div><select id="actRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="0">Everything</option></select></div>
   <div class="act-grid"><div class="act-list" id="actList"><div class="nx-empty">Loading the record…</div></div><aside class="act-side" id="actSide"></aside></div></section>
@@ -1528,11 +1542,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   document.body.classList.add('next');
   /* Relay request 9 is deployed (Oct 9, 2026): Activity is on. Requests (break glass, View as) follows when its page is built. */
   const ACT_ON = true, REQ_ON = true;
-  Object.assign(VIEWS, { tools:'view-tools' }, ACT_ON ? { activity:'view-activity' } : {}, REQ_ON ? { requests:'view-requests' } : {});
+  Object.assign(VIEWS, { tools:'view-tools', usage:'view-usage' }, ACT_ON ? { activity:'view-activity' } : {}, REQ_ON ? { requests:'view-requests' } : {});
   if (!REQ_ON) document.querySelectorAll('.rail [data-view="requests"]').forEach(b => { b.hidden = true; });
   if (!ACT_ON) { const rec = document.querySelector('.rail [data-view="activity"]'); if (rec) { rec.hidden = true; if (rec.closest('.railgrp')) rec.closest('.railgrp').hidden = true; } }
-  Object.assign(HASH, { tools:'tools', requests:'requests', activity:'activity' });
-  Object.assign(SEARCH, { tools:'Search tools', requests:'Search requests', activity:'Search activity' });
+  Object.assign(HASH, { tools:'tools', requests:'requests', activity:'activity', usage:'usage' });
+  Object.assign(SEARCH, { tools:'Search tools', requests:'Search requests', activity:'Search activity', usage:'Search tools' });
   let secFilter = 'all', flagFilter = '', pickerOpen = false, soOpen = null, toolSel = null, toolOpen = {};
   const AV = ['#2C74A6','#0B7268','#7A5AC8','#B5650B','#C1666B','#5B8C6C'];
   const avh = (name, s) => { s = s || 30; let h = 0; for (const c of String(name || '')) h += c.charCodeAt(0);
@@ -1554,7 +1568,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const diff = Math.round((day(now) - day(d)) / 864e5), time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     return 'Last signed in ' + (diff === 0 ? 'today at ' + time : diff === 1 ? 'yesterday at ' + time : d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }) + ' at ' + time);
   }
-  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); else if (view === 'requests') renderRequests(); }
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); else if (view === 'requests') renderRequests(); else if (view === 'usage') renderUsage(); }
   /* Changed means different from what was loaded (or last saved): add a tool and take it away again, and it's back to
      No changes, with no warning on leaving (Perry, 8 Oct 2026). A change the console made itself on loading (pending)
      still needs its save. Keys sorted, so the order things were added in doesn't count. */
@@ -1955,6 +1969,46 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     else if (e.target.dataset && e.target.dataset.bgFile) { const k = e.target.dataset.bgFile; f.files = e.target.checked ? [...new Set(f.files.concat(k))] : f.files.filter(x => x !== k); } });
   document.addEventListener('input', e => { if (bg.form && e.target.id === 'bgReason') bg.form.reason = e.target.value; });
   if (REQ_ON) setTimeout(() => loadBg(false), 1800);   /* quietly, so the sidebar can show what's waiting */
+
+  /* ===== Claude usage: spending by tool (relay request 9). GET /hub/ask-usage: per month, per tool, per model:
+     requests and tokens read (in) and written (out); counts are written at most every ten minutes, and the unwritten
+     ones are included. Cost is estimated from Anthropic's list prices per million tokens (Oct 2026). ===== */
+  const PRICE = { 'claude-fable-5-1': [10, 50], 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.10, 0.50] };
+  const MODEL_NAME = { 'claude-fable-5-1': 'Fable 5.1', 'claude-opus-5-5': 'Opus 5.5', 'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-haiku-5-5': 'Haiku 5.5' };
+  const use = { data: null, at: 0, loading: false, err: '', month: '' };
+  const costOf = (model, i, o) => { const pr = PRICE[model]; return pr ? (i * pr[0] + o * pr[1]) / 1e6 : null; };
+  const money = n => n == null ? '\u2014' : n < 0.01 && n > 0 ? 'under 1\u00a2' : '$' + n.toFixed(n < 10 ? 2 : 0);
+  const num = n => Number(n || 0).toLocaleString();
+  const monthName = m => { const [y, mo] = m.split('-').map(Number); return new Date(y, mo - 1, 1).toLocaleDateString([], { month: 'long', year: 'numeric' }); };
+  function loadUsage(force){
+    if (use.loading) return; if (!force && use.data && Date.now() - use.at < 120000) return;
+    use.loading = true; drawUsage();
+    relayGet('/ask-usage').then(r => { use.data = r; use.at = Date.now(); use.err = ''; })
+      .catch(e => { use.err = e.status === 403 ? 'Only platform administrators can see usage.' : 'Usage could not be loaded (' + e.message + '). Try Refresh.'; })
+      .then(() => { use.loading = false; drawUsage(); });
+  }
+  function renderUsage(){ drawUsage(); loadUsage(false); }
+  function drawUsage(){
+    const body = $('useBody'), sel = $('useMonth'), stamp = $('useStamp'); if (!body) return;
+    if (stamp) stamp.textContent = use.loading && use.data ? 'Updating\u2026' : use.at ? 'Updated ' + actTime(new Date(use.at).toISOString()) : '';
+    if (!use.data) { body.innerHTML = use.err ? `<div class="nx-empty bad">${esc(use.err)}</div>` : '<div class="nx-empty">Loading usage\u2026</div>'; return; }
+    const months = Object.keys(use.data.months || {}).sort().reverse(), now = new Date().toISOString().slice(0, 7);
+    if (!use.month || !months.includes(use.month)) use.month = months[0] || now;
+    sel.innerHTML = (months.length ? months : [now]).map(m => `<option value="${m}"${m === use.month ? ' selected' : ''}>${esc(monthName(m))}</option>`).join('');
+    const tools = Object.entries((use.data.months || {})[use.month] || {}).map(([k, v]) => {
+      const models = Object.entries(v.models || {}), cost = models.reduce((s, [m, x]) => { const c = costOf(m, x.in, x.out); return c == null || s == null ? null : s + c; }, 0);
+      return { key: k, name: toolName(k), req: v.requests, inT: v.in, outT: v.out, cost, models };
+    }).sort((a, b) => (b.cost || 0) - (a.cost || 0));
+    const tot = tools.reduce((s, t) => ({ req: s.req + t.req, inT: s.inT + t.inT, outT: s.outT + t.outT, cost: s.cost == null || t.cost == null ? null : s.cost + t.cost }), { req: 0, inT: 0, outT: 0, cost: 0 });
+    body.innerHTML = (use.err ? `<div class="err" role="alert" style="margin-bottom:12px">${esc(use.err)}</div>` : '')
+      + (tools.length ? `<div class="card2 use-card"><table class="use-t"><thead><tr><th>Tool</th><th>Requests</th><th>Tokens read</th><th>Tokens written</th><th>Estimated cost</th></tr></thead><tbody>`
+      + tools.map(t => `<tr><td><b>${esc(t.name)}</b>${t.models.length ? `<small>${t.models.map(([m, x]) => esc(MODEL_NAME[m] || m) + ' \u00b7 ' + num(x.requests)).join(', ')}</small>` : ''}</td><td>${num(t.req)}</td><td>${num(t.inT)}</td><td>${num(t.outT)}</td><td><b>${money(t.cost)}</b></td></tr>`).join('')
+      + `</tbody><tfoot><tr><td>Total</td><td>${num(tot.req)}</td><td>${num(tot.inT)}</td><td>${num(tot.outT)}</td><td>${money(tot.cost)}</td></tr></tfoot></table></div>`
+      : `<div class="nx-empty">No questions to Claude in ${esc(monthName(use.month))} yet.</div>`)
+      + `<p class="act-note">Counted by the relay for every question to Claude: the tokens it read and wrote, which is what Anthropic bills by. Counts are written at most every ten minutes${use.data.unwritten ? `; ${use.data.unwritten} not yet written are included` : ''}. Estimates use Anthropic\u2019s list prices per million tokens read and written (Sonnet 5.5: $2 and $10). The Claude Console shows the actual bill and the workspace\u2019s monthly limit. Nothing about the questions or answers is recorded, only the counts.</p>`;
+  }
+  document.addEventListener('click', e => { if (e.target.closest('#useRefresh')) loadUsage(true); });
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'useMonth') { use.month = e.target.value; drawUsage(); } });
 
 
   /* ---------- boot ---------- */
