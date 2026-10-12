@@ -432,6 +432,36 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .lvsel{background-color:var(--surface);color:var(--ink)} .nx .lvsel.none{color:var(--ink-3,#7E98AE);font-weight:600} .nx .xgap{display:inline-block;width:20px}
 @media (max-width:1100px){ .nx .two{flex-direction:column} .nx .panel2{width:auto;position:static;max-height:none;align-self:stretch}
   .nx .phead{display:none} .nx .prow{grid-template-columns:32px minmax(0,1fr) auto} .nx .prow .psum,.nx .prow .pflags{grid-column:2 / -1;justify-content:flex-start} }
+/* Activity (relay request 9) */
+.nx .act-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.nx .act-filters input[type=search]{flex:1 1 260px;min-width:200px;height:38px;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:0 12px;font:inherit;background:var(--card,#fff);color:inherit}
+.nx .act-filters select{height:38px;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:0 10px;font:inherit;background:var(--card,#fff);color:inherit}
+.nx .act-kinds{display:flex;gap:6px;flex-wrap:wrap}
+.nx .act-kinds .f{border:1px solid var(--line,#D5E2ED);border-radius:999px;padding:6px 12px;background:var(--card,#fff);font:inherit;font-weight:700;font-size:13px;color:var(--ink2,#456179);cursor:pointer}
+.nx .act-kinds .f i{font-style:normal;opacity:.65;margin-left:5px;font-weight:600}
+.nx .act-kinds .f.on{background:var(--navy,#0F314C);border-color:var(--navy,#0F314C);color:#fff}
+.nx .act-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+@media (max-width:1000px){.nx .act-grid{grid-template-columns:1fr}}
+.nx .act-list,.nx .act-side{background:var(--card,#fff);border:1px solid var(--line,#D5E2ED);border-radius:12px;overflow:hidden}
+.nx .act-side{padding:14px 16px}
+.nx .act-day{padding:9px 16px;background:var(--paper,#F4F7FA);font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3,#7E98AE);border-top:1px solid var(--line,#E6EDF3)}
+.nx .act-day:first-child{border-top:0}
+.nx .act-row{display:grid;grid-template-columns:96px 30px minmax(0,1fr) auto 22px;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--line,#EEF3F7);font-size:14px}
+.nx .act-what{line-height:1.45} .nx .act-why{color:var(--ink3,#7E98AE)}
+.nx .act-time{color:var(--ink3,#7E98AE);font-size:12.5px;white-space:nowrap}
+.nx .act-more{border:0;background:none;color:var(--ink3,#7E98AE);cursor:pointer;font-size:13px;padding:2px}
+.nx .act-tag{display:inline-block;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 9px;text-align:center;justify-self:start}
+.nx .k-acc{background:#E2F3EC;color:#0B6B47} .nx .k-acct{background:#E3EEF8;color:#22598A} .nx .k-sign{background:#FBE5E4;color:#A23B36} .nx .k-view{background:#EEE7FA;color:#5B3FA6} .nx .k-bg{background:#FCEFD6;color:#8A5F16}
+.nx .act-det{margin:0 16px 12px 152px;border:1px solid var(--line,#E1E8EF);border-radius:10px;overflow:auto}
+.nx .act-det table{width:100%;border-collapse:collapse;font-size:13px}
+.nx .act-det th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3,#7E98AE);padding:7px 10px;border-bottom:1px solid var(--line,#E6EDF3)}
+.nx .act-det td{padding:6px 10px;border-bottom:1px solid var(--line,#EEF3F7)}
+.nx .act-foot{padding:7px 10px;font-size:12px;color:var(--ink3,#7E98AE)}
+.nx .act-count{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:5px 0;font-size:13.5px} .nx .act-count .grow{flex:1}
+.nx .act-note{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line,#E6EDF3);font-size:12px;color:var(--ink3,#7E98AE);line-height:1.5}
+.nx .nx-empty.bad{color:#A23B36}
+@media (max-width:700px){.nx .act-row{grid-template-columns:30px minmax(0,1fr) 22px}.nx .act-row .act-tag,.nx .act-row .act-time{display:none}.nx .act-det{margin-left:16px}}
+
 </style>
 </head>
 <body class="out">
@@ -631,8 +661,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   </section>
 <section class="view nx" id="view-requests" hidden><div class="nx-bar"><div class="grow"><h1>Requests</h1><div class="sub">Break-glass requests to approve or decline, and View as.</div></div></div>
   <div class="nx-empty">Nothing here yet. Requests arrive with the next relay update (Relay Request 9): two administrators together can open one members-only item in Team HQ, and an administrator can view the site as someone else, read-only.</div></section>
-<section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people, access and the lists: who made it, and when.</div></div></div>
-  <div class="nx-empty">The record will appear here with the next relay update. Every save is already kept in the private accounts repository; the update adds the route that reads it back as a list.</div></section>
+<section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people and access, and every sign-in event: who did it, and when.</div></div><button type="button" class="btn" id="actRefresh">Refresh</button><button type="button" class="btn" id="actCsv">Export CSV</button></div>
+  <div class="act-filters"><input type="search" id="actQ" placeholder="Search activity, a person or a tool…" aria-label="Search activity"><div class="act-kinds" id="actKinds" role="group" aria-label="Kind"></div><select id="actRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="0">Everything</option></select></div>
+  <div class="act-grid"><div class="act-list" id="actList"><div class="nx-empty">Loading the record…</div></div><aside class="act-side" id="actSide"></aside></div></section>
 </main>
 <div class="overlay" id="reveal" hidden role="dialog" aria-modal="true" aria-labelledby="revealTitle">
   <div class="modal">
@@ -1475,11 +1506,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
   /* ===== the new console's drawing (Oct 2026). Everything above is today's admin panel, unchanged. ===== */
   document.body.classList.add('next');
-  /* Requests and Activity need Relay Request 9: hidden until it is deployed. Set LATER to false then. */
-  const LATER = true;
-  Object.assign(VIEWS, LATER ? { tools:'view-tools' } : { tools:'view-tools', requests:'view-requests', activity:'view-activity' });
-  if (LATER) { document.querySelectorAll('.rail [data-view="requests"], .rail [data-view="activity"]').forEach(b => { b.hidden = true; });
-    const rec = document.querySelector('.rail [data-view="activity"]'); if (rec && rec.closest('.railgrp')) rec.closest('.railgrp').hidden = true; }
+  /* Relay request 9 is deployed (Oct 9, 2026): Activity is on. Requests (break glass, View as) follows when its page is built. */
+  const ACT_ON = true, REQ_ON = false;
+  Object.assign(VIEWS, { tools:'view-tools' }, ACT_ON ? { activity:'view-activity' } : {}, REQ_ON ? { requests:'view-requests' } : {});
+  if (!REQ_ON) document.querySelectorAll('.rail [data-view="requests"]').forEach(b => { b.hidden = true; });
+  if (!ACT_ON) { const rec = document.querySelector('.rail [data-view="activity"]'); if (rec) { rec.hidden = true; if (rec.closest('.railgrp')) rec.closest('.railgrp').hidden = true; } }
   Object.assign(HASH, { tools:'tools', requests:'requests', activity:'activity' });
   Object.assign(SEARCH, { tools:'Search tools', requests:'Search requests', activity:'Search activity' });
   let secFilter = 'all', flagFilter = '', pickerOpen = false, soOpen = null, toolSel = null, toolOpen = {};
@@ -1494,7 +1525,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   const lastOf = n => String(n || '').trim().split(/\s+/).slice(-1)[0].toLowerCase();
   const byLast = (a, b) => lastOf(a).localeCompare(lastOf(b)) || String(a).localeCompare(String(b));
   const isLocked = email => !!(acc && acc.locks && acc.locks[email] && acc.locks[email].locked);
-  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); }
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); }
   /* Changed means different from what was loaded (or last saved): add a tool and take it away again, and it's back to
      No changes, with no warning on leaving (Perry, 8 Oct 2026). A change the console made itself on loading (pending)
      still needs its save. Keys sorted, so the order things were added in doesn't count. */
@@ -1674,6 +1705,120 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const fl = e.target.closest('[data-flag]'); if (fl) { flagFilter = flagFilter === fl.dataset.flag ? '' : fl.dataset.flag; renderAccess(); return; }
     if (e.target.closest('[data-acc-manage]')) { pickerOpen = false; soOpen = null; renderAccess(); }
   });
+  /* ===== Activity (relay request 9): GET /hub/activity, newest first. Plain sentences, grouped by day, filterable.
+     Access and Account entries carry their changes (person, tool or field, before, after); the rest are View as,
+     Break glass and Sign-in events. Platform administrators only (the relay refuses anyone else). ===== */
+  const RELAY_URL = 'https://rgvdi67cg27o5kcmiytcqbqnrm0hmztx.lambda-url.us-east-1.on.aws';
+  const act = { entries: null, at: 0, loading: false, err: '', kind: 'all', q: '', range: 30, open: {} };
+  const ACT_KINDS = ['Access', 'Account', 'Sign-in', 'View as', 'Break glass'];
+  const ACT_TAG = { 'Access':'k-acc', 'Account':'k-acct', 'Sign-in':'k-sign', 'View as':'k-view', 'Break glass':'k-bg' };
+  const LV = { admin:'Admin', edit:'Edit', staff:'Edit', view:'View' };
+  const SEC = { staff:'Staff', facilitator:'Facilitators', contractor:'Contractors', process:'Processes' };
+  const toolName = k => ((TOOLS.find(t => t.key === k) || {}).label) || ({ hub:'Initiative Hub', 'hub-files':'Hub files', 'hub-requests':'Work Requests' })[k] || k;
+  const personName = v => { if (!v) return ''; const k = String(v).toLowerCase(); return (acc && acc.people && acc.people[k] && acc.people[k].name) || v; };
+  const B = s => '<b>' + esc(s) + '</b>';
+  const listNames = names => names.length === 1 ? B(names[0]) : names.length === 2 ? B(names[0]) + ' and ' + B(names[1]) : B(names.length + ' people');
+  function relayGet(path){
+    const s = RS && RS.current && RS.current();
+    return fetch(RELAY_URL + '/hub' + path, { cache: 'no-store', headers: s && s.token ? { 'Authorization': 'Bearer ' + s.token } : {} })
+      .then(res => res.json().catch(() => ({})).then(body => { if (!res.ok) { const e = new Error((body && (body.message || body.error)) || ('HTTP ' + res.status)); e.code = body && body.error; e.status = res.status; throw e; } return body; }));
+  }
+  function loadActivity(force){
+    if (act.loading) return; if (!force && act.entries && Date.now() - act.at < 120000) return;
+    act.loading = true; act.err = ''; drawActivity();
+    relayGet('/activity').then(r => { act.entries = Array.isArray(r.entries) ? r.entries : []; act.at = Date.now(); })
+      .catch(e => { act.err = e.status === 403 ? 'Only platform administrators can see the record.' : (e.code === 'TOKEN_EXPIRED' || e.code === 'TOKEN_BAD') ? 'Your sign-in has expired. Sign in again, then Refresh.' : 'The record could not be loaded (' + e.message + '). Try Refresh.'; })
+      .then(() => { act.loading = false; drawActivity(); });
+  }
+  function renderActivity(){ drawActivity(); loadActivity(false); }
+  /* one sentence per entry: what happened, in the names people use */
+  function actSentence(e){
+    const by = B(personName(e.by) || 'Someone'), ch = e.changes || [];
+    if (e.kind === 'View as') return by + ' viewed the site as ' + B(personName(e.as)) + ', read-only' + (e.until ? ' (until ' + actTime(e.until) + ')' : '');
+    if (e.kind === 'Break glass') { const what = B(personName(e.person) + '\u2019s members-only items') + ' in ' + esc(toolName(e.project));
+      return e.event === 'requested' ? by + ' asked to open ' + what + (e.reason ? '. <span class="act-why">\u201c' + esc(e.reason) + '\u201d</span>' : '')
+        : e.event === 'opened' ? by + ' opened ' + what : by + ' ' + esc(e.event) + ' the request to open ' + what; }
+    if (e.kind === 'Sign-in') { const m = String(e.message || ''); let x;
+      if ((x = m.match(/^Password changed \((.+)\)$/))) return B(x[1]) + ' changed their password';
+      if ((x = m.match(/^Reset requested for (\S+)/))) return B(personName(x[1])) + ' asked for a password reset';
+      if ((x = m.match(/^Locked (\S+) after (\d+)/))) return B(personName(x[1])) + ' was locked out after ' + x[2] + ' wrong passwords';
+      if ((x = m.match(/^Unlocked (\S+) \(new password from (.+)\)$/))) return B(x[2]) + ' unlocked ' + B(personName(x[1])) + ' with a new password';
+      return esc(m.replace(/[\w.+-]+@[\w.-]+\.\w+/g, em => personName(em))); }
+    /* Access and Account */
+    const frags = [], seen = new Set();
+    const added = ch.filter(c => c.change === 'added'), removed = ch.filter(c => c.change === 'removed');
+    added.forEach(c => { const tools = ch.filter(t => t.tool && t.person === c.person && t.after); seen.add(c);
+      tools.forEach(t => seen.add(t));
+      frags.push('added ' + B(c.name) + (tools.length ? ', with ' + tools.slice(0, 2).map(t => esc(toolName(t.tool)) + ' ' + B(LV[t.after] || t.after)).join(' and ') + (tools.length > 2 ? ' and ' + (tools.length - 2) + ' more' : '') : '')); });
+    removed.forEach(c => { seen.add(c); ch.filter(t => t.tool && t.person === c.person).forEach(t => seen.add(t)); frags.push('removed ' + B(c.name)); });
+    const moves = ch.filter(c => c.field === 'group' && !seen.has(c));
+    const byTo = {}; moves.forEach(c => { seen.add(c); (byTo[c.after] = byTo[c.after] || []).push(c.name); });
+    Object.entries(byTo).forEach(([to, names]) => frags.push('moved ' + listNames(names) + ' to ' + esc(SEC[to] || to)));
+    ch.filter(c => c.field && !seen.has(c)).forEach(c => { seen.add(c);
+      frags.push(c.field === 'expires' ? (c.after ? 'set ' + B(c.name) + '\u2019s access to end ' + esc(c.after) : 'removed the end date for ' + B(c.name))
+        : c.field === 'platformAdmin' ? (c.after ? 'made ' + B(c.name) + ' an administrator' : 'took administrator off ' + B(c.name))
+        : c.field === 'name' ? 'renamed ' + B(c.before || '') + ' to ' + B(c.after || '') : 'changed ' + B(c.name) + '\u2019s ' + esc(c.field)); });
+    const tools = ch.filter(c => c.tool && !seen.has(c));
+    if (tools.length) {
+      const people = [...new Set(tools.map(c => c.name))], keys = [...new Set(tools.map(c => c.tool))], afters = [...new Set(tools.map(c => c.after))];
+      if (keys.length === 1 && afters.length === 1 && afters[0] && tools.every(c => !c.before)) frags.push('gave ' + listNames(people) + ' ' + B(LV[afters[0]] || afters[0]) + ' on ' + esc(toolName(keys[0])));
+      else if (keys.length === 1 && afters.length === 1 && !afters[0]) frags.push('removed ' + listNames(people) + ' from ' + esc(toolName(keys[0])));
+      else if (tools.length === 1) frags.push('changed ' + B(people[0]) + '\u2019s ' + esc(toolName(keys[0])) + ' access from ' + B(LV[tools[0].before] || 'none') + ' to ' + B(LV[tools[0].after] || 'none'))
+      else if (people.length === 1) frags.push('changed ' + B(people[0]) + '\u2019s access' + (keys.length <= 2 ? ' to ' + keys.map(k => esc(toolName(k))).join(' and ') : ' to ' + keys.length + ' tools'));
+      else frags.push('changed access for ' + B(people.length + ' people') + (keys.length === 1 ? ' on ' + esc(toolName(keys[0])) : ' across ' + keys.length + ' tools'));
+    }
+    if (!frags.length) return by + ' saved People & Access';
+    return by + ' ' + frags.slice(0, 2).join(', and ') + (frags.length > 2 ? ', and ' + (frags.length - 2) + ' more' : '');
+  }
+  function actWho(e){ if (e.kind !== 'Sign-in') return personName(e.by) || e.by; const m = String(e.message || ''); let x;
+    if ((x = m.match(/^Password changed \((.+)\)$/))) return x[1]; if ((x = m.match(/^Unlocked \S+ \(new password from (.+)\)$/))) return x[1];
+    if ((x = m.match(/[\w.+-]+@[\w.-]+\.\w+/))) return personName(x[0]); return e.by; }
+  const actTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+  function actDay(iso){ const d = new Date(iso), t = new Date(); const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diff = Math.round((day(t) - day(d)) / 864e5), label = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    return diff === 0 ? 'Today \u00b7 ' + label : diff === 1 ? 'Yesterday \u00b7 ' + label : label; }
+  const plain = h => String(h).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  function actDetails(e){ return (e.changes || []).filter(c => c.tool || c.field).map(c => ({ person: c.name, what: c.tool ? toolName(c.tool) : ({ group:'Section', expires:'Access ends', platformAdmin:'Administrator', name:'Name' })[c.field] || c.field,
+      before: c.tool ? (LV[c.before] || '\u2014') : (c.field === 'group' ? SEC[c.before] || c.before || '\u2014' : c.before == null || c.before === false ? '\u2014' : String(c.before === true ? 'Yes' : c.before)),
+      after: c.tool ? (LV[c.after] || 'No access') : (c.field === 'group' ? SEC[c.after] || c.after || '\u2014' : c.after == null || c.after === false ? '\u2014' : String(c.after === true ? 'Yes' : c.after)) }))
+    .concat((e.changes || []).filter(c => c.change).map(c => ({ person: c.name, what: 'Account', before: c.change === 'added' ? '\u2014' : 'Account', after: c.change === 'added' ? 'Added' : 'Removed' }))); }
+  function actVisible(){
+    const from = act.range ? Date.now() - act.range * 864e5 : 0, q = act.q.trim().toLowerCase();
+    return (act.entries || []).filter(e => (!from || Date.parse(e.at) >= from) && (act.kind === 'all' || e.kind === act.kind)
+      && (!q || (plain(actSentence(e)) + ' ' + actDetails(e).map(d => d.person + ' ' + d.what).join(' ')).toLowerCase().includes(q)));
+  }
+  function drawActivity(){
+    const list = $('actList'), side = $('actSide'), kinds = $('actKinds'); if (!list) return;
+    const inRange = (act.entries || []).filter(e => !act.range || Date.parse(e.at) >= Date.now() - act.range * 864e5);
+    kinds.innerHTML = ['all'].concat(ACT_KINDS).map(k => `<button type="button" class="f${act.kind === k ? ' on' : ''}" data-act-kind="${esc(k)}">${k === 'all' ? 'All' : esc(k)}<i>${k === 'all' ? inRange.length : inRange.filter(e => e.kind === k).length}</i></button>`).join('');
+    if (act.err) { list.innerHTML = `<div class="nx-empty bad">${esc(act.err)}</div>`; side.innerHTML = ''; return; }
+    if (!act.entries) { list.innerHTML = '<div class="nx-empty">Loading the record\u2026</div>'; side.innerHTML = ''; return; }
+    const rows = actVisible(); let html = '', day = '';
+    rows.forEach((e, i) => { const d = actDay(e.at); if (d !== day) { day = d; html += `<div class="act-day">${esc(d)}</div>`; }
+      const det = actDetails(e), id = e.at + '|' + i, open = !!act.open[id], many = det.length > 1 || (e.kind !== 'Access' && det.length);
+      html += `<div class="act-row${open ? ' open' : ''}"><span class="act-tag ${ACT_TAG[e.kind] || ''}">${esc(e.kind)}</span>${avh(actWho(e), 28)}<span class="act-what">${actSentence(e)}</span><span class="act-time">${esc(actTime(e.at))}</span>`
+        + (det.length ? `<button type="button" class="act-more" data-act-open="${esc(id)}" aria-expanded="${open}" aria-label="Details">${open ? '\u25be' : '\u25b8'}</button>` : '<span></span>') + '</div>'
+        + (open && det.length ? `<div class="act-det"><table><thead><tr><th>Person</th><th>Tool or detail</th><th>Before</th><th>After</th></tr></thead><tbody>${det.map(x => `<tr><td>${avh(x.person, 20)} ${esc(x.person)}</td><td>${esc(x.what)}</td><td>${esc(x.before)}</td><td><b>${esc(x.after)}</b></td></tr>`).join('')}</tbody></table><div class="act-foot">${esc(e.message || 'Saved')} \u00b7 ${esc(new Date(e.at).toLocaleString())}</div></div>` : '');
+    });
+    list.innerHTML = html || `<div class="nx-empty">${act.entries.length ? 'Nothing matches.' : 'Nothing recorded yet.'}</div>`;
+    const counts = ACT_KINDS.map(k => [k, inRange.filter(e => e.kind === k).length]);
+    const most = {}; inRange.forEach(e => (e.changes || []).forEach(c => { most[c.name] = (most[c.name] || 0) + 1; }));
+    const top = Object.entries(most).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    side.innerHTML = `<div class="label sm">${act.range ? 'Last ' + act.range + ' days' : 'Everything loaded'}</div>${counts.map(([k, n]) => `<div class="act-count"><span class="act-tag ${ACT_TAG[k]}">${esc(k)}</span><b>${n}</b></div>`).join('')}`
+      + (top.length ? `<div class="label sm" style="margin-top:16px">Changed most</div>${top.map(([n, c]) => `<div class="act-count">${avh(n, 26)}<span class="grow">${esc(n)}</span><small>${c} change${c === 1 ? '' : 's'}</small></div>`).join('')}` : '')
+      + `<p class="act-note">The record is kept in the private accounts repository. Nobody can edit or delete an entry from the site. It covers the latest 25 saves of People & Access, every View as and break-glass request, and sign-in events.</p>`;
+  }
+  document.addEventListener('click', e => {
+    const k = e.target.closest('[data-act-kind]'); if (k) { act.kind = k.dataset.actKind; drawActivity(); return; }
+    const o = e.target.closest('[data-act-open]'); if (o) { act.open[o.dataset.actOpen] = !act.open[o.dataset.actOpen]; drawActivity(); return; }
+    if (e.target.closest('#actRefresh')) { loadActivity(true); return; }
+    if (e.target.closest('#actCsv')) { const rows = actVisible(), q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const csv = [['When', 'Kind', 'By', 'What', 'Details'].map(q).join(',')].concat(rows.map(e => [new Date(e.at).toLocaleString(), e.kind, personName(e.by), plain(actSentence(e)), actDetails(e).map(d => d.person + ': ' + d.what + ' ' + d.before + ' \u2192 ' + d.after).join('; ')].map(q).join(','))).join('\r\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'mismo-access-activity.csv'; document.body.appendChild(a); a.click(); a.remove(); return; }
+  });
+  document.addEventListener('input', e => { if (e.target && e.target.id === 'actQ') { act.q = e.target.value; drawActivity(); } });
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'actRange') { act.range = Number(e.target.value); drawActivity(); } });
+
 
   /* ---------- boot ---------- */
   open();
