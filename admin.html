@@ -432,6 +432,7 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 .nx .lvsel{background-color:var(--surface);color:var(--ink)} .nx .lvsel.none{color:var(--ink-3,#7E98AE);font-weight:600} .nx .xgap{display:inline-block;width:20px}
 @media (max-width:1100px){ .nx .two{flex-direction:column} .nx .panel2{width:auto;position:static;max-height:none;align-self:stretch}
   .nx .phead{display:none} .nx .prow{grid-template-columns:32px minmax(0,1fr) auto} .nx .prow .psum,.nx .prow .pflags{grid-column:2 / -1;justify-content:flex-start} }
+.nx .act-stamp{align-self:center;font-size:12.5px;color:var(--ink3,#7E98AE);margin-right:4px}
 /* Activity (relay request 9) */
 .nx .act-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
 .nx .act-filters input[type=search]{flex:1 1 260px;min-width:200px;height:38px;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:0 12px;font:inherit;background:var(--card,#fff);color:inherit}
@@ -661,7 +662,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   </section>
 <section class="view nx" id="view-requests" hidden><div class="nx-bar"><div class="grow"><h1>Requests</h1><div class="sub">Break-glass requests to approve or decline, and View as.</div></div></div>
   <div class="nx-empty">Nothing here yet. Requests arrive with the next relay update (Relay Request 9): two administrators together can open one members-only item in Team HQ, and an administrator can view the site as someone else, read-only.</div></section>
-<section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people and access, and every sign-in event: who did it, and when.</div></div><button type="button" class="btn" id="actRefresh">Refresh</button><button type="button" class="btn" id="actCsv">Export CSV</button></div>
+<section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people and access, and every sign-in event: who did it, and when.</div></div><span class="act-stamp" id="actStamp" role="status"></span><button type="button" class="btn" id="actRefresh">Refresh</button><button type="button" class="btn" id="actCsv">Export CSV</button></div>
   <div class="act-filters"><input type="search" id="actQ" placeholder="Search activity, a person or a tool…" aria-label="Search activity"><div class="act-kinds" id="actKinds" role="group" aria-label="Kind"></div><select id="actRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="0">Everything</option></select></div>
   <div class="act-grid"><div class="act-list" id="actList"><div class="nx-empty">Loading the record…</div></div><aside class="act-side" id="actSide"></aside></div></section>
 </main>
@@ -1710,6 +1711,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
      Break glass and Sign-in events. Platform administrators only (the relay refuses anyone else). ===== */
   const RELAY_URL = 'https://rgvdi67cg27o5kcmiytcqbqnrm0hmztx.lambda-url.us-east-1.on.aws';
   const act = { entries: null, at: 0, loading: false, err: '', kind: 'all', q: '', range: 30, open: {} };
+  /* The relay rebuilds the history on each request (5-10 s cold: Perry, 9 Oct 2026), so the last record is kept for
+     this browser session and shown at once, marked Updating, while a fresh one loads; and it's fetched quietly as the
+     console opens, so it's usually ready before Activity is opened. */
+  const ACT_KEY = 'mismo-admin-activity';
+  try { const c = JSON.parse(sessionStorage.getItem(ACT_KEY) || 'null'); if (c && Array.isArray(c.entries)) { act.entries = c.entries; act.shownAt = c.at; } } catch (e) {}
   const ACT_KINDS = ['Access', 'Account', 'Sign-in', 'View as', 'Break glass'];
   const ACT_TAG = { 'Access':'k-acc', 'Account':'k-acct', 'Sign-in':'k-sign', 'View as':'k-view', 'Break glass':'k-bg' };
   const LV = { admin:'Admin', edit:'Edit', staff:'Edit', view:'View' };
@@ -1726,7 +1732,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   function loadActivity(force){
     if (act.loading) return; if (!force && act.entries && Date.now() - act.at < 120000) return;
     act.loading = true; act.err = ''; drawActivity();
-    relayGet('/activity').then(r => { act.entries = Array.isArray(r.entries) ? r.entries : []; act.at = Date.now(); })
+    relayGet('/activity').then(r => { act.entries = Array.isArray(r.entries) ? r.entries : []; act.at = act.shownAt = Date.now();
+        try { sessionStorage.setItem(ACT_KEY, JSON.stringify({ at: act.at, entries: act.entries })); } catch (e) {} })
       .catch(e => { act.err = e.status === 403 ? 'Only platform administrators can see the record.' : (e.code === 'TOKEN_EXPIRED' || e.code === 'TOKEN_BAD') ? 'Your sign-in has expired. Sign in again, then Refresh.' : 'The record could not be loaded (' + e.message + '). Try Refresh.'; })
       .then(() => { act.loading = false; drawActivity(); });
   }
@@ -1791,7 +1798,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const list = $('actList'), side = $('actSide'), kinds = $('actKinds'); if (!list) return;
     const inRange = (act.entries || []).filter(e => !act.range || Date.parse(e.at) >= Date.now() - act.range * 864e5);
     kinds.innerHTML = ['all'].concat(ACT_KINDS).map(k => `<button type="button" class="f${act.kind === k ? ' on' : ''}" data-act-kind="${esc(k)}">${k === 'all' ? 'All' : esc(k)}<i>${k === 'all' ? inRange.length : inRange.filter(e => e.kind === k).length}</i></button>`).join('');
-    if (act.err) { list.innerHTML = `<div class="nx-empty bad">${esc(act.err)}</div>`; side.innerHTML = ''; return; }
+    const stamp = $('actStamp'); if (stamp) stamp.textContent = act.loading ? (act.entries ? 'Updating\u2026' : '') : act.shownAt ? 'Updated ' + actTime(new Date(act.shownAt).toISOString()) : '';
+    if (act.err && !act.entries) { list.innerHTML = `<div class="nx-empty bad">${esc(act.err)}</div>`; side.innerHTML = ''; return; }
+    if (act.err && stamp) stamp.textContent = 'Not updated: ' + act.err;
     if (!act.entries) { list.innerHTML = '<div class="nx-empty">Loading the record\u2026</div>'; side.innerHTML = ''; return; }
     const rows = actVisible(); let html = '', day = '';
     rows.forEach((e, i) => { const d = actDay(e.at); if (d !== day) { day = d; html += `<div class="act-day">${esc(d)}</div>`; }
@@ -1816,6 +1825,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       const csv = [['When', 'Kind', 'By', 'What', 'Details'].map(q).join(',')].concat(rows.map(e => [new Date(e.at).toLocaleString(), e.kind, personName(e.by), plain(actSentence(e)), actDetails(e).map(d => d.person + ': ' + d.what + ' ' + d.before + ' \u2192 ' + d.after).join('; ')].map(q).join(','))).join('\r\n');
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'mismo-access-activity.csv'; document.body.appendChild(a); a.click(); a.remove(); return; }
   });
+  if (ACT_ON) setTimeout(() => loadActivity(false), 1500);   /* quietly, once the console has opened */
   document.addEventListener('input', e => { if (e.target && e.target.id === 'actQ') { act.q = e.target.value; drawActivity(); } });
   document.addEventListener('change', e => { if (e.target && e.target.id === 'actRange') { act.range = Number(e.target.value); drawActivity(); } });
 
