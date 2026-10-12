@@ -1593,7 +1593,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   function drawerFor(email, p){
     const a = p.access || {};
     const menu = `<details class="menu"><summary class="btn sm" aria-label="More actions">\u22ef</summary><div class="menu-list">
-      <button type="button" disabled title="With the next relay update">View as ${esc(p.name.split(' ')[0])}</button>
+      <button type="button" data-acc-viewas="${esc(email)}"${p.platformAdmin ? ' disabled title="An administrator can\u2019t be viewed as"' : ' title="See the site as they do: read-only, 30 minutes, recorded in Activity"'}>View as ${esc(p.name.split(' ')[0])}</button>
       <button type="button" data-acc-reset="${esc(email)}">${acc.selfService ? 'Send reset link' : 'Reset password'}</button>
       <button type="button" class="danger" data-acc-remove="${esc(email)}"${p.platformAdmin ? ' disabled title="Administrators are removed in the repository"' : ''}>Remove account</button></div></details>`;
     const section = acc.groups ? '<span class="seg" role="group" aria-label="Section">' + PEOPLE_GROUPS.map(g => {
@@ -1836,6 +1836,18 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'mismo-access-activity.csv'; document.body.appendChild(a); a.click(); a.remove(); return; }
   });
   if (ACT_ON) setTimeout(() => loadActivity(false), 1500);   /* quietly, once the console has opened */
+  /* View as (relay request 9): the shared sign-in holds the viewing session, shows a banner on every page, and gives
+     the administrator's own session back on Stop or after 30 minutes. */
+  document.addEventListener('click', e => {
+    const v = e.target.closest('[data-acc-viewas]'); if (!v || v.disabled) return;
+    const email = v.dataset.accViewas, p = acc && acc.people[email]; if (!p) return;
+    if (acc.dirty && !window.confirm('You have unsaved changes in People & Access. Viewing as someone leaves this page, so they would be lost. Continue?')) return;
+    if (!window.confirm(`View the site as ${p.name}?\n\nRead-only: nothing can be saved. It lasts 30 minutes, or until you choose Stop viewing, and it is recorded in Activity.`)) return;
+    v.disabled = true; v.textContent = 'Starting\u2026';
+    const wasDirty = acc.dirty; acc.dirty = false;   /* already confirmed above: don't ask again on leaving */
+    RS.viewAs(email).then(() => { location.href = '/'; })
+      .catch(err => { acc.dirty = wasDirty; v.disabled = false; v.textContent = 'View as ' + p.name.split(' ')[0]; window.alert('View as could not start: ' + (err && err.message || err)); });
+  });
   document.addEventListener('input', e => { if (e.target && e.target.id === 'actQ') { act.q = e.target.value; drawActivity(); } });
   document.addEventListener('change', e => { if (e.target && e.target.id === 'actRange') { act.range = Number(e.target.value); drawActivity(); } });
 
