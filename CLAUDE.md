@@ -293,6 +293,14 @@ access is the one thing not yet checked (see pending items).
 Right after the deploy every request failed with `CONFIG_UNAVAILABLE`: GitHub answered
 `401` to the relay's token. **The token is a fine-grained token in Perry's GitHub account.**
 
+**Meetings come from Meeting Trackers (Perry, 13 Oct 2026).** Jonna's Meeting Trackers is the source of truth for
+workgroup meetings. Its private data publishes `/meeting-trackers/schedule.json` (name, topic, day, cadence, time,
+join link; nothing else) automatically. The Meeting Calendar and every overview read it, matching by workgroup name
+(case, punctuation, '&'/'and', 'CoP'/'Community of Practice' and brackets ignored), with what's built in as the
+fallback. Don't type meeting times into Hub pages: change them in Meeting Trackers. Checked by
+`_dev/overview-builder/t-meetings.mjs`. The overview builder's shared look, `wr.py`, is in the repository now
+(reconstructed byte for byte after a working folder was reset).
+
 **Relay requests go to IT every Thursday (Perry, 13 Oct 2026).** Relay changes collect into that week's request
 Monday to Wednesday, each tested as it is built. By Wednesday evening: freeze the code, run all relay suites, and
 prepare the package: the Word document for IT (built like `IT-Update-Relay-Code-9.docx`, from `make9.js`, kept vague
