@@ -292,6 +292,12 @@ access is the one thing not yet checked (see pending items).
 
 Right after the deploy every request failed with `CONFIG_UNAVAILABLE`: GitHub answered
 `401` to the relay's token. **The token is a fine-grained token in Perry's GitHub account.**
+
+**Relay requests go to IT every Thursday (Perry, 13 Oct 2026).** Relay changes collect into that week's request
+Monday to Wednesday, each tested as it is built. By Wednesday evening: freeze the code, run all relay suites, and
+prepare the package: the Word document for IT (built like `IT-Update-Relay-Code-9.docx`, from `make9.js`, kept vague
+on what it enables), the request document, the commit and the fingerprint. Perry sends it Thursday; no relay changes
+that week, no request. The deploy is one paste of the whole `_dev/aws/index.mjs`, so everything in it goes together.
 **Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
 repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
 repositories it touches, so treat changes to that list like code changes.
