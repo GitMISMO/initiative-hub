@@ -683,6 +683,25 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
   buildFilter();
   render();
+  /* Meeting Trackers is the source of truth for meetings (Perry, 13 Oct 2026): its published schedule
+     (/meeting-trackers/schedule.json: name, topic, day, cadence, time, join) is matched to this workgroup by name;
+     what's built in stays as the fallback if it can't be loaded or has no such workgroup. */
+  const mtKey = n => String(n || '').toLowerCase().replace(/&amp;/g, '&').replace(/\([^)]*\)/g, ' ').replace(/community of practice/g, 'cop').replace(/&/g, ' and ').replace(/[^a-z0-9]/g, '');
+  const MT_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function fromTracker(g) {
+    const day = MT_DAYS.indexOf(String(g.day || '').trim()), c = String(g.cadence || '');
+    const occ = /^\s*every\b/i.test(c) ? 'weekly' : (c.match(/\b[1-5](?:st|nd|rd|th)\b/gi) || []).map(x => parseInt(x, 10));
+    const onHold = day < 0 || (occ !== 'weekly' && !occ.length);
+    return { name: g.name, day: day < 0 ? null : day, occurrences: onHold ? [] : occ, time: onHold ? 'On hold' : g.time, zoom: g.join || null, onHold };
+  }
+  /* the published schedule replaces the list above (kept as the fallback); a workgroup's overview link carries over */
+  fetch('/meeting-trackers/schedule.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(s => {
+    const gs = s && Array.isArray(s.groups) ? s.groups.filter(g => g && g.name) : []; if (!gs.length) return;
+    const links = {}; workgroups.forEach(w => { if (w.dashboard) links[mtKey(w.name)] = w.dashboard; });
+    const next = gs.map(g => Object.assign(fromTracker(g), { domain: g.topic || 'Other' }, links[mtKey(g.name)] ? { dashboard: links[mtKey(g.name)] } : {}))
+      .sort((x, y) => x.name.localeCompare(y.name));
+    workgroups.splice(0, workgroups.length, ...next); buildFilter(); render();
+  }).catch(() => {});
 </script>
 
 </body>
