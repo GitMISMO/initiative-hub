@@ -452,6 +452,10 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
    “Make a QR code” opening Make a New Code), with the words people might search for each.
    **If no sub-pages or tasks are identified, the home page gets only the main page's button, labelled with the
    tool's own name (for example, "Member 360"), and no shortcuts** (Perry, 9 Oct 2026).
+   **The home page is tiles with pin menus (13 Oct 2026):** in `assets/home.js` add the tool to `TOOLS`, its main
+   address to `TOOL_PATH`, and its views to `VIEWS` (label and the view's `data-hq` / `data-view` / `data-page` id;
+   leave out setup views and the default view). Views open from `/<tool>/#open=<id>` through the shared sign-in;
+   check them with `_dev/home-checks/t-views-all.mjs`.
 5. **If it asks Claude** (Ask, receipts, agents: `"ask": true` in `_internal/projects.json`): **ask Perry what
    data it sends to Anthropic, and record the answer before switching it on** (Perry, 9 Oct 2026). For example,
    Team HQ sends board data and receipts (Jonna agreed, Oct 6). One API key serves every tool; spending shows per
