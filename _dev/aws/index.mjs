@@ -1390,6 +1390,7 @@ async function acctUpdate(path, change, message) {
   return { error: 'CONFLICT' };
 }
 const BG_PATH = 'break-glass.json', LOG_PATH = 'access-log.json';
+const PREFS_PATH = 'prefs.json', PREFS_MAX_PINS = 60;   /* relay request 10: each person's pins */
 
 /* Emails that match no account still count down and lock, in this container's memory, so the
  * warnings look the same whether or not an account exists and cannot be used to find out. */
@@ -1871,6 +1872,41 @@ export async function handler(event, context) {
   /* POST /{project}/auth/view-as {email} (relay request 9): a platform administrator sees the site as someone else,
    * read-only, for 30 minutes. Never as another administrator. Each use is recorded in access-log.json before the
    * token is issued (no record, no token). Every save made with the token is refused (see the guard below). */
+  /* GET / PUT /{project}/auth/prefs (relay request 10; Perry, 13 Oct 2026): each person's own preferences, starting
+   * with the home page's pins, so they follow them to any computer. Anyone signed in, whatever tools they have; only
+   * their own; a View as session reads the viewed person's but can't save. Kept in prefs.json beside the account list,
+   * written only when someone pins, unpins or reorders. */
+  if ((method === 'GET' || method === 'PUT') && subPath === '/auth/prefs') {
+    if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
+    const o = headers['origin'];
+    if (o && o !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This relay does not serve that site.' });
+    if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET' });
+    const auth = headers['authorization'] || '';
+    const payload = auth.startsWith('Bearer ') ? verifyToken(auth.slice(7).trim(), process.env.AUTH_SECRET) : { error: 'TOKEN_BAD' };
+    if (payload.error) return respond(401, { error: payload.error });
+    const dir = await loadAccess();
+    if (dir.error) return respond(dir.error === 'NO_DIRECTORY' ? 404 : 502, { error: dir.error });
+    const me = personByEmail(dir.people, payload.sub);
+    if (!me || isExpired(me)) return respond(401, { error: 'NO_ACCOUNT' });
+    if (tokenIsStale(payload, me)) return respond(401, { error: 'TOKEN_STALE', message: 'Your password was changed. Sign in again.' });
+    const key = lowerOf(payload.sub);
+    if (method === 'GET') {
+      const r = await acctRead(PREFS_PATH); if (r.error) return respond(502, { error: r.error });
+      const mine = (r.data.people && r.data.people[key]) || {};
+      return respond(200, { prefs: { pins: Array.isArray(mine.pins) ? mine.pins : [] }, savedAt: mine.savedAt || null, known: !!mine.savedAt });
+    }
+    if (payload.va) return respond(403, { error: 'VIEW_AS_READ_ONLY', message: 'Viewing as someone else is read-only.' });
+    const { body, error } = parseBody(event); if (error) return error;
+    const raw = body && body.prefs && body.prefs.pins;
+    if (!Array.isArray(raw)) return respond(400, { error: 'BAD_PREFS', message: 'Send { prefs: { pins: [...] } }.' });
+    const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+    const pins = raw.slice(0, PREFS_MAX_PINS).map(x => ({ kind: ['tool', 'page', 'task'].includes(x && x.kind) ? x.kind : '', key: str(x && x.key, 60), id: str(x && x.id, 200),
+      title: str(x && x.title, 200), page: str(x && x.page, 200), href: str(x && x.href, 300) })).filter(x => x.kind && x.id && x.title && /^\/[^/]/.test(x.href));
+    const w = await acctUpdate(PREFS_PATH, d => { d.people = d.people || {}; d.people[key] = { pins, savedAt: new Date().toISOString() }; return d; },
+      `Pins saved (${me.name || key})`);
+    if (w.error) return respond(w.error === 'CONFLICT' ? 409 : 502, { error: w.error });
+    return respond(200, { saved: pins.length });
+  }
   if (method === 'POST' && subPath === '/auth/view-as') {
     if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
     const o = headers['origin']; if (o && o !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This relay does not serve that site.' });

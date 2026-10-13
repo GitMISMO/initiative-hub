@@ -186,6 +186,31 @@ d = J(await call('GET', 'hub', '/ask-usage', T.perry));
 ok('a later question adds on top of what was written', d.months[month]['team-hq'].requests === 3 && d.unwritten === 1, d);
 delete process.env.ANTHROPIC_API_KEY;
 
+/* ---------- pins with the account (relay request 10) ---------- */
+r = await call('GET', 'hub', '/auth/prefs', T.amy);
+ok('pins: someone with none gets an empty list, marked not yet saved', r.statusCode === 200 && J(r).prefs.pins.length === 0 && J(r).known === false, J(r));
+const PINS = [{ kind: 'tool', key: 'team-hq', id: 'tool:team-hq', title: 'Open my board', href: '/team-hq/' }, { kind: 'page', key: 'hub', id: 'page:hub:mcd', title: 'Mortgage Compliance Dataset (MCD)', page: 'Overview', href: '/initiative-hub/mcd-dashboard.html' }];
+r = await call('PUT', 'hub', '/auth/prefs', T.amy, { prefs: { pins: PINS } });
+ok('pins: she saves two', r.statusCode === 200 && J(r).saved === 2 && latest('Org/Accounts:prefs.json').data.people['amy@example.org'].pins.length === 2, J(r));
+r = await call('GET', 'hub', '/auth/prefs', T.amy);
+ok('pins: they come back, in order, on any computer', J(r).known === true && J(r).prefs.pins.map(p => p.id).join() === 'tool:team-hq,page:hub:mcd', J(r));
+r = await call('GET', 'hub', '/auth/prefs', T.ken);
+ok("pins: someone else sees only their own (none), never hers", J(r).prefs.pins.length === 0);
+const junk = [...PINS, { kind: 'evil', id: 'x', title: 'x', href: '/x' }, { kind: 'page', id: 'y', title: 'Away', href: 'https://elsewhere.example/' }, { kind: 'page', id: 'z', title: 'Away 2', href: '//elsewhere.example/' }, { kind: 'tool', id: 'q', title: '', href: '/q/' }].concat(Array.from({ length: 70 }, (_, i) => ({ kind: 'page', id: 'n' + i, title: 'Page ' + i, href: '/p/' + i })));
+r = await call('PUT', 'hub', '/auth/prefs', T.ken, { prefs: { pins: junk } });
+const kens = latest('Org/Accounts:prefs.json').data.people['ken@example.org'].pins;
+ok('pins: unknown kinds, untitled entries and links off the site are dropped; at most 60 are kept', r.statusCode === 200 && !kens.some(p => /elsewhere|evil/.test(p.href + p.kind) || !p.title) && kens.length <= 60, { n: kens.length });
+ok("pins: her pins were untouched by his save", latest('Org/Accounts:prefs.json').data.people['amy@example.org'].pins.length === 2);
+r = await call('PUT', 'hub', '/auth/prefs', T.amy, { prefs: { nope: 1 } });
+ok('pins: a malformed save is refused', r.statusCode === 400 && J(r).error === 'BAD_PREFS');
+const vaTok = J(await call('POST', 'hub', '/auth/view-as', T.perry, { email: 'amy@example.org' })).token;
+r = await call('GET', 'hub', '/auth/prefs', vaTok);
+ok('pins: View as reads the viewed person\u2019s pins', r.statusCode === 200 && J(r).prefs.pins.length === 2, J(r));
+r = await call('PUT', 'hub', '/auth/prefs', vaTok, { prefs: { pins: [] } });
+ok('pins: View as cannot save them', r.statusCode === 403 && J(r).error === 'VIEW_AS_READ_ONLY', J(r));
+r = await call('GET', 'hub', '/auth/prefs', null);
+ok('pins: signed out is refused', r.statusCode === 401);
+
 /* ---------- last sign-in ---------- */
 const st = () => (latest('Org/Accounts:auth-state.json').data.accounts || {});
 ok('signing in records the time', !!(st()['ken@example.org'] || {}).lastSignInAt);
