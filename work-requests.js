@@ -755,6 +755,96 @@ function dirty(){ if (W) W.editSeq = (W.editSeq || 0) + 1; if (W && !W.dirty){ W
 
 /* ─────────────── the sidebar: the person's own list, and All for those allowed ─────────────── */
 let view = 'mine', openId = null, filter = 'new';
+
+/* ─────────────── Ideas Inbox (Perry, 16 Oct 2026; design E2) ───────────────
+   Ideas sent through the public Submit an Idea form (GitMISMO.github.io/submit-an-idea/), kept by the relay in
+   data/ideas.json, which only administrators of Work Requests and platform administrators can open (relay request 10).
+   Each idea is one line until opened. Open = still to reach out ('open') or reached out ('reached'); Done = made a
+   potential initiative ('potential') or closed with a note ('closed'). Turning an idea into a Work Request waits for the
+   new-standard request (the "No" path), which isn't built yet. */
+let ideas = [], itab = 'open', ICLOSE = null;
+const IOPEN = new Set(), IDEA_DONE = new Set(['potential', 'closed']);
+function refreshIdeas(){ ideas = Object.values(fileOf('ideas').docs || {}).filter(x => x && x.id)
+  .sort((a, b) => (IDEA_DONE.has(a.status) - IDEA_DONE.has(b.status)) || String(b.at).localeCompare(String(a.at))); }
+const ideasToReach = () => ideas.filter(x => x.status === 'open').length;
+const todayDC = () => new Intl.DateTimeFormat('en-CA', { timeZone:'America/New_York', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+const dayShort = ymd => new Date(ymd + 'T12:00:00Z').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' });
+const onDay = at => at ? new Date(at).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+const whenAt = at => { const d = new Date(at), t = new Date(); return d.toDateString() === t.toDateString() ? 'today, ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+  : d.toLocaleDateString('en-US', Object.assign({ month:'short', day:'numeric' }, d.getFullYear() === t.getFullYear() ? {} : { year:'numeric' })); };
+function ideaChip(x){
+  if (x.status === 'open'){ const late = x.replyBy && x.replyBy < todayDC(); return `<span class="chip ${late ? 'late' : 'due'}">${late ? 'Overdue: reply by ' : 'Reply by '}${esc(dayShort(x.replyBy))}</span>`; }
+  if (x.status === 'reached') return `<span class="chip assigned">Reached out ${esc(onDay(x.reachedOutAt))}</span>`;
+  if (x.status === 'potential') return `<span class="chip potential">Potential Initiative</span>`;
+  return `<span class="chip path">Closed</span>`;
+}
+const IB_CHEV = '<svg class="ib-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5"/></svg>';
+function ideaRow(x){
+  const on = IOPEN.has(x.id), first = String(x.name || '').split(/\s+/)[0] || 'them';
+  const who = (x.who || []).concat(x.whoOther ? [x.whoOther] : []).join(', ');
+  const head = `<button type="button" class="ib-head" data-iopen="${esc(x.id)}" aria-expanded="${on}">${IB_CHEV}<b>${esc(x.title)}</b>
+    <span class="ib-from">${esc(x.name)}${x.company ? ', ' + esc(x.company) : ''}</span><span class="ib-when">${esc(whenAt(x.at))}</span>${ideaChip(x)}</button>`;
+  if (!on) return `<div class="card ib">${head}</div>`;
+  const member = { yes:'MISMO member', no:'Not a MISMO member', unsure:'Not sure if a MISMO member' }[x.member] || '';
+  const hist = [`Received ${esc(whenAt(x.at))} \u00b7 ${esc(x.id)}`];
+  if (x.reachedOutAt) hist.push(`Reached out ${esc(onDay(x.reachedOutAt))}${x.reachedOutBy ? ' by ' + esc(x.reachedOutBy.name) : ''}`);
+  if (x.status === 'potential') hist.push(`Made a potential initiative, <b>${esc(x.potentialName || '')}</b>, ${esc(onDay(x.decidedAt))}${x.decidedBy ? ' by ' + esc(x.decidedBy.name) : ''}`);
+  if (x.status === 'closed') hist.push(`Closed ${esc(onDay(x.decidedAt))}${x.decidedBy ? ' by ' + esc(x.decidedBy.name) : ''}${x.closeNote ? ': \u201c' + esc(x.closeNote) + '\u201d' : ''}`);
+  const mail = `mailto:${encodeURIComponent(x.email)}?subject=${encodeURIComponent('Your idea for MISMO (' + x.id + ')')}`;
+  let acts = '';
+  if (!IDEA_DONE.has(x.status)) acts = ICLOSE === x.id
+    ? `<div class="ib-close"><label for="ib-note">Why is it being closed? <span>(kept with the idea)</span></label><textarea id="ib-note" maxlength="1000"></textarea>
+        <div class="ib-acts"><button type="button" class="btn p" data-iclosego="${esc(x.id)}">Close idea</button><button type="button" class="btn" data-iclosex>Cancel</button></div></div>`
+    : `<div class="ib-acts"><a class="btn" href="${mail}">Email ${esc(first)}</a>${x.status === 'open' ? `<button type="button" class="btn" data-ireach="${esc(x.id)}">Mark as reached out</button>` : ''}<span class="grow"></span>
+        <button type="button" class="btn" data-iclose="${esc(x.id)}">Close, with a note</button><button type="button" class="btn p" data-ipot="${esc(x.id)}">Make a Potential Initiative</button></div>`;
+  return `<div class="card ib on">${head}<div class="ib-body"><dl class="ib-kv"><dt>The idea</dt><dd class="pre">${esc(x.idea)}</dd>${who ? `<dt>Who\u2019s involved</dt><dd>${esc(who)}</dd>` : ''}
+    ${x.why ? `<dt>Why it matters</dt><dd class="pre">${esc(x.why)}</dd>` : ''}<dt>Contact</dt><dd><a href="${mail}">${esc(x.email)}</a>${x.phone ? ' \u00b7 ' + esc(x.phone) : ''}${member ? ' \u00b7 ' + member : ''}</dd></dl>
+    <p class="ib-hist">${hist.join('<br>')}</p>${acts}</div></div>`;
+}
+function drawIdeas(){
+  const open = ideas.filter(x => !IDEA_DONE.has(x.status)), done = ideas.filter(x => IDEA_DONE.has(x.status)), list = itab === 'open' ? open : done;
+  $('#page').innerHTML = `<header class="mast"><div><div class="eyebrow">Work Requests</div><h1>Ideas Inbox</h1>
+      <div class="sub">Ideas sent through the public Submit an Idea form. Reach out within two business days, then make each a potential initiative, or close it with a note.</div></div></header>
+    <div class="ib-bar"><div class="tabs" role="group" aria-label="Show">${[['open', 'Open', open.length], ['done', 'Done', done.length]].map(([k, t, c]) =>
+      `<button type="button" class="tab" data-itab="${k}" aria-pressed="${itab === k}">${t}<span>${c}</span></button>`).join('')}</div>
+      ${list.length ? `<span class="ib-all"><button type="button" class="linkish" data-iall="1">Expand all</button> \u00b7 <button type="button" class="linkish" data-iall="0">Collapse all</button></span>` : ''}</div>
+    <div class="ideas">${list.length ? list.map(ideaRow).join('') : `<div class="card empty">${itab === 'done' ? 'Nothing done yet.' : ideas.length ? 'Nothing waiting: every idea has been dealt with.' : 'No ideas yet. They arrive here from the public Submit an Idea form.'}</div>`}</div>`;
+}
+function saveIdea(id, patch, msg){
+  return mutate('ideas', d => { if (!d[id]) throw { code:'GONE' }; Object.assign(d[id], patch); })
+    .then(() => { refreshIdeas(); if (view === 'ideas') drawIdeas(); drawRail(); if (msg) toast(msg); return true; }, e => { toast('Not saved: ' + errText(e) + '.'); return false; });
+}
+async function ideaPromote(x){
+  const S = window.MismoStore; if (!S || !S.potential){ toast('The potential initiative tools could not load. Reload and try again.'); return; }
+  const btn = document.querySelector(`[data-ipot="${x.id}"]`); if (btn) btn.disabled = true;
+  try { if (S.types && S.types.load) await S.types.load(); } catch (e) {}
+  const keys = S.typeKeys ? S.typeKeys() : new Set(L.types), now = new Date();
+  const updates = [{ text:`Logged from idea ${x.id}, sent through the public Submit an Idea form by ${x.name}${x.company ? ', ' + x.company : ''} (${x.email}).`, by: ME.name, at: now.toISOString() }];
+  const raw = { name: x.title, domain:'', stage:'not-started', broughtBy: x.name + (x.company ? ', ' + x.company : ''), facilitator:'', dateLogged: iso(now), summary: x.idea, whyRaised: x.why || '',
+    potentialSolutions: [], leadership: [], stakeholderTypes: [], organizations: [], updates };
+  const v = S.potential.validate(raw, keys.size ? keys : new Set(L.types));
+  if (v.problems.length){ if (btn) btn.disabled = false; toast('The potential initiative could not be made: ' + v.problems[0]); return; }
+  let id = S.potential.slug(x.title);
+  try { const list = await S.potential.list(); const taken = new Set((list.items || []).map(i => i.id)); const base = id.slice(0, 36); let n = 2; while (taken.has(id)) id = base + '-' + n++; } catch (e) {}
+  const res = await S.potential.put(id, Object.assign({}, v.content, { updates }), null);
+  if (!res.ok){ if (btn) btn.disabled = false; toast('The potential initiative could not be saved (' + res.reason + ').'); return; }
+  await saveIdea(x.id, { status:'potential', potentialId:id, potentialName:x.title, decidedBy:{ email:ME.email, name:ME.name }, decidedAt: now.toISOString() }, 'Potential initiative created: ' + x.title);
+}
+document.addEventListener('click', e => {
+  if (view !== 'ideas') return;
+  const t = e.target.closest('[data-itab],[data-iall],[data-iopen],[data-ireach],[data-iclose],[data-iclosex],[data-iclosego],[data-ipot]'); if (!t) return;
+  const d = t.dataset, find = id => ideas.find(x => x.id === id);
+  if (d.itab){ itab = d.itab; ICLOSE = null; drawIdeas(); return; }
+  if (d.iall){ const list = ideas.filter(x => IDEA_DONE.has(x.status) === (itab === 'done')); list.forEach(x => d.iall === '1' ? IOPEN.add(x.id) : IOPEN.delete(x.id)); drawIdeas(); return; }
+  if (d.iopen){ const id = d.iopen; IOPEN.has(id) ? IOPEN.delete(id) : IOPEN.add(id); if (ICLOSE === id) ICLOSE = null; drawIdeas();
+    const h = document.querySelector(`[data-iopen="${id}"]`); if (h) h.focus(); return; }
+  if (d.ireach){ t.disabled = true; saveIdea(d.ireach, { status:'reached', reachedOutAt: new Date().toISOString(), reachedOutBy:{ email:ME.email, name:ME.name } }, 'Marked as reached out'); return; }
+  if (d.iclose){ ICLOSE = d.iclose; drawIdeas(); const n = $('#ib-note'); if (n) n.focus(); return; }
+  if (t.hasAttribute('data-iclosex')){ ICLOSE = null; drawIdeas(); return; }
+  if (d.iclosego){ const note = ($('#ib-note').value || '').trim(); if (!note){ toast('Add a few words on why it\u2019s being closed.'); $('#ib-note').focus(); return; }
+    t.disabled = true; const id = d.iclosego; saveIdea(id, { status:'closed', closeNote: note, decidedBy:{ email:ME.email, name:ME.name }, decidedAt: new Date().toISOString() }, 'Idea closed').then(okd => { if (okd) ICLOSE = null; if (okd && view === 'ideas') drawIdeas(); }); return; }
+  if (d.ipot){ const x = find(d.ipot); if (x) ideaPromote(x); }
+});
 const mine = () => requests.filter(byMe);
 const byName = x => (x.createdBy && x.createdBy.name) || 'Someone';
 const statusWord = x => x.status === 'assigned' ? 'Accepted' : x.status === 'potential' ? 'Accepted' : 'Submitted';
@@ -777,7 +867,7 @@ function drawRail(){
         <button type="button" data-view-go="mine" title="My Work Requests"${cur('mine')}>${I('M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5')}<span>My Work Requests</span><b class="count">${items.length}</b></button>
       </nav>
       ${items.length ? `<div class="mine" role="list" aria-label="My work requests">${items.map(it => `<button type="button" role="listitem" data-mine="${it.key}" title="${esc(it.t)}: ${it.label}"${active === it.key ? ' aria-current="true"' : ''}><i class="dot-${it.dot}" aria-hidden="true"></i><span>${esc(it.t)}</span></button>`).join('')}</div>` : ''}
-      ${ME.decides ? `<nav aria-label="Everyone's work requests"><button type="button" data-view-go="all" title="All Work Requests"${cur('all') || (view === 'detail' && !cur('mine') ? ' aria-current="page"' : '')}>${I('M4 6h16 M4 12h16 M4 18h10')}<span>All Work Requests</span><b class="count${newN ? ' hot' : ''}">${newN}</b></button></nav>` : ''}
+      ${ME.decides ? `<nav aria-label="Everyone's work requests"><button type="button" data-view-go="ideas" title="Ideas Inbox"${view === 'ideas' ? ' aria-current="page"' : ''}>${I('M4 13l2.5-8h11l2.5 8v6H4z M4 13h5l1 2h4l1-2h5')}<span>Ideas Inbox</span><b class="count${ideasToReach() ? ' warn' : ''}">${ideasToReach()}</b></button><button type="button" data-view-go="all" title="All Work Requests"${cur('all') || (view === 'detail' && !cur('mine') ? ' aria-current="page"' : '')}>${I('M4 6h16 M4 12h16 M4 18h10')}<span>All Work Requests</span><b class="count${newN ? ' hot' : ''}">${newN}</b></button></nav>` : ''}
     </div>`;
 }
 /* ─────────────── My Work Requests ─────────────── */
@@ -882,9 +972,9 @@ function decideForm(mode){
 function show(v){
   closePop(); ACO = null;
   view = v;
-  ['page','wizard','done'].forEach(k => { document.getElementById('view-' + k).hidden = (k === 'page' ? !['mine','all','detail'].includes(v) : k !== v); });
+  ['page','wizard','done'].forEach(k => { document.getElementById('view-' + k).hidden = (k === 'page' ? !['mine','all','detail','ideas'].includes(v) : k !== v); });
   if (v !== 'wizard') $('#wizard').innerHTML = '';
-  if (v === 'mine') drawMine(); else if (v === 'all') drawAll(); else if (v === 'detail') drawDetail();
+  if (v === 'mine') drawMine(); else if (v === 'all') drawAll(); else if (v === 'detail') drawDetail(); else if (v === 'ideas') drawIdeas();
   drawRail(); scrollTo({ top:0 });
 }
 function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2600); }
@@ -1164,7 +1254,9 @@ function banner(html){ const b = $('#banner'); b.innerHTML = html; b.hidden = fa
 async function poll(){
   if (document.hidden || fileOf('requests').saving || fileOf('drafts').saving) return;
   try { await Promise.all([load('requests'), load('drafts')]); } catch (e) { return; }
+  if (ME.decides && !fileOf('ideas').saving){ try { await load('ideas'); refreshIdeas(); } catch (e) {} }
   refreshRequests(); drawRail();
+  if (view === 'ideas' && !ICLOSE) drawIdeas();
   const busy = document.activeElement && document.activeElement.closest && document.activeElement.closest('.side, #decideForm');
   if (view === 'mine') drawMine(); else if (view === 'all') drawAll(); else if (view === 'detail' && !busy && !($('#decideForm') && $('#decideForm').innerHTML)) drawDetail();
 }
@@ -1177,9 +1269,10 @@ function boot(){
     try { await Promise.all([load('requests'), load('drafts')]); }
     catch (e){ banner('<b>Work requests couldn\u2019t be read.</b> ' + esc(errText(e)) + '. Reload to try again; nothing you enter now can be saved until they load.'); }
     refreshRequests();
+    if (ME.decides){ try { await load('ideas'); } catch (e) { /* none yet, or this relay predates the Ideas Inbox */ } refreshIdeas(); }
     try { const got = await hubCall('GET', 'facilitator-roster'); const j = got && got.data; if (j){ const list = (j.facilitators || j || []).map(f => f.name).filter(Boolean); if (list.length) L.facilitators = list; } } catch (e) {}
     const h = location.hash.replace('#', '');
-    if (h === 'new' && ME.submits) startWizard(); else show(h === 'all' && ME.decides ? 'all' : h === 'mine' ? 'mine' : (ME.decides ? 'all' : 'mine'));
+    if (h === 'ideas' && ME.decides) show('ideas'); else if (h === 'new' && ME.submits) startWizard(); else show(h === 'all' && ME.decides ? 'all' : h === 'mine' ? 'mine' : (ME.decides ? 'all' : 'mine'));
     setInterval(poll, 30000); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
   }, e => { if (e && e.code === 'OFFLINE') banner('<b>Work Requests couldn\u2019t reach the sign-in service.</b> Check your connection, then reload the page.'); });
 }

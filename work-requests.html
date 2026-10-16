@@ -129,6 +129,24 @@
   .chip.assigned{background:var(--good-soft);color:var(--good)}
   .chip.potential{background:var(--warn-soft);color:var(--warn-ink)}
   .chip.path{background:var(--sunk);color:var(--ink-2)}
+  /* Ideas Inbox (Perry, 16 Oct 2026) */
+  .chip.due{background:var(--warn-soft);color:var(--warn-ink)} .chip.late{background:var(--bad-soft);color:var(--bad)}
+  .rail .count.warn{background:#E0A83C;color:#06202f}
+  .ib-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap} .ib-bar .tabs{margin-bottom:0} .ib-all{margin-left:auto;font-size:13px;color:var(--ink-3)}
+  .linkish{all:unset;cursor:pointer;color:var(--link);font-weight:600} .linkish:focus-visible{outline:2px solid var(--sky,#50a4db);outline-offset:2px}
+  .ideas{display:flex;flex-direction:column;gap:8px;margin-top:12px} .card.ib{padding:0;overflow:hidden} .card.ib.on{border-left:4px solid #E0A83C}
+  .ib-head{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:16px minmax(0,1fr) minmax(0,230px) 130px auto;gap:12px;align-items:center;padding:13px 16px}
+  .ib-head:hover{background:var(--sunk)} .ib-head:focus-visible{outline:2px solid var(--sky,#50a4db);outline-offset:-2px} .card.ib.on .ib-head{border-bottom:1px solid var(--line)}
+  .ib-head b{font-size:14.5px} .ib-from,.ib-when{color:var(--ink-2);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ib-chev{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;color:var(--ink-3);transition:transform .12s}
+  .ib-head[aria-expanded="true"] .ib-chev{transform:rotate(90deg);color:var(--accent)}
+  .ib-body{padding:14px 18px 16px 44px;display:flex;flex-direction:column;gap:12px}
+  .ib-kv{display:grid;grid-template-columns:140px 1fr;gap:8px 14px;margin:0;font-size:13.5px} .ib-kv dt{color:var(--ink-2);font-weight:600} .ib-kv dd{margin:0} .ib-kv .pre{white-space:pre-wrap}
+  .ib-hist{margin:0;font-size:12.5px;color:var(--ink-3);line-height:1.6}
+  .ib-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:12px} .ib-acts .grow{flex:1}
+  .ib-close{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px} .ib-close label{font-weight:700;font-size:13px} .ib-close label span{font-weight:400;color:var(--ink-3)}
+  .ib-close textarea{font:inherit;min-height:64px;border:1px solid var(--line-3);border-radius:4px;padding:8px 10px;background:var(--input-bg);color:var(--ink)} .ib-close .ib-acts{border:0;padding:0}
+  @media (max-width:860px){ .ib-head{grid-template-columns:16px 1fr auto} .ib-from,.ib-when{display:none} .ib-body{padding-left:18px} .ib-kv{grid-template-columns:1fr} }
   .empty{padding:30px;text-align:center;color:var(--ink-3)}
 
   /* ── the wizard ── */

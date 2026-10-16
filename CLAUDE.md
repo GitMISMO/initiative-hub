@@ -654,6 +654,17 @@ Care and Feeding form), built from the prototype Perry approved. The repo files 
   Hub and Work Requests.
 - The new-standard path ("No" to the first question) is not built yet: it shows a placeholder.
 
+## Submit an Idea and the Ideas Inbox (16 Oct 2026)
+
+The public form is `GitMISMO.github.io/submit-an-idea/` (design B; MISMO's website links to it in place of Smartsheet).
+It posts, with no sign-in, to the relay's `/hub-requests/ideas/submit` (relay request 10: IDEAS FROM THE PUBLIC FORM in
+`_dev/aws/index.mjs`, tests `test-ideas.mjs`), which keeps each idea in `data/ideas.json` of the private Work Requests
+repository (IDEA-0001 on, `replyBy` two business days on) and emails the sender a receipt (repeating nothing they typed)
+and Work Requests and platform administrators an alert. Only those administrators can read or change `data/ideas`.
+The **Ideas Inbox** is in `work-requests.js` (design E2): collapsible lines, Open (`open`, `reached`) and Done
+(`potential`, `closed`); Make a Potential Initiative works like a request's. Turning an idea into a Work Request waits
+for the new-standard request (the "No" path). Page tests: `initiative-hub-data/_dev/ideas-checks/`.
+
 ## The Hub is behind the sign-in (30 Sept 2026)
 
 Every Hub page marks `<html data-rs-gate>` and loads `hub-gate.js`, which calls
