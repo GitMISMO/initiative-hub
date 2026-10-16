@@ -62,7 +62,7 @@
  * No AWS services are called and no data is stored here.
  */
 
-import { createHash, createHmac, timingSafeEqual, pbkdf2Sync, randomBytes } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual, pbkdf2Sync, randomBytes, randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -1487,6 +1487,8 @@ function linkFor(origin, email, secret) {
   return `${origin || 'https://resources.mismo.org'}/reset-password.html#e=${encodeURIComponent(email)}&t=${secret}`;
 }
 const EMAILS = {
+  code: (name, code) => ({ subject: `${code} is your MISMO Resources sign-in code`,
+    text: `Hello ${name},\n\nYour sign-in code for MISMO Resources is ${code}. It works once, for 10 minutes.\n\nIf you didn\u2019t just sign in, someone may know your password. Reset it at https://resources.mismo.org and let Perry Williams know.` }),
   reset: (name, link) => ({ subject: 'Reset your MISMO Resources password',
     text: `Hello ${name},\n\nUse this link to set a new password for MISMO Resources. It works once, for one hour:\n\n${link}\n\nIf you didn\u2019t ask for this, you can ignore this email; your password hasn\u2019t changed.\n\nMISMO Programs & Operations` }),
   invite: (name, link) => ({ subject: 'Set your MISMO Resources password',
@@ -1588,7 +1590,8 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
     if (problems.length) return respond(400, { error: 'WEAK_PASSWORD', problems });
     const set = await setPassword(person, body.password);
     if (set.error) return respond(502, { error: set.error });
-    return respond(200, signedInBody(person, Math.floor(Date.now() / 1000) + 1));
+    const at = Math.floor(Date.now() / 1000) + 1;   /* the link proved the email: this browser is remembered (request 11) */
+    return respond(200, { ...signedInBody(person, at), device: deviceToken(person, at) });
   }
 
   /* The last two need a signed-in person. */
@@ -1607,7 +1610,8 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
     const set = await setPassword(me, body.password);
     if (set.error) return respond(502, { error: set.error });
     /* This session continues: a fresh token, issued after the change. */
-    return respond(200, { ok: true, changedAt: set.changedAt, ...signedInBody(me, Math.floor(Date.now() / 1000) + 1) });
+    const at = Math.floor(Date.now() / 1000) + 1;   /* this browser stays remembered; every other one is forgotten (request 11) */
+    return respond(200, { ok: true, changedAt: set.changedAt, ...signedInBody(me, at), device: deviceToken(me, at) });
   }
 
   if (route === 'admin-reset') {
@@ -1626,6 +1630,93 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
 
 /* One sign-in attempt, once self-service is on: one PBKDF2 whatever happens, the lock checked
  * before the password matters, five wrong guesses lock the account and email a reset link. */
+/* =====================================================================================
+ * TWO-STEP SIGN-IN (relay request 11, Perry, 16 Oct 2026). After the right password, a six-digit code is emailed and
+ * must be entered, unless this browser was remembered within the last 30 days. Who needs it is set in sign-in.json
+ * beside the account list, { "codes": "off" | "admins" | "everyone" } ("admins" = platform administrators); no file
+ * means off. It can be changed on GitHub's own page, so a broken email flow can never lock everyone out for good.
+ *   - The code works once, for 10 minutes; asking again replaces it; at most 3 are sent in 15 minutes.
+ *   - A wrong code counts as a wrong password: 5 lock the account and email a reset link, and only a full sign-in
+ *     clears the count, so knowing the password does not buy more guesses.
+ *   - "Remembered" is a token the browser keeps, signed with a key of its own (never usable as a session, and a
+ *     session never usable as one), naming the person, for 30 days, void once their password changes.
+ *   - Signing in through a reset or set-password link proves the email too, so it remembers that browser.
+ *   - Only an HMAC of the code is stored; the code itself is only in the email.
+ * ===================================================================================== */
+const CODE_TTL_MS = 10 * 60_000, CODE_SENDS_PER_15_MIN = 3, DEVICE_TTL_SECONDS = 30 * 24 * 60 * 60;
+const SIGNIN_SETTINGS_PATH = 'sign-in.json';
+const keyFor = purpose => createHmac('sha256', String(process.env.AUTH_SECRET || '')).update('mismo-resources:' + purpose).digest('hex');
+const codeHash = (nonce, code) => createHmac('sha256', keyFor('code')).update(nonce + ':' + code).digest('hex');
+const deviceToken = (person, now) => signToken({ kind: 'device', sub: person.email, iat: now, exp: now + DEVICE_TTL_SECONDS }, keyFor('device'));
+function deviceRemembered(token, person) {
+  if (typeof token !== 'string' || !token) return false;
+  const p = verifyToken(token, keyFor('device'));
+  /* Strict, unlike a session's one-second allowance: any browser remembered before the password changed is forgotten;
+   * the one the change was made in gets a new token dated just after it. */
+  const changed = person.passwordChangedAt ? Date.parse(person.passwordChangedAt) : 0;
+  return !p.error && p.kind === 'device' && String(p.sub || '').toLowerCase() === person.email.toLowerCase() && (p.iat || 0) * 1000 >= changed;
+}
+async function codesRequired(person) {
+  const r = await acctRead(SIGNIN_SETTINGS_PATH);
+  if (r.error === 'NO_DIRECTORY') return { required: false };
+  if (r.error) return { error: r.error };
+  const mode = String((r.data && r.data.codes) || 'off').toLowerCase();
+  return { required: mode === 'everyone' || (mode === 'admins' && person.platformAdmin === true) };
+}
+async function sendCode(person, s) {
+  const id = person.email.toLowerCase(), nowMs = Date.now();
+  const recent = (Array.isArray(s.codeSends) ? s.codeSends : []).filter(t => nowMs - Date.parse(t) < 15 * 60_000);
+  if (recent.length >= CODE_SENDS_PER_15_MIN) return respond(429, { error: 'TOO_MANY_CODES',
+    message: 'Several codes were sent in the last few minutes. Use the newest one, or try again in 15 minutes.' });
+  const code = String(randomInt(0, 1_000_000)).padStart(6, '0'), nonce = b64url(randomBytes(12));
+  const expires = new Date(nowMs + CODE_TTL_MS).toISOString();
+  const w = await updateState(id, x => ({ ...x, code: { h: codeHash(nonce, code), n: nonce, expires }, codeSends: [...recent, new Date(nowMs).toISOString()] }), `Sign-in code for ${id}`);
+  if (w.error) return respond(502, { error: w.error });
+  const mail = await mailPerson('code', person.email, person.name, code);
+  if (!mail.sent) return respond(502, { error: 'CODE_NOT_SENT', message: 'Your sign-in code couldn\u2019t be emailed. Try again in a minute.' });
+  const now = Math.floor(nowMs / 1000);
+  const ticket = signToken({ kind: 'code', sub: person.email, n: nonce, iat: now, exp: now + CODE_TTL_MS / 1000 }, keyFor('code-ticket'));
+  /* An older sign-in page shows only the message, so it says what to do. */
+  return respond(200, { codeRequired: true, ticket, expiresAt: expires, message: 'A sign-in code was emailed to you. Reload this page to enter it.' });
+}
+async function recordSignIn(id, s) {
+  const now = new Date().toISOString();
+  const stale = !s.lastSignInAt || Date.parse(now) - Date.parse(s.lastSignInAt) > 3_600_000;
+  if (s.failed || stale) await updateState(id, x => { const { failed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: now }; }, `Signed in: ${id}`);
+}
+async function codeRoute(event, proj) {
+  const bad = () => respond(400, { error: 'CODE_EXPIRED', message: 'This code has expired or was replaced by a newer one. Sign in again for a new code.' });
+  const parsed = parseBody(event);
+  if (parsed.error) return parsed.error;
+  const t = verifyToken(parsed.body?.ticket, keyFor('code-ticket'));
+  if (t.error || t.kind !== 'code') return bad();
+  const code = String(parsed.body?.code ?? '').replace(/\s+/g, '');
+  const dir = await loadAccess();
+  if (dir.error) return respond(502, { error: 'DIRECTORY_UNREADABLE' });
+  const person = personByEmail(dir.people, t.sub);
+  if (!person || isExpired(person)) return bad();
+  const id = person.email.toLowerCase(), st = await readState();
+  if (st.error) return respond(502, { error: 'DIRECTORY_UNREADABLE' });
+  const s = st.accounts[id] || {};
+  if (s.lockedAt) return lockedResponse();
+  if (!s.code || s.code.n !== t.n || !(Date.parse(s.code.expires) > Date.now())) return bad();
+  if (!/^\d{6}$/.test(code) || !hashesMatch(s.code.h, codeHash(t.n, code))) {
+    const failed = (s.failed || 0) + 1, now = new Date().toISOString();
+    if (failed >= MAX_FAILED) {
+      await updateState(id, x => { const { code, ...rest } = x; return { ...rest, failed, lastFailedAt: now, lockedAt: now }; }, `Locked ${id} after ${MAX_FAILED} incorrect passwords or codes`);
+      const link = await issueLink(person.email, 'reset', proj.origin);
+      if (!link.error) await mailPerson('locked', person.email, person.name, link.link);
+      return lockedResponse();
+    }
+    await updateState(id, x => ({ ...x, failed, lastFailedAt: now }), `Incorrect sign-in code for ${id}`);
+    const left = MAX_FAILED - failed;
+    return respond(400, { error: 'WRONG_CODE', remaining: left, message: `That code isn\u2019t right. ${left} ${left === 1 ? 'try' : 'tries'} left.` });
+  }
+  await updateState(id, x => { const { code, failed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: new Date().toISOString() }; }, `Signed in with a code: ${id}`);
+  const now = Math.floor(Date.now() / 1000);
+  return respond(200, { ...signedInBody(person, now), device: deviceToken(person, now) });
+}
+
 async function attemptSignIn(email, password, origin) {
   const dir = await loadAccess();
   if (dir.error) return { error: dir.error };
@@ -1648,10 +1739,9 @@ async function attemptSignIn(email, password, origin) {
     await updateState(id, x => ({ ...x, failed, lastFailedAt: now }), `Incorrect password for ${id}`);
     return { response: failedResponse(MAX_FAILED - failed) };
   }
-  /* the last sign-in is recorded (relay request 9), at most once an hour so signing in doesn't mean a commit each time */
-  const stale = !s.lastSignInAt || Date.parse(now) - Date.parse(s.lastSignInAt) > 3_600_000;
-  if (s.failed || stale) await updateState(id, x => { const { failed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: now }; }, `Signed in: ${id}`);
-  return { found: person };
+  /* The sign-in is recorded (relay request 9, at most once an hour) by the caller once it is complete: with two-step
+   * sign-in (request 11) the right password alone no longer clears the count of wrong guesses. */
+  return { found: person, id, state: s };
 }
 
 /* =====================================================================================
@@ -1811,6 +1901,12 @@ export async function handler(event, context) {
    * The only route that sees a password. Everything else takes the token it returns.
    * When Cognito replaces this, the page keeps calling something that returns a token and
    * the rest of the relay is untouched — which is the point of doing it this way now. */
+  if (method === 'POST' && subPath === '/auth/code') {   /* relay request 11: the emailed code */
+    if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
+    if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET', message: 'AUTH_SECRET is not set on the function.' });
+    if (!selfServiceOn()) return respond(404, { error: 'NO_CODES' });
+    return codeRoute(event, proj);
+  }
   if (method === 'POST' && subPath === '/auth/login') {
     if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
     const secret = process.env.AUTH_SECRET;
@@ -1829,6 +1925,12 @@ export async function handler(event, context) {
       const a = await attemptSignIn(email, password, proj.origin);
       if (a.response) return a.response;
       found = a.found || { error: a.error };
+      if (a.found) {   /* relay request 11: the code step, unless not required or this browser is remembered */
+        const need = await codesRequired(a.found);
+        if (need.error) return respond(502, { error: 'DIRECTORY_UNREADABLE', message: 'Sign-in is briefly unavailable. Try again in a minute.' });
+        if (need.required && !deviceRemembered(parsed.body?.device, a.found)) return sendCode(a.found, a.state);
+        await recordSignIn(a.id, a.state);
+      }
     } else {
       found = await findPerson(email, password);
     }
