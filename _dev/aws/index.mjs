@@ -1487,6 +1487,10 @@ function linkFor(origin, email, secret) {
   return `${origin || 'https://resources.mismo.org'}/reset-password.html#e=${encodeURIComponent(email)}&t=${secret}`;
 }
 const EMAILS = {
+  codeLocked: (name, link) => ({ subject: 'Your MISMO Resources account is locked',
+    text: `Hello ${name},\n\nYour account was locked after ${CODE_MAX_WRONG} incorrect sign-in codes. Use this link to set a new password and unlock it. It works once, for one hour:\n\n${link}\n\nThe codes are only sent after the right password, so if this wasn\u2019t you, someone may know your password. Setting a new one with this link stops them. MISMO\u2019s administrators have been told.` }),
+  codeLockAlert: (adminName, who) => ({ subject: `Account locked: ${who.name || who.email} entered ${CODE_MAX_WRONG} wrong sign-in codes`,
+    text: `Hello ${adminName},\n\n${who.name || who.email} (${who.email}) was locked out of MISMO Resources after ${CODE_MAX_WRONG} incorrect sign-in codes. Codes are only sent after the right password, so this may mean someone else knows their password.\n\nThey have been emailed a link to set a new password, which unlocks the account. If they didn\u2019t expect this, check in with them. Activity in the admin console lists the lock:\n\nhttps://resources.mismo.org/admin.html` }),
   code: (name, code) => ({ subject: `${code} is your MISMO Resources sign-in code`,
     text: `Hello ${name},\n\nYour sign-in code for MISMO Resources is ${code}. It works once, for 10 minutes.\n\nIf you didn\u2019t just sign in, someone may know your password. Reset it at https://resources.mismo.org and let Perry Williams know.` }),
   reset: (name, link) => ({ subject: 'Reset your MISMO Resources password',
@@ -1527,7 +1531,7 @@ async function setPassword(person, pw) {
   const w = await updatePerson(email, p => ({ ...p, hash, passwordChangedAt: now }), `Password changed (${person.name || email})`, person.name || email);
   if (w.error) return w;
   await updateState(email, s => { const history = [person.hash, ...(s.history || [])].filter(Boolean).slice(0, HISTORY_KEEP);
-    const { failed, lastFailedAt, lockedAt, reset, ...rest } = s; return { ...rest, history }; }, `Sign-in state cleared for ${email}`);
+    const { failed, codeFailed, lastFailedAt, lockedAt, lockReason, reset, code, prevCode, ...rest } = s; return { ...rest, history }; }, `Sign-in state cleared for ${email}`);
   mailPerson('changed', email, person.name).catch(() => {});
   return { ok: true, changedAt: now };
 }
@@ -1636,14 +1640,17 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
  * beside the account list, { "codes": "off" | "admins" | "everyone" } ("admins" = platform administrators); no file
  * means off. It can be changed on GitHub's own page, so a broken email flow can never lock everyone out for good.
  *   - The code works once, for 10 minutes; asking again replaces it; at most 3 are sent in 15 minutes.
- *   - A wrong code counts as a wrong password: 5 lock the account and email a reset link, and only a full sign-in
- *     clears the count, so knowing the password does not buy more guesses.
+ *   - Two wrong codes (CODE_MAX_WRONG, counted apart from wrong passwords) lock the account, email the person a
+ *     reset link and email every other platform administrator. Only a complete sign-in clears the count, so knowing
+ *     the password buys no more guesses. The code from an email that a newer one replaced is told apart and not
+ *     counted, so asking for a second code and typing the first doesn't lock anyone out.
  *   - "Remembered" is a token the browser keeps, signed with a key of its own (never usable as a session, and a
  *     session never usable as one), naming the person, for 30 days, void once their password changes.
  *   - Signing in through a reset or set-password link proves the email too, so it remembers that browser.
  *   - Only an HMAC of the code is stored; the code itself is only in the email.
  * ===================================================================================== */
 const CODE_TTL_MS = 10 * 60_000, CODE_SENDS_PER_15_MIN = 3, DEVICE_TTL_SECONDS = 30 * 24 * 60 * 60;
+const CODE_MAX_WRONG = 2;   /* Perry, 16 Oct 2026: two wrong codes lock the account and tell every administrator */
 const SIGNIN_SETTINGS_PATH = 'sign-in.json';
 const keyFor = purpose => createHmac('sha256', String(process.env.AUTH_SECRET || '')).update('mismo-resources:' + purpose).digest('hex');
 const codeHash = (nonce, code) => createHmac('sha256', keyFor('code')).update(nonce + ':' + code).digest('hex');
@@ -1670,7 +1677,7 @@ async function sendCode(person, s) {
     message: 'Several codes were sent in the last few minutes. Use the newest one, or try again in 15 minutes.' });
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0'), nonce = b64url(randomBytes(12));
   const expires = new Date(nowMs + CODE_TTL_MS).toISOString();
-  const w = await updateState(id, x => ({ ...x, code: { h: codeHash(nonce, code), n: nonce, expires }, codeSends: [...recent, new Date(nowMs).toISOString()] }), `Sign-in code for ${id}`);
+  const w = await updateState(id, x => ({ ...x, code: { h: codeHash(nonce, code), n: nonce, expires }, prevCode: x.code || undefined, codeSends: [...recent, new Date(nowMs).toISOString()] }), `Sign-in code for ${id}`);
   if (w.error) return respond(502, { error: w.error });
   const mail = await mailPerson('code', person.email, person.name, code);
   if (!mail.sent) return respond(502, { error: 'CODE_NOT_SENT', message: 'Your sign-in code couldn\u2019t be emailed. Try again in a minute.' });
@@ -1682,7 +1689,7 @@ async function sendCode(person, s) {
 async function recordSignIn(id, s) {
   const now = new Date().toISOString();
   const stale = !s.lastSignInAt || Date.parse(now) - Date.parse(s.lastSignInAt) > 3_600_000;
-  if (s.failed || stale) await updateState(id, x => { const { failed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: now }; }, `Signed in: ${id}`);
+  if (s.failed || s.codeFailed || stale) await updateState(id, x => { const { failed, codeFailed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: now }; }, `Signed in: ${id}`);
 }
 async function codeRoute(event, proj) {
   const bad = () => respond(400, { error: 'CODE_EXPIRED', message: 'This code has expired or was replaced by a newer one. Sign in again for a new code.' });
@@ -1701,18 +1708,26 @@ async function codeRoute(event, proj) {
   if (s.lockedAt) return lockedResponse();
   if (!s.code || s.code.n !== t.n || !(Date.parse(s.code.expires) > Date.now())) return bad();
   if (!/^\d{6}$/.test(code) || !hashesMatch(s.code.h, codeHash(t.n, code))) {
-    const failed = (s.failed || 0) + 1, now = new Date().toISOString();
-    if (failed >= MAX_FAILED) {
-      await updateState(id, x => { const { code, ...rest } = x; return { ...rest, failed, lastFailedAt: now, lockedAt: now }; }, `Locked ${id} after ${MAX_FAILED} incorrect passwords or codes`);
+    const pc = s.prevCode;
+    if (/^\d{6}$/.test(code) && pc && pc.h && Date.parse(pc.expires) > Date.now() && hashesMatch(pc.h, codeHash(pc.n, code)))
+      return respond(400, { error: 'OLD_CODE', message: 'That\u2019s the code from an earlier email. Use the one in your newest email.' });
+    const wrong = (s.codeFailed || 0) + 1, now = new Date().toISOString();
+    if (wrong >= CODE_MAX_WRONG) {
+      await updateState(id, x => { const { code, prevCode, ...rest } = x; return { ...rest, codeFailed: wrong, lastFailedAt: now, lockedAt: now, lockReason: 'codes' }; },
+        `Locked ${id} after ${CODE_MAX_WRONG} incorrect sign-in codes`);
       const link = await issueLink(person.email, 'reset', proj.origin);
-      if (!link.error) await mailPerson('locked', person.email, person.name, link.link);
-      return lockedResponse();
+      if (!link.error) await mailPerson('codeLocked', person.email, person.name, link.link);
+      for (const [e, a] of Object.entries(dir.people)) if (a.platformAdmin === true && e.toLowerCase() !== id && !isExpired(a)) {
+        const m = EMAILS.codeLockAlert(a.name || e, person);
+        await sendMail({ kind: 'code-lock-alert', to: e, subject: m.subject, text: m.text, html: htmlOf(m.text) });
+      }
+      return respond(423, { error: 'LOCKED', message: `This account is locked after ${CODE_MAX_WRONG} incorrect sign-in codes. Check your email for a link to set a new password.` });
     }
-    await updateState(id, x => ({ ...x, failed, lastFailedAt: now }), `Incorrect sign-in code for ${id}`);
-    const left = MAX_FAILED - failed;
-    return respond(400, { error: 'WRONG_CODE', remaining: left, message: `That code isn\u2019t right. ${left} ${left === 1 ? 'try' : 'tries'} left.` });
+    await updateState(id, x => ({ ...x, codeFailed: wrong, lastFailedAt: now }), `Incorrect sign-in code for ${id}`);
+    const left = CODE_MAX_WRONG - wrong;
+    return respond(400, { error: 'WRONG_CODE', remaining: left, message: `That code isn\u2019t right. ${left} more wrong ${left === 1 ? 'code locks' : 'codes lock'} the account.` });
   }
-  await updateState(id, x => { const { code, failed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: new Date().toISOString() }; }, `Signed in with a code: ${id}`);
+  await updateState(id, x => { const { code, prevCode, failed, codeFailed, lastFailedAt, ...rest } = x; return { ...rest, lastSignInAt: new Date().toISOString() }; }, `Signed in with a code: ${id}`);
   const now = Math.floor(Date.now() / 1000);
   return respond(200, { ...signedInBody(person, now), device: deviceToken(person, now) });
 }
@@ -2148,7 +2163,9 @@ export async function handler(event, context) {
       const out = { people: dir.people, sha: dir.sha, fields: selfServiceOn() ? ['group', 'auth'] : ['group'], groups: [...PEOPLE_GROUPS] };   /* the sections it keeps: the panel moves facilitators over when it sees 'facilitator' */
       if (selfServiceOn()) {
         const st = await readState();
-        if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, failed: s.failed || 0, lastSignInAt: s.lastSignInAt || null }]));
+        if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, lockedBy: s.lockedAt ? (s.lockReason === 'codes' ? 'codes' : 'passwords') : null, failed: s.failed || 0, lastSignInAt: s.lastSignInAt || null }]));
+        const sv = await acctRead(SIGNIN_SETTINGS_PATH);   /* relay request 11: shown in the console's Security section */
+        out.codes = sv.error ? null : (['admins', 'everyone'].includes(String((sv.data || {}).codes || '').toLowerCase()) ? String(sv.data.codes).toLowerCase() : 'off');
       }
       return respond(200, out);
     }
@@ -2230,7 +2247,7 @@ export async function handler(event, context) {
       __resetAccessCache();          // the next request must see the change, not the cache
       /* An administrator who sets a new password for someone also unlocks them. */
       if (selfServiceOn()) for (const email of rehashed) {
-        await updateState(email, s => { const { failed, lastFailedAt, lockedAt, reset, ...rest } = s; return rest; }, `Unlocked ${email} (new password from ${who.name})`);
+        await updateState(email, s => { const { failed, codeFailed, lastFailedAt, lockedAt, lockReason, reset, code, prevCode, ...rest } = s; return rest; }, `Unlocked ${email} (new password from ${who.name})`);
       }
       return respond(200, { sha: json.content?.sha, savedBy: who.name, count: Object.keys(clean).length });
     }

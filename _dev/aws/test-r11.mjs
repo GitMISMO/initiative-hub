@@ -87,13 +87,13 @@ const ticket1 = d.ticket;
 ok('the ticket is not a session: it opens nothing', (await call('GET', 'hub', '/activity', ticket1)).statusCode === 401);
 const wrong = code1 === '000000' ? '111111' : '000000';
 r = await enter(ticket1, wrong); d = J(r);
-ok('a wrong code is refused, saying how many tries are left', r.statusCode === 400 && d.error === 'WRONG_CODE' && d.remaining === 4 && /4 tries left/.test(d.message), d);
+ok('a wrong code is refused, warning that one more locks the account', r.statusCode === 400 && d.error === 'WRONG_CODE' && d.remaining === 1 && /1 more wrong code locks/.test(d.message), d);
 r = await enter(ticket1, code1); d = J(r);
 ok('the right code signs him in, and remembers this browser', r.statusCode === 200 && d.token && typeof d.device === 'string' && d.platformAdmin === true, d);
 const perryDevice = d.device, perrySession = d.token;
 ok('...and that session works', (await call('GET', 'hub', '/activity', perrySession)).statusCode === 200);
 ok('the remembered-browser token is not a session', (await call('GET', 'hub', '/activity', perryDevice)).statusCode === 401);
-ok('the right code also cleared the wrong guess', !stateOf('perry@example.org').failed && !stateOf('perry@example.org').code, stateOf('perry@example.org'));
+ok('the right code also cleared the wrong guess', !stateOf('perry@example.org').codeFailed && !stateOf('perry@example.org').code, stateOf('perry@example.org'));
 r = await enter(ticket1, code1);
 ok('a code works once', r.statusCode === 400 && J(r).error === 'CODE_EXPIRED', J(r));
 
@@ -128,29 +128,37 @@ r = await enter(tC, cC);
 ok('...the newest one still works', r.statusCode === 200 && J(r).token, J(r));
 clearSends('perry@example.org');
 
-/* ---------- guessing ---------- */
+/* ---------- guessing: two wrong codes lock, and every other administrator is told ---------- */
 clearSends('jonna@example.org'); reset();
-r = await signIn('jonna@example.org'); let tJ = J(r).ticket; const cJ = codeFor('jonna@example.org'), w = cJ === '000000' ? '111111' : '000000';
-for (let i = 0; i < 3; i++) await enter(tJ, w);
+r = await signIn('jonna@example.org'); let tJ = J(r).ticket; const cJ1 = codeFor('jonna@example.org'), w = cJ1 === '000000' ? '111111' : '000000';
+r = await enter(tJ, w); ok('first wrong code: refused, one more locks', r.statusCode === 400 && J(r).remaining === 1, J(r));
 r = await signIn('jonna@example.org'); d = J(r);
-ok('the right password again does not clear wrong codes (3 so far): it only sends a new code', d.codeRequired === true && stateOf('jonna@example.org').failed === 3, stateOf('jonna@example.org'));
+ok('the right password again does not clear the wrong code: it only sends a new one', d.codeRequired === true && stateOf('jonna@example.org').codeFailed === 1, stateOf('jonna@example.org'));
 tJ = d.ticket;
-r = await enter(tJ, w); ok('fourth wrong code: one try left', J(r).remaining === 1, J(r));
+r = await enter(tJ, cJ1);
+ok("typing the earlier email's code is recognised and not counted", r.statusCode === 400 && J(r).error === 'OLD_CODE' && /newest email/.test(J(r).message) && stateOf('jonna@example.org').codeFailed === 1, J(r));
 mails.length = 0;
 r = await enter(tJ, w);
-ok('the fifth wrong code locks the account, as five wrong passwords do', r.statusCode === 423 && J(r).error === 'LOCKED', J(r));
-const lockMail = mails.find(m => m.to === 'jonna@example.org' && m.kind === 'locked');
-ok('...and emails her a reset link', !!lockMail, mails.map(m => m.kind));
+ok('the second wrong code locks the account', r.statusCode === 423 && J(r).error === 'LOCKED' && /2 incorrect sign-in codes/.test(J(r).message), J(r));
+const lockMail = mails.find(m => m.to === 'jonna@example.org' && m.kind === 'codeLocked');
+ok('...emails her a reset link, saying why', !!lockMail && /2 incorrect sign-in codes/.test(lockMail.text) && /[#&]t=/.test(lockMail.text), mails.map(m => m.kind + ' ' + m.to));
+const alerts = mails.filter(m => m.kind === 'code-lock-alert');
+ok('...and emails every other platform administrator (Perry), not her and not anyone else', alerts.length === 1 && alerts[0].to === 'perry@example.org' && alerts[0].subject.includes('Jonna Critchley') && /may mean someone else knows their password/.test(alerts[0].text), alerts.map(m => m.to));
+ok('wrong passwords still have their own count of five', stateOf('jonna@example.org').failed === undefined || stateOf('jonna@example.org').failed === 0, stateOf('jonna@example.org'));
 r = await signIn('jonna@example.org'); ok('locked means locked, even with the right password', r.statusCode === 423, J(r));
 r = await enter(tJ, codeFor('jonna@example.org'));
-ok('...and the code no longer works either', r.statusCode !== 200, J(r));
+ok('...and no code works either', r.statusCode !== 200, J(r));
 reset(); d = J(await call('GET', 'hub', '/activity', perrySession));
-ok('Activity lists the lock', d.entries.some(x => x.kind === 'Sign-in' && x.message.startsWith('Locked jonna@example.org after 5')), d.entries.filter(x => x.kind === 'Sign-in').map(x => x.message));
+ok('Activity lists the lock, and why', d.entries.some(x => x.kind === 'Sign-in' && x.message === 'Locked jonna@example.org after 2 incorrect sign-in codes'), d.entries.filter(x => x.kind === 'Sign-in').map(x => x.message));
+d = J(await call('GET', 'hub', '/access', perrySession));
+ok('the console is told the account is locked by codes, and that codes are on for administrators', d.auth && d.auth['jonna@example.org'] && d.auth['jonna@example.org'].locked === true && d.auth['jonna@example.org'].lockedBy === 'codes' && d.codes === 'admins', { auth: d.auth && d.auth['jonna@example.org'], codes: d.codes });
 
 /* ---------- a reset link proves the email ---------- */
 const secret = (String(lockMail.text).match(/[#&]t=([A-Za-z0-9_-]+)/) || [])[1];
 r = await call('POST', 'hub', '/auth/reset', null, { email: 'jonna@example.org', token: secret, password: 'Harbor-lantern-quietly-9' }); d = J(r);
 ok('signing in through the reset link remembers that browser', r.statusCode === 200 && d.token && typeof d.device === 'string', d);
+const js = stateOf('jonna@example.org');
+ok('...and clears the lock completely', !js.lockedAt && !js.lockReason && !js.codeFailed && !js.code && !js.prevCode, js);
 reset(); r = await signIn('jonna@example.org', { device: d.device }, 'Harbor-lantern-quietly-9');
 ok('...so her next sign-in there needs no code', r.statusCode === 200 && J(r).token && !J(r).codeRequired, J(r));
 
