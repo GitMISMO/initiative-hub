@@ -1732,6 +1732,94 @@ async function codeRoute(event, proj) {
   return respond(200, { ...signedInBody(person, now), device: deviceToken(person, now) });
 }
 
+/* =====================================================================================
+ * IDEAS FROM THE PUBLIC FORM (relay request 10; Perry, 16 Oct 2026)
+ * POST /hub-requests/ideas/submit, with no sign-in: the Submit an Idea form that MISMO's website links to. It only
+ * adds; nothing is ever read back through it. Each idea goes into data/ideas.json in the PRIVATE Work Requests
+ * repository, which only administrators of Work Requests and platform administrators can open (the Ideas Inbox; the
+ * rule is in the /data route). The sender gets a receipt that repeats nothing they typed, so the form can't be used to
+ * send anyone words of a stranger's choosing; the administrators get an alert with the details.
+ * Against misuse: only from the project's own site (an Origin header is required); a field people never see (filled
+ * means a robot: answered as if accepted, kept nowhere, no email); at least 3 seconds between the form opening and
+ * sending; at most 3 ideas an hour from one address and 30 an hour in all (per running copy of the relay); 24 kB at
+ * most; every field checked, with line breaks taken out of the one-line fields.
+ * ===================================================================================== */
+const IDEA_PROJECT = 'hub-requests', IDEA_PATH = 'data/ideas.json';
+const IDEA_WHO = ['Lenders', 'Servicers', 'Investors and GSEs', 'Technology providers', 'Settlement and title', 'Appraisal and valuation', 'Government agencies', 'Consumers'];
+const IDEA_PER_IP_HOUR = 3, IDEA_ALL_HOUR = 30, IDEA_MIN_MS = 3000, IDEA_MAX_BYTES = 24_000;
+const ideaSeen = { ip: new Map(), all: [] };
+function ideaAllowed(ip, now) {
+  const hour = now - 3_600_000;
+  ideaSeen.all = ideaSeen.all.filter(t => t > hour);
+  for (const [k, v] of ideaSeen.ip) { const keep = v.filter(t => t > hour); if (keep.length) ideaSeen.ip.set(k, keep); else ideaSeen.ip.delete(k); }
+  const mine = ideaSeen.ip.get(ip) || [];
+  if (mine.length >= IDEA_PER_IP_HOUR || ideaSeen.all.length >= IDEA_ALL_HOUR) return false;
+  mine.push(now); ideaSeen.ip.set(ip, mine); ideaSeen.all.push(now); return true;
+}
+/* Two business days after today in Washington (weekends skipped; holidays aren't known here). */
+function ideaReplyBy(nowMs) {
+  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(nowMs));
+  const d = new Date(ymd + 'T12:00:00Z'); let left = 2;
+  while (left) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) left--; }
+  return d.toISOString().slice(0, 10);
+}
+const ideaDay = ymd => new Date(ymd + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+function cleanIdea(b) {
+  const problems = [], text = (v, max, one) => { let t = String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').replace(/\r\n?/g, '\n'); if (one) t = t.replace(/\s+/g, ' '); t = t.trim(); return t.length > max ? null : t; };
+  const f = (key, max, one, need, say) => { const t = text(b[key], max, one); if (t === null) { problems.push(`${say} is too long (${max} characters at most).`); return ''; } if (need && t.length < need) problems.push(`${say} is needed.`); return t; };
+  const idea = { title: f('title', 150, true, 3, 'A name for your idea'), idea: f('idea', 4000, false, 10, 'A description of the idea'), why: f('why', 4000, false, 0, 'Why it matters'),
+    name: f('name', 100, true, 2, 'Your name'), company: f('company', 150, true, 0, 'Company'), email: f('email', 200, true, 0, 'Email'), phone: f('phone', 40, true, 0, 'Phone'),
+    whoOther: f('whoOther', 200, true, 0, 'Who else') };
+  if (!/^[^\s@]{1,64}@[^\s@]+\.[A-Za-z]{2,}$/.test(idea.email)) problems.push('An email address we can reply to is needed.');
+  idea.who = Array.isArray(b.who) ? [...new Set(b.who.map(String))].filter(x => IDEA_WHO.includes(x)) : [];
+  idea.member = ['yes', 'no', 'unsure'].includes(b.member) ? b.member : '';
+  return { idea, problems };
+}
+async function updateRepoJson(repo, branch, path, change, message) {
+  for (let tries = 0; tries < 4; tries++) {
+    const cur = await readFile(repo, branch, path);
+    if (cur.status !== 200 && cur.status !== 404) return { error: 'UNREADABLE' };
+    const next = change(cur.status === 200 && cur.data && typeof cur.data === 'object' ? JSON.parse(JSON.stringify(cur.data)) : {});
+    const { status } = await github('PUT', `/repos/${repo}/contents/${path}`, { message, content: encodeBase64Utf8(next), branch, sha: cur.sha || undefined });
+    if (status === 200 || status === 201) return { ok: true, data: next };
+    if (status !== 409 && status !== 422) return { error: 'GITHUB', status };
+  }
+  return { error: 'CONFLICT' };
+}
+async function ideaSubmit(event, proj, headers) {
+  if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
+  if (String(event.body || '').length > IDEA_MAX_BYTES) return respond(413, { error: 'TOO_LARGE', message: 'That is more than the form takes. Shorten the longer answers and try again.' });
+  const parsed = parseBody(event); if (parsed.error) return parsed.error;
+  const b = parsed.body || {}, now = Date.now();
+  const started = Number(b.startedAt);
+  if (String(b.website || '').trim() || !Number.isFinite(started) || now - started < IDEA_MIN_MS) return respond(200, { ok: true, reference: null });   /* a robot: as if accepted, kept nowhere */
+  const ip = (event.requestContext && event.requestContext.http && event.requestContext.http.sourceIp) || 'unknown';
+  const { idea, problems } = cleanIdea(b);
+  if (problems.length) return respond(400, { error: 'INVALID', problems });
+  if (!ideaAllowed(ip, now)) return respond(429, { error: 'TOO_MANY', message: 'A few ideas have just been sent from here. Please try again in an hour, or email MISMO directly.' });
+  const at = new Date(now).toISOString(), replyBy = ideaReplyBy(now); let ref = null;
+  const w = await updateRepoJson(proj.repo, proj.branch || 'main', IDEA_PATH, d => {
+    d.docs = d.docs && typeof d.docs === 'object' ? d.docs : {};
+    const n = Object.keys(d.docs).map(k => Number((k.match(/^IDEA-(\d+)$/) || [])[1]) || 0).reduce((a, x) => Math.max(a, x), 0) + 1;
+    ref = 'IDEA-' + String(n).padStart(4, '0');
+    d.docs[ref] = { id: ref, at, replyBy, status: 'open', source: 'public form', ...idea };
+    return d;
+  }, 'A new idea from the public form');
+  if (w.error) return respond(502, { error: 'NOT_SAVED', message: 'Your idea couldn\u2019t be saved just now. Please try again in a minute.' });
+  /* Emails: neither can undo the save, so a failure is only logged. */
+  const due = ideaDay(replyBy);
+  const receipt = `Hello,\n\nThank you for sharing an idea with MISMO. A MISMO staff member will reach out within two business days, by ${due}.\n\nYour reference is ${ref}. Mention it if you write to MISMO about this idea.\n\nMISMO`;
+  await sendMail({ kind: 'idea-receipt', to: idea.email, subject: `Your idea for MISMO (${ref})`, text: receipt, html: htmlOf(receipt) }).catch(e => console.warn('idea receipt:', e && e.message));
+  const dir = await loadAccess();
+  const admins = dir.error ? [] : Object.entries(dir.people).filter(([, x]) => !isExpired(x) && (x.platformAdmin === true || normaliseRole((x.access || {})[IDEA_PROJECT]) === 'admin'));
+  const who = [...idea.who, ...(idea.whoOther ? [idea.whoOther] : [])].join(', ') || 'not said';
+  for (const [email, x] of admins) {
+    const t = `Hello ${x.name || email},\n\nA new idea came in through the public form: ${idea.title}\n\nFrom ${idea.name}${idea.company ? ', ' + idea.company : ''} (${idea.email})\nWho's involved: ${who}\n\nReply by ${due} (two business days). It's in the Ideas Inbox:\nhttps://resources.mismo.org/initiative-hub/work-requests.html#ideas`;
+    await sendMail({ kind: 'idea-alert', to: email, subject: `New idea (${ref}): ${idea.title}`, text: t, html: htmlOf(t) }).catch(e => console.warn('idea alert:', e && e.message));
+  }
+  return respond(200, { ok: true, reference: ref, replyBy });
+}
+
 async function attemptSignIn(email, password, origin) {
   const dir = await loadAccess();
   if (dir.error) return { error: dir.error };
@@ -1916,6 +2004,10 @@ export async function handler(event, context) {
    * The only route that sees a password. Everything else takes the token it returns.
    * When Cognito replaces this, the page keeps calling something that returns a token and
    * the rest of the relay is untouched — which is the point of doing it this way now. */
+  if (method === 'POST' && subPath === '/ideas/submit') {   /* relay request 10: the public Submit an Idea form, no sign-in */
+    if (!proj || proj.key !== IDEA_PROJECT) return respond(404, { error: 'NOT_FOUND' });
+    return ideaSubmit(event, proj, headers);
+  }
   if (method === 'POST' && subPath === '/auth/code') {   /* relay request 10: the emailed code */
     if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
     if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET', message: 'AUTH_SECRET is not set on the function.' });
@@ -2297,6 +2389,12 @@ export async function handler(event, context) {
   if (dataMatch) {
     const id = dataMatch[1];
     if (!DASHBOARD_ID.test(id) || RESERVED_IDS.has(id)) return respond(400, { error: 'BAD_ID' });
+    /* The Ideas Inbox: ideas from the public form are for administrators of Work Requests and platform administrators
+     * only (relay request 10; see IDEAS FROM THE PUBLIC FORM). Anyone else with Work Requests gets nothing. */
+    if (proj.key === IDEA_PROJECT && id === 'ideas') {
+      const pa = who.role === 'admin' ? { ok: true } : await isPlatformAdmin(lowerOf(who.email));
+      if (!pa.ok) return respond(403, { error: 'ADMINS_ONLY', message: 'Ideas from the public form are for Work Requests administrators.' });
+    }
     /* Work Requests: each person's own (see WORK REQUESTS: EACH PERSON'S OWN). */
     const ownRule = OWNED_FILES[proj.key] && OWNED_FILES[proj.key][id];
     if (ownRule) return ownedData(ownRule, method, id, event, who, repo, branch);
