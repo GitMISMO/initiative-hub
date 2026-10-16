@@ -942,6 +942,7 @@ const ASK_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif',
 const askRecent = new Map();                          // email -> recent question times, this container
 let currentContext = null;                            // the Lambda context, for the time left
 const askPerHour = () => Math.max(1, Number(process.env.ASK_PER_HOUR) || 40);
+const ASK_MAX_TOKENS = 2000;   /* relay request 10 (Perry, 16 Oct 2026): room for fuller answers, the same for every tier (was 1,000; 1,500 complex) */
 const askTimeoutMs = () => {
   const left = currentContext && typeof currentContext.getRemainingTimeInMillis === 'function' ? currentContext.getRemainingTimeInMillis() : 30_000;
   return Math.max(1_000, left - 4_000);               // answer ASK_TIMEOUT a few seconds before the function's own timeout
@@ -977,7 +978,7 @@ async function askRoute(proj, who, event) {
   try {
     res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctl.signal,
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: complex ? 1500 : 1000, messages: [{ role: 'user', content: [...blocks, { type: 'text', text: prompt }] }] }) });
+      body: JSON.stringify({ model, max_tokens: ASK_MAX_TOKENS, messages: [{ role: 'user', content: [...blocks, { type: 'text', text: prompt }] }] }) });
   } catch (e) {
     clearTimeout(timer);
     return e && e.name === 'AbortError' ? respond(504, { error: 'ASK_TIMEOUT' }) : respond(502, { error: 'ASK_FAILED' });
@@ -1172,35 +1173,53 @@ function diffPeople(a, b) {
   }
   return out;
 }
+/* Relay request 10 (Perry, 13 Oct 2026): Activity reads side by side. The history lists, the records and every version
+ * of the account list it needs are fetched together, a few at a time (ACTIVITY_READS_AT_ONCE, gentle on GitHub),
+ * instead of one after another, which took 5 to 10 seconds on a cold relay. What it shows is unchanged. */
+const ACTIVITY_READS_AT_ONCE = 8;
+async function eachAtOnce(items, limit, fn) {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) { const x = items[next++]; await fn(x); } }));
+}
 async function activity(event, who) {
   const pa = await isPlatformAdmin(lowerOf(who.email));
   if (!pa.ok) return respond(403, { error: pa.error || 'NOT_PLATFORM_ADMIN' });
   const loc = directoryLoc(); if (!loc.private) return respond(404, { error: 'NO_DIRECTORY' });
-  const hist = await github('GET', `/repos/${loc.repo}/commits?path=${encodeURIComponent(loc.path)}&sha=${encodeURIComponent(loc.branch)}&per_page=25`);
+  const statePath = process.env.AUTH_STATE_PATH || 'auth-state.json';
+  const [hist, log, bg, st] = await Promise.all([
+    github('GET', `/repos/${loc.repo}/commits?path=${encodeURIComponent(loc.path)}&sha=${encodeURIComponent(loc.branch)}&per_page=25`),
+    acctRead(LOG_PATH), acctRead(BG_PATH),
+    github('GET', `/repos/${loc.repo}/commits?path=${encodeURIComponent(statePath)}&sha=${encodeURIComponent(loc.branch)}&per_page=40`)]);
   if (hist.status !== 200 || !Array.isArray(hist.json)) return respond(502, { error: 'HISTORY_UNREADABLE' });
   const at = async sha => { if (versionCache.has(sha)) return versionCache.get(sha);
     const f = await readFile(loc.repo, sha, loc.path); const v = f.status === 200 ? ((f.data && f.data.people) || {}) : (f.status === 404 ? {} : null);
     if (v) versionCache.set(sha, v); return v; };
+  const parentOf = c => (c.parents && c.parents[0] ? c.parents[0].sha : null);
+  const shas = [...new Set(hist.json.flatMap(c => [c.sha, parentOf(c)]).filter(Boolean))];
+  const versions = new Map();
+  await eachAtOnce(shas, ACTIVITY_READS_AT_ONCE, async sha => { versions.set(sha, await at(sha)); });
   const entries = [];
   for (const c of hist.json) {
-    const now = await at(c.sha); if (!now) continue;
-    const before = c.parents && c.parents[0] ? await at(c.parents[0].sha) : {};
+    const msg = String(c.commit.message).split('\n')[0];
+    /* Relay request 10 (Perry, 16 Oct 2026): a password change is saved in the account list as "Password changed
+     * (name)" and changes nothing the list shows, so it was left out; it is listed with the sign-in events. */
+    if (/^Password changed \(/.test(msg)) entries.push({ kind: 'Sign-in', at: c.commit.author.date, by: c.commit.author.name, message: msg });
+    const now = versions.get(c.sha); if (!now) continue;
+    const before = parentOf(c) ? versions.get(parentOf(c)) : {};
     const changes = diffPeople(before || {}, now);
     if (!changes.length) continue;
-    entries.push({ kind: changes.some(x => x.change || x.field) ? 'Account' : 'Access', at: c.commit.author.date, by: c.commit.author.name, message: String(c.commit.message).split('\n')[0], changes });
+    entries.push({ kind: changes.some(x => x.change || x.field) ? 'Account' : 'Access', at: c.commit.author.date, by: c.commit.author.name, message: msg, changes });
   }
-  const log = await acctRead(LOG_PATH);
   for (const v of (log.data && Array.isArray(log.data.entries) ? log.data.entries : [])) entries.push({ kind: 'View as', at: v.at, by: v.by, as: v.as, until: v.until });
-  const bg = await acctRead(BG_PATH);
   for (const q of (bg.data && Array.isArray(bg.data.requests) ? bg.data.requests : [])) {
     entries.push({ kind: 'Break glass', at: q.at, by: q.by, event: 'requested', person: q.person, project: q.project, reason: q.reason, id: q.id });
     if (q.decidedAt) entries.push({ kind: 'Break glass', at: q.decidedAt, by: q.decidedBy, event: q.status === 'declined' ? 'declined' : 'approved', person: q.person, project: q.project, id: q.id });
     for (const o of (q.opened || [])) entries.push({ kind: 'Break glass', at: o, by: q.by, event: 'opened', person: q.person, project: q.project, id: q.id });
   }
-  const st = await github('GET', `/repos/${loc.repo}/commits?path=${encodeURIComponent(process.env.AUTH_STATE_PATH || 'auth-state.json')}&sha=${encodeURIComponent(loc.branch)}&per_page=40`);
   if (st.status === 200 && Array.isArray(st.json)) for (const c of st.json) {
     const msg = String(c.commit.message).split('\n')[0];
-    if (/^(Locked|Reset requested|Password (set|changed)|Unlocked|Reset link)/i.test(msg)) entries.push({ kind: 'Sign-in', at: c.commit.author.date, by: c.commit.author.name, message: msg });
+    if (/^(Locked|Reset requested|Password (set|changed)|Unlocked|Reset link|Set-password link)/i.test(msg)) entries.push({ kind: 'Sign-in', at: c.commit.author.date, by: c.commit.author.name, message: msg });
   }
   entries.sort((x, y) => String(y.at).localeCompare(String(x.at)));
   return respond(200, { entries: entries.slice(0, 200) });
@@ -1484,11 +1503,16 @@ async function mailPerson(kind, email, name, link) {
   return sendMail({ kind, to: email, subject: m.subject, text: m.text, html: htmlOf(m.text) });
 }
 /* A new reset link: its secret goes into the email (or to the administrator), only its hash
- * into the state file. Requesting another replaces the last one. */
-async function issueLink(email, purpose, origin) {
+ * into the state file. Requesting another replaces the last one. A link an administrator sends names them
+ * (relay request 10: it shows in Activity as "Reset link for … (sent by …)" or "Set-password link for … (sent by …)");
+ * the automatic ones, after a lock or a person's own request, keep the old wording, which Activity leaves out
+ * because the lock or the request is already listed. */
+async function issueLink(email, purpose, origin, by) {
   const secret = b64url(randomBytes(32));
+  const message = by ? `${purpose === 'invite' ? 'Set-password' : 'Reset'} link for ${email} (sent by ${String(by).replace(/[\r\n]+/g, ' ').slice(0, 120)})`
+    : `Password link for ${email}`;
   const r = await updateState(email, s => ({ ...s, reset: { hash: sha256hex(secret), purpose,
-    expires: new Date(Date.now() + (purpose === 'invite' ? INVITE_TTL_MS : RESET_TTL_MS)).toISOString() } }), `Password link for ${email}`);
+    expires: new Date(Date.now() + (purpose === 'invite' ? INVITE_TTL_MS : RESET_TTL_MS)).toISOString() } }), message);
   if (r.error) return { error: r.error };
   return { link: linkFor(origin, email, secret) };
 }
@@ -1591,7 +1615,7 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
     const person = personByEmail(dir.people, body.email);
     if (!person) return respond(404, { error: 'NO_ACCOUNT' });
     const purpose = body.purpose === 'invite' ? 'invite' : 'reset';
-    const link = await issueLink(person.email, purpose, proj.origin);
+    const link = await issueLink(person.email, purpose, proj.origin, me.name || me.email);
     if (link.error) return respond(502, { error: link.error });
     const mail = await mailPerson(purpose, person.email, person.name, link.link);
     /* Without an email flow the administrator passes the link on; it is shown once. */

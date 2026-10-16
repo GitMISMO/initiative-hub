@@ -28,9 +28,9 @@ r = await ask('team-hq', kt, { prompt: 'hi' }); ok('no key yet: 503 ASK_NOT_SET_
 process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
 r = await ask('team-hq', kt, { prompt: '' }); ok('empty question: 400 NO_PROMPT, says it reads images and PDFs, costs nothing', r.statusCode === 400 && J(r).error === 'NO_PROMPT' && J(r).images === true && J(r).pdf === true && sent === null);
 r = await ask('team-hq', vt, { prompt: 'What is late?' }); ok('a View account may ask: 200 with the answer, model and counts', r.statusCode === 200 && J(r).text === 'Three tasks are late.' && J(r).model === 'claude-sonnet-5-5-x' && J(r).usage.in === 1200 && J(r).usage.out === 40);
-ok('...the call: the key in the header, the version, Sonnet by default, 1000 tokens, the question last', sent.headers['x-api-key'] === 'sk-ant-test' && sent.headers['anthropic-version'] === '2023-06-01' && sent.body.model === 'claude-sonnet-5-5' && sent.body.max_tokens === 1000 && sent.body.messages[0].content.at(-1).text === 'What is late?');
+ok('...the call: the key in the header, the version, Sonnet by default, 2000 tokens (relay request 10), the question last', sent.headers['x-api-key'] === 'sk-ant-test' && sent.headers['anthropic-version'] === '2023-06-01' && sent.body.model === 'claude-sonnet-5-5' && sent.body.max_tokens === 2000 && sent.body.messages[0].content.at(-1).text === 'What is late?');
 process.env.ANTHROPIC_MODEL_COMPLEX = 'claude-opus-5-5';
-r = await ask('team-hq', kt, { prompt: 'Plan my day', tier: 'complex' }); ok('complex: 1500 tokens and the complex model when set', sent.body.max_tokens === 1500 && sent.body.model === 'claude-opus-5-5');
+r = await ask('team-hq', kt, { prompt: 'Plan my day', tier: 'complex' }); ok('complex: the same 2000 tokens (never less than a plain question) and the complex model when set', sent.body.max_tokens === 2000 && sent.body.model === 'claude-opus-5-5');
 delete process.env.ANTHROPIC_MODEL_COMPLEX; process.env.ASK_PER_HOUR = '50';
 r = await ask('team-hq', kt, { prompt: 'Read this receipt', files: [{ mediaType: 'image/jpeg', data: 'AAAA' }, { mediaType: 'application/pdf', data: 'BBBB' }] });
 const c = sent.body.messages[0].content; ok('receipts: a picture and a PDF as blocks, the question after them', r.statusCode === 200 && c[0].type === 'image' && c[0].source.media_type === 'image/jpeg' && c[1].type === 'document' && c[2].type === 'text');
