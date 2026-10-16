@@ -1,4 +1,4 @@
-/* Relay request 11: two-step sign-in by emailed code (Perry, 16 Oct 2026). Run: node test-r11.mjs
+/* Two-step sign-in by emailed code, part of relay request 10 (Perry, 16 Oct 2026; one request with the rest). Run: node test-two-step.mjs
  * Request 9's stand-in GitHub and mail flow; the clock is moved forward where a check needs time to pass. */
 import { pbkdf2Sync } from 'node:crypto';
 const ORIGIN = 'https://resources.example';

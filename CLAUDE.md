@@ -306,6 +306,9 @@ Monday to Wednesday, each tested as it is built. By Wednesday evening: freeze th
 prepare the package: the Word document for IT (built like `IT-Update-Relay-Code-9.docx`, from `make9.js`, kept vague
 on what it enables), the request document, the commit and the fingerprint. Perry sends it Thursday; no relay changes
 that week, no request. The deploy is one paste of the whole `_dev/aws/index.mjs`, so everything in it goes together.
+**One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
+good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
+off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
 **Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
 repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
 repositories it touches, so treat changes to that list like code changes.

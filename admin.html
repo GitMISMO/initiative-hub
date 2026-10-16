@@ -1998,21 +1998,21 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   if (REQ_ON) setTimeout(() => loadBg(false), 1800);   /* quietly, so the sidebar can show what's waiting */
 
   /* ===== Security (Perry, 16 Oct 2026): every protection the platform has, in plain words, with the current state of
-     the ones that can change. The two-step setting and lock reasons arrive with relay request 11; before it, those rows
+     the ones that can change. The two-step setting and lock reasons arrive with relay request 10; before it, those rows
      say so. Kept in step with the relay by hand: a change to how sign-in or access works updates this list too. ===== */
   function renderSecurity(){
     const body = $('secBody'); if (!body) return;
     const ST = (cls, text) => `<span class="sec-st ${cls}">${esc(text)}</span>`, ON = ST('on', 'On');
     const codes = acc ? acc.codes : undefined, live = codes !== undefined;
     const notYet = accFailed ? ST('bad', 'Couldn\u2019t be loaded') : ST('wait', 'Loading\u2026');
-    const codeSt = !acc ? notYet : codes === undefined ? ST('wait', 'Arrives with relay request 11') : codes === null ? ST('bad', 'Couldn\u2019t be read') :
+    const codeSt = !acc ? notYet : codes === undefined ? ST('wait', 'Arrives with relay request 10') : codes === null ? ST('bad', 'Couldn\u2019t be read') :
       codes === 'everyone' ? ST('on', 'On for everyone') : codes === 'admins' ? ST('part', 'On for administrators') : ST('off', 'Off');
     const locked = acc ? Object.values(acc.locks || {}).filter(x => x && x.locked).length : 0;
     const lockSt = !acc ? notYet : locked ? ST('bad', `${locked} locked now`) : ST('on', 'None locked now');
     const groups = [
       ['Signing in', [
         ['Two-step sign-in', 'After the right password, a six-digit code is emailed. It works once, for 10 minutes, and a browser that has entered one is remembered for 30 days. Changing a password forgets every other remembered browser. Set in sign-in.json beside the account list: off, administrators, or everyone.', codeSt],
-        ['Wrong sign-in codes', 'Two wrong codes lock the account, email the person a link to set a new password, and email every other platform administrator. Typing the code from an earlier email isn\u2019t counted.', live ? ON : ST('wait', 'Arrives with relay request 11')],
+        ['Wrong sign-in codes', 'Two wrong codes lock the account, email the person a link to set a new password, and email every other platform administrator. Typing the code from an earlier email isn\u2019t counted.', live ? ON : ST('wait', 'Arrives with relay request 10')],
         ['Wrong passwords', 'Five wrong passwords in a row lock the account and email the person a reset link. A complete sign-in resets the count.', lockSt],
         ['No account guessing', 'Sign-in answers the same way whether or not an account exists, so it can\u2019t be used to find out who has one.', ON],
         ['Sessions', 'A sign-in lasts four hours. Changing a password ends every other session.', ON]]],

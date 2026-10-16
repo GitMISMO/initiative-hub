@@ -1594,7 +1594,7 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
     if (problems.length) return respond(400, { error: 'WEAK_PASSWORD', problems });
     const set = await setPassword(person, body.password);
     if (set.error) return respond(502, { error: set.error });
-    const at = Math.floor(Date.now() / 1000) + 1;   /* the link proved the email: this browser is remembered (request 11) */
+    const at = Math.floor(Date.now() / 1000) + 1;   /* the link proved the email: this browser is remembered (request 10) */
     return respond(200, { ...signedInBody(person, at), device: deviceToken(person, at) });
   }
 
@@ -1614,7 +1614,7 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
     const set = await setPassword(me, body.password);
     if (set.error) return respond(502, { error: set.error });
     /* This session continues: a fresh token, issued after the change. */
-    const at = Math.floor(Date.now() / 1000) + 1;   /* this browser stays remembered; every other one is forgotten (request 11) */
+    const at = Math.floor(Date.now() / 1000) + 1;   /* this browser stays remembered; every other one is forgotten (request 10) */
     return respond(200, { ok: true, changedAt: set.changedAt, ...signedInBody(me, at), device: deviceToken(me, at) });
   }
 
@@ -1635,7 +1635,7 @@ async function passwordRoutes(method, subPath, event, headers, proj) {
 /* One sign-in attempt, once self-service is on: one PBKDF2 whatever happens, the lock checked
  * before the password matters, five wrong guesses lock the account and email a reset link. */
 /* =====================================================================================
- * TWO-STEP SIGN-IN (relay request 11, Perry, 16 Oct 2026). After the right password, a six-digit code is emailed and
+ * TWO-STEP SIGN-IN (relay request 10, Perry, 16 Oct 2026). After the right password, a six-digit code is emailed and
  * must be entered, unless this browser was remembered within the last 30 days. Who needs it is set in sign-in.json
  * beside the account list, { "codes": "off" | "admins" | "everyone" } ("admins" = platform administrators); no file
  * means off. It can be changed on GitHub's own page, so a broken email flow can never lock everyone out for good.
@@ -1755,7 +1755,7 @@ async function attemptSignIn(email, password, origin) {
     return { response: failedResponse(MAX_FAILED - failed) };
   }
   /* The sign-in is recorded (relay request 9, at most once an hour) by the caller once it is complete: with two-step
-   * sign-in (request 11) the right password alone no longer clears the count of wrong guesses. */
+   * sign-in (request 10) the right password alone no longer clears the count of wrong guesses. */
   return { found: person, id, state: s };
 }
 
@@ -1916,7 +1916,7 @@ export async function handler(event, context) {
    * The only route that sees a password. Everything else takes the token it returns.
    * When Cognito replaces this, the page keeps calling something that returns a token and
    * the rest of the relay is untouched — which is the point of doing it this way now. */
-  if (method === 'POST' && subPath === '/auth/code') {   /* relay request 11: the emailed code */
+  if (method === 'POST' && subPath === '/auth/code') {   /* relay request 10: the emailed code */
     if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
     if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET', message: 'AUTH_SECRET is not set on the function.' });
     if (!selfServiceOn()) return respond(404, { error: 'NO_CODES' });
@@ -1940,7 +1940,7 @@ export async function handler(event, context) {
       const a = await attemptSignIn(email, password, proj.origin);
       if (a.response) return a.response;
       found = a.found || { error: a.error };
-      if (a.found) {   /* relay request 11: the code step, unless not required or this browser is remembered */
+      if (a.found) {   /* relay request 10: the code step, unless not required or this browser is remembered */
         const need = await codesRequired(a.found);
         if (need.error) return respond(502, { error: 'DIRECTORY_UNREADABLE', message: 'Sign-in is briefly unavailable. Try again in a minute.' });
         if (need.required && !deviceRemembered(parsed.body?.device, a.found)) return sendCode(a.found, a.state);
@@ -2164,7 +2164,7 @@ export async function handler(event, context) {
       if (selfServiceOn()) {
         const st = await readState();
         if (!st.error) out.auth = Object.fromEntries(Object.entries(st.accounts).map(([e, s]) => [e, { locked: !!s.lockedAt, lockedBy: s.lockedAt ? (s.lockReason === 'codes' ? 'codes' : 'passwords') : null, failed: s.failed || 0, lastSignInAt: s.lastSignInAt || null }]));
-        const sv = await acctRead(SIGNIN_SETTINGS_PATH);   /* relay request 11: shown in the console's Security section */
+        const sv = await acctRead(SIGNIN_SETTINGS_PATH);   /* relay request 10: shown in the console's Security section */
         out.codes = sv.error ? null : (['admins', 'everyone'].includes(String((sv.data || {}).codes || '').toLowerCase()) ? String(sv.data.codes).toLowerCase() : 'off');
       }
       return respond(200, out);
