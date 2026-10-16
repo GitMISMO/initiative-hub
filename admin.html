@@ -484,6 +484,17 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 /* Claude usage: spending by tool (relay request 9) */
 .nx #useMonth{height:38px;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:0 10px;font:inherit;background:var(--card,#fff);color:inherit}
 .nx .use-card{overflow:auto}
+.nx .sec-grid{display:grid;gap:14px;margin-top:16px}
+.nx .sec-card h2{font-family:Archivo,sans-serif;font-size:15px;margin:0;padding:14px 18px 10px;color:var(--ink)}
+.nx .sec-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:start;padding:11px 18px 12px;border-top:1px solid var(--line)}
+.nx .sec-row b{display:block;font-size:13.5px;color:var(--ink)}
+.nx .sec-row p{margin:3px 0 0;font-size:13px;line-height:1.5;color:var(--ink-2);max-width:76ch}
+.nx .sec-st{font-size:12px;font-weight:600;white-space:nowrap;border-radius:999px;padding:3px 10px;background:var(--sunk);color:var(--ink-2)}
+.nx .sec-st.on{background:var(--good-soft);color:var(--good)}
+.nx .sec-st.part{background:var(--accent-soft);color:var(--accent)}
+.nx .sec-st.off,.nx .sec-st.wait{background:var(--warn-soft);color:var(--warn-ink)}
+.nx .sec-st.bad{background:var(--bad-soft);color:var(--bad)}
+@media (max-width:640px){ .nx .sec-row{grid-template-columns:1fr} }
 .nx .use-t{width:100%;border-collapse:collapse;font-size:14px}
 .nx .use-t th{text-align:right;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3,#7E98AE);padding:10px 14px;border-bottom:1px solid var(--line,#E6EDF3)}
 .nx .use-t td{text-align:right;padding:10px 14px;border-bottom:1px solid var(--line,#EEF3F7);font-variant-numeric:tabular-nums}
@@ -558,6 +569,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     <button type="button" data-view="requests" title="Requests">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4.5M5 4.5h11l-2 4 2 4H5"/></svg>
       <span>Requests</span></button>
+    <button type="button" data-view="security" title="Security">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.4-7.5 9.5-4.3-1.1-7.5-4.9-7.5-9.5V6L12 3z"/><path d="M8.8 12.2l2.2 2.2 4.3-4.6"/></svg>
+      <span>Security</span></button>
   </nav>
   <div class="railgrp"><span>Initiative Hub</span>
     <nav aria-label="Initiative Hub settings">
@@ -700,6 +714,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   <div id="bgForm"></div><div id="bgList"><div class="nx-empty">Loading requests…</div></div></section>
 <section class="view nx" id="view-usage" hidden><div class="nx-bar"><div class="grow"><h1>Claude usage</h1><div class="sub">What each tool spends asking Claude, through the relay’s one key. Costs are estimates from Anthropic’s list prices; the Claude Console’s bill is the authority.</div></div><span class="act-stamp" id="useStamp" role="status"></span><select id="useMonth" aria-label="Month"></select><button type="button" class="btn" id="useRefresh">Refresh</button></div>
   <div id="useBody"><div class="nx-empty">Loading usage…</div></div></section>
+<section class="view nx" id="view-security" hidden><div class="nx-bar"><div class="grow"><h1>Security</h1><div class="sub">What protects MISMO Resources: how people sign in, what each person can reach, and what is recorded. Settings that can change show their current state.</div></div></div>
+  <div id="secBody"></div></section>
 <section class="view nx" id="view-activity" hidden><div class="nx-bar"><div class="grow"><h1>Activity</h1><div class="sub">Every change to people and access, and every sign-in event: who did it, and when.</div></div><span class="act-stamp" id="actStamp" role="status"></span><button type="button" class="btn" id="actRefresh">Refresh</button><button type="button" class="btn" id="actCsv">Export CSV</button></div>
   <div class="act-filters"><input type="search" id="actQ" placeholder="Search activity, a person or a tool…" aria-label="Search activity"><div class="act-kinds" id="actKinds" role="group" aria-label="Kind"></div><select id="actRange" aria-label="Period"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="0">Everything</option></select></div>
   <div class="act-grid"><div class="act-list" id="actList"><div class="nx-empty">Loading the record…</div></div><aside class="act-side" id="actSide"></aside></div></section>
@@ -725,6 +741,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   let fac = { sha:null, admins:[], list:[], dirty:false };
   let types = { sha:null, list:[], usage:{}, dirty:false };
   let acc = null;            // { people, sha, dirty } once the central list has loaded
+  let accFailed = false;     // the central list couldn't be loaded (Security says so rather than "Loading")
   let roster = null;         // names the drop-downs show now (data/facilitator-roster.json)
   let view = 'people';
   let query = '';
@@ -937,7 +954,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     try {
       const r = await S.access.get();
       acc = { base: canon(r.people || {}), people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),
-              selfService: (r.fields || []).includes('auth'), locks: r.auth || {}, storable: Array.isArray(r.groups) ? r.groups : null };
+              selfService: (r.fields || []).includes('auth'), locks: r.auth || {}, codes: r.codes, storable: Array.isArray(r.groups) ? r.groups : null };
       /* Once sections are kept, everyone starts in the one they are shown in, so the next
          save writes them all rather than only the ones someone moved. */
       if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
@@ -971,6 +988,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       $('accAddOpen').hidden = false;
       setStatus('accStatus');
       renderAccess();
+      accFailed = false; if (view === 'security') renderSecurity();
     } catch (e) {
       /* 404 means the relay predates this feature; NOT_PLATFORM_ADMIN means this account
          may not edit the list. One is a deployment and the other is a permission. */
@@ -982,6 +1000,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         ? '<span><strong>You cannot change who has access.</strong> That is limited to platform administrators. Stakeholder Types and Facilitators still work.</span>'
         : `<span><strong>Not available.</strong> ${esc((e && e.message) || 'The access list could not be loaded.')}</span>`;
       $('nPeople').textContent = '';
+      accFailed = true; if (view === 'security') renderSecurity();
     }
   }
 
@@ -1054,7 +1073,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         const cls = ['row', expiryNote(p.expires).soon ? 'soon' : '', freshRow === email ? 'fresh' : ''].filter(Boolean).join(' ');
         return `<div class="${cls}">` +
           `<div class="who"><span class="av">${esc(initials(p.name))}</span><div style="min-width:0">` +
-            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}${acc.locks[email] && acc.locks[email].locked ? '<span class="adm locked" title="Locked after 5 incorrect passwords. A password reset unlocks it.">Locked</span>' : ''}</div>` +
+            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}${acc.locks[email] && acc.locks[email].locked ? `<span class="adm locked" title="${acc.locks[email].lockedBy === 'codes' ? 'Locked after 2 incorrect sign-in codes' : 'Locked after 5 incorrect passwords'}. A password reset unlocks it.">Locked</span>` : ''}</div>` +
             `<div class="em">${esc(email)}</div></div></div>` +
           `<div class="sum">${summarise(p)}</div>` +
           expCell('data-acc-exp', email, p.expires, `Access for ${p.name} expires`) +
@@ -1547,11 +1566,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   document.body.classList.add('next');
   /* Relay request 9 is deployed (Oct 9, 2026): Activity is on. Requests (break glass, View as) follows when its page is built. */
   const ACT_ON = true, REQ_ON = true;
-  Object.assign(VIEWS, { tools:'view-tools', usage:'view-usage' }, ACT_ON ? { activity:'view-activity' } : {}, REQ_ON ? { requests:'view-requests' } : {});
+  Object.assign(VIEWS, { tools:'view-tools', usage:'view-usage', security:'view-security' }, ACT_ON ? { activity:'view-activity' } : {}, REQ_ON ? { requests:'view-requests' } : {});
   if (!REQ_ON) document.querySelectorAll('.rail [data-view="requests"]').forEach(b => { b.hidden = true; });
   if (!ACT_ON) { const rec = document.querySelector('.rail [data-view="activity"]'); if (rec) { rec.hidden = true; if (rec.closest('.railgrp')) rec.closest('.railgrp').hidden = true; } }
-  Object.assign(HASH, { tools:'tools', requests:'requests', activity:'activity', usage:'usage' });
-  Object.assign(SEARCH, { tools:'Search tools', requests:'Search requests', activity:'Search activity', usage:'Search tools' });
+  Object.assign(HASH, { tools:'tools', requests:'requests', activity:'activity', usage:'usage', security:'security' });
+  Object.assign(SEARCH, { tools:'Search tools', requests:'Search requests', activity:'Search activity', usage:'Search tools', security:'Search security' });
   let secFilter = 'all', flagFilter = '', pickerOpen = false, soOpen = null, toolSel = null, toolOpen = {};
   const AV = ['#2C74A6','#0B7268','#7A5AC8','#B5650B','#C1666B','#5B8C6C'];
   const avh = (name, s) => { s = s || 30; let h = 0; for (const c of String(name || '')) h += c.charCodeAt(0);
@@ -1573,7 +1592,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const diff = Math.round((day(now) - day(d)) / 864e5), time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     return 'Last signed in ' + (diff === 0 ? 'today at ' + time : diff === 1 ? 'yesterday at ' + time : d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }) + ' at ' + time);
   }
-  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); else if (view === 'requests') renderRequests(); else if (view === 'usage') renderUsage(); }
+  function renderCurrent(){ if (view === 'people') renderAccess(); else if (view === 'tools') renderTools(); else if (view === 'types') renderTypes(); else if (view === 'arch') renderArch(); else if (view === 'fac') renderFac(); else if (view === 'activity') renderActivity(); else if (view === 'requests') renderRequests(); else if (view === 'usage') renderUsage(); else if (view === 'security') renderSecurity(); }
   /* Changed means different from what was loaded (or last saved): add a tool and take it away again, and it's back to
      No changes, with no warning on leaving (Perry, 8 Oct 2026). A change the console made itself on loading (pending)
      still needs its save. Keys sorted, so the order things were added in doesn't count. */
@@ -1668,7 +1687,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     }
     return `<div class="panel2"><div class="ph">${avh(p.name, 44)}<div class="pn"><b>${esc(p.name)}</b><small>${esc(email)}</small><small class="lastin" title="${esc(LASTIN_NOTE)}">${esc(lastInText(email))}</small></div>${menu}</div>
       <div class="prow2"><span class="label" style="margin:0">Section</span>${section}<span class="label" style="margin:0 0 0 auto">Expires</span>${expiry}</div>
-      ${isLocked(email) ? '<div class="nnote bad">Locked after 5 wrong passwords. A reset link unlocks them.</div>' : ''}
+      ${isLocked(email) ? `<div class="nnote bad">Locked after ${acc.locks[email].lockedBy === 'codes' ? '2 wrong sign-in codes' : '5 wrong passwords'}. A reset link unlocks them.</div>` : ''}
       <div>${body}</div></div>`;
   }
   function renderTools(){
@@ -1795,7 +1814,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     if (e.kind === 'Sign-in') { const m = String(e.message || ''); let x;
       if ((x = m.match(/^Password changed \((.+)\)$/))) return B(x[1]) + ' changed their password';
       if ((x = m.match(/^Reset requested for (\S+)/))) return B(personName(x[1])) + ' asked for a password reset';
+      if ((x = m.match(/^Locked (\S+) after (\d+) incorrect sign-in codes/))) return B(personName(x[1])) + ' was locked out after ' + x[2] + ' wrong sign-in codes';
       if ((x = m.match(/^Locked (\S+) after (\d+)/))) return B(personName(x[1])) + ' was locked out after ' + x[2] + ' wrong passwords';
+      if ((x = m.match(/^(Reset|Set-password) link for (\S+) \(sent by (.+)\)$/))) return B(x[3]) + ' sent ' + B(personName(x[2])) + (x[1] === 'Reset' ? ' a password reset link' : ' a link to set their password');
       if ((x = m.match(/^Unlocked (\S+) \(new password from (.+)\)$/))) return B(x[2]) + ' unlocked ' + B(personName(x[1])) + ' with a new password';
       return esc(m.replace(/[\w.+-]+@[\w.-]+\.\w+/g, em => personName(em))); }
     /* Access and Account */
@@ -1826,6 +1847,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   }
   function actWho(e){ if (e.kind !== 'Sign-in') return personName(e.by) || e.by; const m = String(e.message || ''); let x;
     if ((x = m.match(/^Password changed \((.+)\)$/))) return x[1]; if ((x = m.match(/^Unlocked \S+ \(new password from (.+)\)$/))) return x[1];
+    if ((x = m.match(/^(?:Reset|Set-password) link for \S+ \(sent by (.+)\)$/))) return x[1];
     if ((x = m.match(/[\w.+-]+@[\w.-]+\.\w+/))) return personName(x[0]); return e.by; }
   const actTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
   function actDay(iso){ const d = new Date(iso), t = new Date(); const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -1974,6 +1996,49 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     else if (e.target.dataset && e.target.dataset.bgFile) { const k = e.target.dataset.bgFile; f.files = e.target.checked ? [...new Set(f.files.concat(k))] : f.files.filter(x => x !== k); } });
   document.addEventListener('input', e => { if (bg.form && e.target.id === 'bgReason') bg.form.reason = e.target.value; });
   if (REQ_ON) setTimeout(() => loadBg(false), 1800);   /* quietly, so the sidebar can show what's waiting */
+
+  /* ===== Security (Perry, 16 Oct 2026): every protection the platform has, in plain words, with the current state of
+     the ones that can change. The two-step setting and lock reasons arrive with relay request 11; before it, those rows
+     say so. Kept in step with the relay by hand: a change to how sign-in or access works updates this list too. ===== */
+  function renderSecurity(){
+    const body = $('secBody'); if (!body) return;
+    const ST = (cls, text) => `<span class="sec-st ${cls}">${esc(text)}</span>`, ON = ST('on', 'On');
+    const codes = acc ? acc.codes : undefined, live = codes !== undefined;
+    const notYet = accFailed ? ST('bad', 'Couldn\u2019t be loaded') : ST('wait', 'Loading\u2026');
+    const codeSt = !acc ? notYet : codes === undefined ? ST('wait', 'Arrives with relay request 11') : codes === null ? ST('bad', 'Couldn\u2019t be read') :
+      codes === 'everyone' ? ST('on', 'On for everyone') : codes === 'admins' ? ST('part', 'On for administrators') : ST('off', 'Off');
+    const locked = acc ? Object.values(acc.locks || {}).filter(x => x && x.locked).length : 0;
+    const lockSt = !acc ? notYet : locked ? ST('bad', `${locked} locked now`) : ST('on', 'None locked now');
+    const groups = [
+      ['Signing in', [
+        ['Two-step sign-in', 'After the right password, a six-digit code is emailed. It works once, for 10 minutes, and a browser that has entered one is remembered for 30 days. Changing a password forgets every other remembered browser. Set in sign-in.json beside the account list: off, administrators, or everyone.', codeSt],
+        ['Wrong sign-in codes', 'Two wrong codes lock the account, email the person a link to set a new password, and email every other platform administrator. Typing the code from an earlier email isn\u2019t counted.', live ? ON : ST('wait', 'Arrives with relay request 11')],
+        ['Wrong passwords', 'Five wrong passwords in a row lock the account and email the person a reset link. A complete sign-in resets the count.', lockSt],
+        ['No account guessing', 'Sign-in answers the same way whether or not an account exists, so it can\u2019t be used to find out who has one.', ON],
+        ['Sessions', 'A sign-in lasts four hours. Changing a password ends every other session.', ON]]],
+      ['Passwords', [
+        ['Strong passwords', 'At least 13 characters, without your name, your email or \u201cMISMO\u201d, not one of your last five, and checked against passwords exposed in known data breaches.', ON],
+        ['Never stored', 'Only a one-way fingerprint of each password is kept (PBKDF2, 210,000 rounds), which can\u2019t be turned back into the password. Reset links and sign-in codes are kept the same way.', ON],
+        ['Reset links', 'A reset link works once, for one hour; a new person\u2019s set-password link works for a week. Anyone can ask for at most three an hour, and the answer never says whether the account exists.', ON],
+        ['Change notices', 'People are emailed whenever their password changes, so a change they didn\u2019t make doesn\u2019t go unnoticed.', ON]]],
+      ['Access', [
+        ['Access by tool', 'Each person reaches only the tools they\u2019re given, at View, Edit or Admin. The relay checks on every request, so a hidden button is never the only lock.', ON],
+        ['Members-only items', 'Some items, such as Team HQ\u2019s Sync Ups, are visible only to their members, administrators included.', ON],
+        ['Break glass', 'To open someone\u2019s members-only items, one administrator asks with a reason and another approves. It\u2019s read-only, lasts 24 hours, and lapses if no one answers within three days. Every step is recorded.', ON],
+        ['View as', 'Administrators can see the site as someone else, read-only, for 30 minutes. Every use is recorded.', ON],
+        ['Saving', 'Each tool can save only to its own folders, only through the relay, and only from MISMO\u2019s own site.', ON]]],
+      ['Records', [
+        ['Activity', 'Every change to people and access, every View as and break glass, and sign-in events such as locks, reset links and password changes, with who and when.', ON],
+        ['Full history', 'Every save is a GitHub commit, so any earlier version of any file can be seen or brought back.', ON],
+        ['Private storage', 'The account list, sign-in records and logs are kept in a private GitHub repository, not on the public site.', ON]]]];
+    const q = (query || '').trim().toLowerCase();
+    const cards = groups.map(([title, rows]) => {
+      const shown = rows.filter(([n, t]) => !q || (n + ' ' + t).toLowerCase().includes(q));
+      if (!shown.length) return '';
+      return `<div class="card2 sec-card"><h2>${esc(title)}</h2>${shown.map(([n, t, st]) => `<div class="sec-row"><div><b>${esc(n)}</b><p>${esc(t)}</p></div>${st}</div>`).join('')}</div>`;
+    }).join('');
+    body.innerHTML = cards ? `<div class="sec-grid">${cards}</div>` : `<div class="nx-empty">Nothing in Security matches \u201c${esc(query)}\u201d.</div>`;
+  }
 
   /* ===== Claude usage: spending by tool (relay request 9). GET /hub/ask-usage: per month, per tool, per model:
      requests and tokens read (in) and written (out); counts are written at most every ten minutes, and the unwritten
