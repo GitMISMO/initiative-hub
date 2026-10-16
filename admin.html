@@ -484,6 +484,7 @@ a.logoplate:hover,a.logoplate:focus-visible{transform:scale(1.06)}
 /* Claude usage: spending by tool (relay request 9) */
 .nx #useMonth{height:38px;border:1px solid var(--line,#D5E2ED);border-radius:8px;padding:0 10px;font:inherit;background:var(--card,#fff);color:inherit}
 .nx .use-card{overflow:auto}
+/* Security (Perry, 16 Oct 2026) */
 .nx .sec-grid{display:grid;gap:14px;margin-top:16px}
 .nx .sec-card h2{font-family:Archivo,sans-serif;font-size:15px;margin:0;padding:14px 18px 10px;color:var(--ink)}
 .nx .sec-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:start;padding:11px 18px 12px;border-top:1px solid var(--line)}
@@ -741,7 +742,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   let fac = { sha:null, admins:[], list:[], dirty:false };
   let types = { sha:null, list:[], usage:{}, dirty:false };
   let acc = null;            // { people, sha, dirty } once the central list has loaded
-  let accFailed = false;     // the central list couldn't be loaded (Security says so rather than "Loading")
   let roster = null;         // names the drop-downs show now (data/facilitator-roster.json)
   let view = 'people';
   let query = '';
@@ -954,7 +954,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     try {
       const r = await S.access.get();
       acc = { base: canon(r.people || {}), people: r.people || {}, sha: r.sha, dirty:false, groups: (r.fields || []).includes('group'),
-              selfService: (r.fields || []).includes('auth'), locks: r.auth || {}, codes: r.codes, storable: Array.isArray(r.groups) ? r.groups : null };
+              selfService: (r.fields || []).includes('auth'), locks: r.auth || {}, storable: Array.isArray(r.groups) ? r.groups : null };
       /* Once sections are kept, everyone starts in the one they are shown in, so the next
          save writes them all rather than only the ones someone moved. */
       if (acc.groups) for (const [email, p] of Object.entries(acc.people)) if (!p.group) p.group = defaultGroup(email);
@@ -988,7 +988,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       $('accAddOpen').hidden = false;
       setStatus('accStatus');
       renderAccess();
-      accFailed = false; if (view === 'security') renderSecurity();
     } catch (e) {
       /* 404 means the relay predates this feature; NOT_PLATFORM_ADMIN means this account
          may not edit the list. One is a deployment and the other is a permission. */
@@ -1000,7 +999,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         ? '<span><strong>You cannot change who has access.</strong> That is limited to platform administrators. Stakeholder Types and Facilitators still work.</span>'
         : `<span><strong>Not available.</strong> ${esc((e && e.message) || 'The access list could not be loaded.')}</span>`;
       $('nPeople').textContent = '';
-      accFailed = true; if (view === 'security') renderSecurity();
     }
   }
 
@@ -1073,7 +1071,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         const cls = ['row', expiryNote(p.expires).soon ? 'soon' : '', freshRow === email ? 'fresh' : ''].filter(Boolean).join(' ');
         return `<div class="${cls}">` +
           `<div class="who"><span class="av">${esc(initials(p.name))}</span><div style="min-width:0">` +
-            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}${acc.locks[email] && acc.locks[email].locked ? `<span class="adm locked" title="${acc.locks[email].lockedBy === 'codes' ? 'Locked after 2 incorrect sign-in codes' : 'Locked after 5 incorrect passwords'}. A password reset unlocks it.">Locked</span>` : ''}</div>` +
+            `<div class="nm">${esc(p.name)}${p.platformAdmin ? '<span class="adm">Admin</span>' : ''}${acc.locks[email] && acc.locks[email].locked ? '<span class="adm locked" title="Locked after 5 incorrect passwords. A password reset unlocks it.">Locked</span>' : ''}</div>` +
             `<div class="em">${esc(email)}</div></div></div>` +
           `<div class="sum">${summarise(p)}</div>` +
           expCell('data-acc-exp', email, p.expires, `Access for ${p.name} expires`) +
@@ -1626,6 +1624,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     host.appendChild(b); b.click(); b.remove();
   });
   function renderAccess(){
+    if (view === 'security') renderSecurity();   /* the account list has arrived: Security's live states can show */
     if (!acc) return;
     if (acc.pending === undefined) acc.pending = !!acc.dirty;   /* the first draw after loading: what loading itself changed */
     const all = Object.entries(acc.people).sort((a, b) => byLast(a[1].name, b[1].name));
@@ -1998,13 +1997,19 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   if (REQ_ON) setTimeout(() => loadBg(false), 1800);   /* quietly, so the sidebar can show what's waiting */
 
   /* ===== Security (Perry, 16 Oct 2026): every protection the platform has, in plain words, with the current state of
-     the ones that can change. The two-step setting and lock reasons arrive with relay request 10; before it, those rows
-     say so. Kept in step with the relay by hand: a change to how sign-in or access works updates this list too. ===== */
+     the ones that can change. Kept in step with the relay by hand: a change to how sign-in or access works updates this
+     list too. The two-step setting comes in the access answer from relay request 10 on; loadAccess (the frozen base)
+     doesn't keep it, so it is caught as it arrives, and a failed load is noted so Security says so rather than
+     "Loading". ===== */
+  let accCodes, accFailed = false;
+  if (S && S.access && typeof S.access.get === 'function') { const getAccess = S.access.get.bind(S.access);
+    S.access.get = (...a) => getAccess(...a).then(r => { accCodes = r ? r.codes : undefined; accFailed = false; return r; },
+      e => { accFailed = true; setTimeout(() => { if (view === 'security') renderSecurity(); }, 0); throw e; }); }
   function renderSecurity(){
     const body = $('secBody'); if (!body) return;
     const ST = (cls, text) => `<span class="sec-st ${cls}">${esc(text)}</span>`, ON = ST('on', 'On');
-    const codes = acc ? acc.codes : undefined, live = codes !== undefined;
     const notYet = accFailed ? ST('bad', 'Couldn\u2019t be loaded') : ST('wait', 'Loading\u2026');
+    const codes = acc ? accCodes : undefined, live = codes !== undefined;
     const codeSt = !acc ? notYet : codes === undefined ? ST('wait', 'Arrives with relay request 10') : codes === null ? ST('bad', 'Couldn\u2019t be read') :
       codes === 'everyone' ? ST('on', 'On for everyone') : codes === 'admins' ? ST('part', 'On for administrators') : ST('off', 'Off');
     const locked = acc ? Object.values(acc.locks || {}).filter(x => x && x.locked).length : 0;
