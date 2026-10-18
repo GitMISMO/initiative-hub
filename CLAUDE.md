@@ -662,8 +662,13 @@ It posts, with no sign-in, to the relay's `/hub-requests/ideas/submit` (relay re
 repository (IDEA-0001 on, `replyBy` two business days on) and emails the sender a receipt (repeating nothing they typed)
 and Work Requests and platform administrators an alert. Only those administrators can read or change `data/ideas`.
 The **Ideas Inbox** is in `work-requests.js` (design E2): collapsible lines, Open (`open`, `reached`) and Done
-(`potential`, `closed`); Make a Potential Initiative works like a request's. Turning an idea into a Work Request waits
-for the new-standard request (the "No" path). Page tests: `initiative-hub-data/_dev/ideas-checks/`.
+(`potential`, `closed`, `workrequest`); Make a Potential Initiative works like a request's.
+**New-standard Work Requests start from ideas** (Perry, 16 Oct 2026; the form is "MISMO Work Request Form - New Submissions"):
+MISMO staff complete them. In the inbox, Turn into a Work Request makes a draft with `isUpdate:'no'` and `fromIdea`, pre-filled
+(name, sponsor, challenge, pains, stakeholder rows, engaged), and marks the idea `workrequest` (`draftId`, then `reqId` on
+submit). Its sections (`asked()`): request, plan, current, future, stake, adoption (+ market, tech, consumer), scope, deliver
+(with the Adoption Plan), impact. "No" without an idea points to Submit an Idea and goes no further.
+Page tests: `initiative-hub-data/_dev/ideas-checks/`.
 
 ## The Hub is behind the sign-in (30 Sept 2026)
 

@@ -79,7 +79,9 @@ function blank(){
     challenge:'', updates:'', solves:'', owner:'', parts:[], adoptionWhy:'',
     mandate:'', mandateDetails:'', staff:'', partners:'',
     inScope:[], outScope:[], phases:[[]], adoptionPlan:true, future:'', rec:'', recWhy:'',
-    impact:{glossary:false,bpm:false,ldm:false,ldmDomain:false,ldmPiv:false,ldmPsv:false,xml:false,api:false,megs:false,smartdoc:false} };
+    impact:{glossary:false,bpm:false,ldm:false,ldmDomain:false,ldmPiv:false,ldmPsv:false,xml:false,api:false,megs:false,smartdoc:false},
+    /* a new standard (the "No" path), started from an idea: challenge (above), today, pains; vision, costs, success; stake (rows), engaged; market, tech, consumer */
+    today:'', pains:'', vision:'', costs:'', success:'', stake:[], engaged:[], market:'', tech:'', consumer:'', fromIdea:null };
 }
 function sampleRequest(kind){
   const r = blank(); r.isUpdate = 'yes';
@@ -132,7 +134,7 @@ const LDM_VIEWS = [['ldmDomain','Domain View(s)'],['ldmPiv','Platform Independen
 const adoptionLimited = r => r.parts.some(g => g.orgs.some(o => o.adopted === 'no' || o.adopted === 'partly'));
 /* each phase that lists something, with the Adoption Plan in the last one for a full update */
 function deliverables(r){
-  return r.phases.map((items, i) => items.concat(i === r.phases.length - 1 && r.adoptionPlan && pathOf(r) === 'full' ? ['Adoption Plan'] : []))
+  return r.phases.map((items, i) => items.concat(i === r.phases.length - 1 && r.adoptionPlan && (pathOf(r) === 'full' || r.isUpdate === 'no') ? ['Adoption Plan'] : []))
     .map((items, i) => items.length ? `Phase ${i + 1}: ${items.join('; ')}` : '').filter(Boolean);
 }
 function pathOf(r){
@@ -154,8 +156,15 @@ const SECTIONS = [
   { id:'impact', label:'Areas of Impact', lead:'Choose every area the work will touch. This can change as more is learned.' },
 ];
 const NEWSTD = { id:'newstd', label:'A New Standard', lead:'' };
+/* A new standard's own sections (Perry, 16 Oct 2026). New standards start as an idea from the public Submit an Idea form:
+   staff turn one into a Work Request from the Ideas Inbox (r.fromIdea) and complete it. Without an idea, "No" points there. */
+const NSEC = { current:{ id:'current', label:'Current State', lead:'The business challenge the proposed standard is meant to address, and how things work today.' },
+  future:{ id:'future', label:'Future State', lead:'What the process looks like with a standard in place.' },
+  stake:{ id:'stake', label:'Implementation Stakeholders', lead:'Who needs to take part to develop, adopt and implement the standard, and what each would gain.' } };
+const SIZE = [['low','Low','Minimal process updates'],['medium','Medium','Non-breaking updates'],['high','High','Full process redesign']];
 function asked(r){
-  if (r.isUpdate === 'no') return [SECTIONS[0], NEWSTD];
+  if (r.isUpdate === 'no'){ if (!r.fromIdea) return [SECTIONS[0], NEWSTD]; const by = id => SECTIONS.find(s => s.id === id);
+    return [SECTIONS[0], by('plan'), NSEC.current, NSEC.future, NSEC.stake, by('adoption'), by('scope'), by('deliver'), by('impact')]; }
   const p = pathOf(r);
   return SECTIONS.filter(s => s.when ? (p === '' || s.when(p)) : (!s.full || p === 'full' || p === ''));
 }
@@ -355,12 +364,18 @@ function suggested(r){
 const ASK = {
   request(r){
     const top = radios('isUpdate','Is this an update to an existing standard?', YN);
-    if (r.isUpdate === 'no') return top + `<div class="pathnote info">The intake for new standards is being built next. This prototype covers updates to existing standards.</div>`;
-    if (r.isUpdate !== 'yes') return top;
+    if (r.isUpdate === 'no' && !r.fromIdea) return top + `<div class="pathnote info">New standards start as an idea. Share it through the <a href="/submit-an-idea/" target="_blank" rel="noopener">Submit an Idea</a> form; once MISMO staff have talked it through, they turn it into a Work Request and complete it.${ME.decides ? ' Administrators: open the <b>Ideas Inbox</b> and choose <b>Turn into a Work Request</b>.' : ''}</div>`;
+    if (r.isUpdate !== 'yes' && r.isUpdate !== 'no') return top;
     const rows = r.sponsors.map((s, i) => `<div class="rowf two">
       <input type="text" data-row="sponsors" data-i="${i}" data-f="name" value="${esc(s.name)}" placeholder="Name" aria-label="Sponsor ${i + 1} name">
       <input type="text" data-row="sponsors" data-i="${i}" data-f="company" value="${esc(s.company)}" placeholder="Company" aria-label="Sponsor ${i + 1} company">
       <button type="button" class="x" data-delrow="sponsors" data-i="${i}" aria-label="Remove sponsor ${i + 1}"${r.sponsors.length === 1 ? ' disabled' : ''}>\u00d7</button></div>`).join('');
+    const sponsorsF = field('sponsors','Work Request Sponsor(s)', `<div class="rows">${rows}</div><button type="button" class="btn ghost add" data-addsponsor>+ Add Another Sponsor</button>`, { for:'x', hint:'Name and company for each sponsor.' });
+    if (r.isUpdate === 'no'){ const f = r.fromIdea;
+      return top + `<div class="pathnote info">Started from idea <b>${esc(f.id)}</b>, sent by ${esc(f.name)}${f.company ? ', ' + esc(f.company) : ''} (<a href="mailto:${esc(f.email)}">${esc(f.email)}</a>). What they sent is filled in where it fits; change anything.</div>` +
+        field('title','Work Request Name', text('title','For example: Climate Risk Data Standard'), { hint:'This becomes the headline of the request above.' }) + sponsorsF +
+        field('cop','Community of Practice Sponsor', acHTML('cop', { value:r.cop, options:COPS.map(c => ({ value:c, label:c })), free:true, freeHint:'Not in the calendar', label:'Community of Practice sponsor',
+          placeholder:'Search communities of practice', onType: v => { W.r.cop = v; dirty(); }, onPick: v => { W.r.cop = v; dirty(); } }), { optional:true }); }
     return top + field('standard','Which standard is being updated?',
         acHTML('standard', { value:r.standard, options:initOpts(), free:true, freeHint:'Not on the Hub', label:'Standard being updated', placeholder:'Search the Hub\u2019s initiatives, or type any standard',
           onType: v => { W.r.standard = v; dirty(); clearErr('standard'); standardNote(); }, onPick: v => { W.r.standard = v; dirty(); clearErr('standard'); standardNote(); } }) +
@@ -418,9 +433,12 @@ const ASK = {
   adoption(r){
     return radios('mandate','Is there a regulation or industry mandate?', YN) +
       (r.mandate === 'yes' ? field('mandateDetails','Details of the Mandate', area('mandateDetails')) : '') +
+      (r.isUpdate === 'no' ? field('market','Market Condition Impacts', area('market','For example: origination volumes decreasing; a change in administration'), { optional:true, hint:'Foreseeable changes in market conditions that could influence development or adoption.' }) +
+        field('tech','Related Technologies', area('tech'), { optional:true, hint:'Technologies or related solutions that connect with or influence this effort.' }) : '') +
       field('staff','How can MISMO staff assist in supporting this effort?', area('staff'), { optional:true }) +
       field('partners','Partner Organizations', area('partners','For example: MBA committees; partner trade associations like ALTA, CSBS, Lenders One; government agencies'),
-        { optional:true, hint:'External organizations or industry groups that could help support or advocate for adoption of this work.' });
+        { optional:true, hint:'External organizations or industry groups that could help support or advocate for adoption of this work.' }) +
+      (r.isUpdate === 'no' ? field('consumer','Consumer Benefit', area('consumer'), { optional:true, hint:'How the standard would ultimately benefit consumers: greater transparency, improved accuracy, faster processes or cost savings.' }) : '');
   },
   scope(){
     return field('inScope','In Scope', listBuilder('inScope','Type an item, then press Enter'), { for:'f-inScope', hint:'A brief description for each; keep each one independent of the others.' }) +
@@ -429,7 +447,7 @@ const ASK = {
   deliver(r){
     const phases = r.phases.map((items, pi) => `<div class="phase"><h4>Phase ${pi + 1}${r.phases.length > 1 ? `<button type="button" class="btn ghost" data-delphase="${pi}">Remove Phase</button>` : ''}</h4>
       <ul class="items">${items.map((t, i) => `<li><span>${esc(t)}</span><button type="button" class="x" data-delph="${pi}" data-i="${i}" aria-label="Remove ${esc(t)}">\u00d7</button></li>`).join('')}
-      ${pi === r.phases.length - 1 && pathOf(r) === 'full' ? `<li class="locked"><label class="choice${r.adoptionPlan ? ' on' : ''}" style="border:0;background:none;padding:0;min-width:0"><input class="vh" type="checkbox" data-plan${r.adoptionPlan ? ' checked' : ''}><span class="ind box" aria-hidden="true"></span><span>Adoption Plan</span></label><em>Required for Published Work Products</em></li>` : ''}</ul>
+      ${pi === r.phases.length - 1 && (pathOf(r) === 'full' || r.isUpdate === 'no') ? `<li class="locked"><label class="choice${r.adoptionPlan ? ' on' : ''}" style="border:0;background:none;padding:0;min-width:0"><input class="vh" type="checkbox" data-plan${r.adoptionPlan ? ' checked' : ''}><span class="ind box" aria-hidden="true"></span><span>Adoption Plan</span></label><em>Required for Published Work Products</em></li>` : ''}</ul>
       <div class="adder" style="margin-top:8px"><input type="text" id="f-ph${pi}" data-phadder="${pi}" placeholder="Type a deliverable, then press Enter"><button type="button" class="btn" data-addph="${pi}">+ Add</button></div><p class="adder-hint" aria-live="polite">Press Enter or <b>+ Add</b> to put it on the list.</p></div>`).join('');
     return field('phases','Deliverables Requested', phases + `<button type="button" class="btn ghost add" data-addphase>+ Add a Phase</button>`, { for:'f-ph0', hint:'The deliverables the workgroup will produce, by phase. Phase 1 needs at least one.' }) +
       field('future','Possible Future Phases', area('future'), { optional:true }) +
@@ -445,13 +463,42 @@ const ASK = {
         <span><b>${t}</b>${s ? `<small>${s}</small>` : ''}${kw && on ? `<span class="kw">By choosing this, the group agrees to it.</span>` : ''}</span></label>${views}</div>`;
     }).join('')}</div>`;
   },
-  newstd(){ return `<div class="pathnote info" style="margin-top:0">The questions for a new standard come next. Go back to change your answer, or come back to this draft later.</div>`; },
+  newstd(){ return `<div class="pathnote info" style="margin-top:0">A new standard begins as an idea (see above). Go back to change your answer.</div>`; },
+  current(){
+    return field('challenge','What business challenge is this proposed standard meant to address?', area('challenge'), { hint:'A clear, concise explanation.' }) +
+      field('today','How does the process work today?', area('today'), { hint:'The key steps involved.' }) +
+      field('pains','What inefficiencies, inconsistencies or risks does today\u2019s process create for stakeholders?', area('pains'));
+  },
+  future(){
+    return field('vision','How should the process work in the future?', area('vision'), { hint:'Your proposed approach or recommendation.' }) +
+      field('costs','Would adopting this standard lower costs for key stakeholders?', area('costs'), { optional:true, hint:'Which costs would be reduced, and how the future process would support that.' }) +
+      field('success','How should success be evaluated once the future process is in place?', area('success'));
+  },
+  stake(r){
+    const st = r.stake || [];
+    const cards = st.map((g, i) => `<div class="group" id="stk-${i}"><div class="group-h"><b>Stakeholder group ${i + 1}</b><button type="button" class="btn ghost" data-delrow="stake" data-i="${i}">Remove</button></div>
+      <div class="stk">
+        <label class="stk-f"><span>Stakeholder group</span>${acHTML('stk' + i, { value:g.type, options:L.types.map(t => ({ value:t, label:t })), free:true, freeHint:'Not a listed type', label:'Stakeholder group ' + (i + 1),
+          placeholder:'For example: IMBs, credit unions, LOS providers, servicers, GSEs', onType: v => { W.r.stake[i].type = v; dirty(); }, onPick: v => { W.r.stake[i].type = v; dirty(); delete W.errs.stake; } })}</label>
+        <label class="stk-f"><span>Problem statement</span><textarea data-row="stake" data-i="${i}" data-f="problem" placeholder="The challenges this group has today">${esc(g.problem)}</textarea></label>
+        <label class="stk-f"><span>Expected benefit</span><textarea data-row="stake" data-i="${i}" data-f="benefit" placeholder="What this group would gain">${esc(g.benefit)}</textarea></label>
+        <label class="stk-f"><span>Primary participant roles</span><input type="text" data-row="stake" data-i="${i}" data-f="roles" value="${esc(g.roles)}" placeholder="For example: business analysts, product owners, compliance officers"></label>
+        <div class="stk-f"><span>Implementation size</span><span class="seg" role="group" aria-label="Implementation size for stakeholder group ${i + 1}">${SIZE.map(([v, t, d]) => `<button type="button" data-ssize="${i}:${v}" aria-pressed="${g.size === v}" title="${d}">${t}</button>`).join('')}</span></div>
+      </div></div>`).join('');
+    return field('stake','Stakeholder Groups', `<div class="groups">${cards}</div><button type="button" class="btn ghost add" data-addstake>+ Add a Stakeholder Group</button>`,
+        { for:'x', hint:'For each group: the problem it has today, the benefit it would gain, the roles that should join the workgroup, and how big implementation would be (Low: minimal process updates; Medium: non-breaking updates; High: full process redesign).' }) +
+      field('engaged','Organizations Already Engaged', listBuilder('engaged','Type an organization, then press Enter'), { for:'f-engaged', optional:true, hint:'Organizations already interested in taking part.' });
+  },
 };
 function check(id, r){
   const e = {};
   const need = (k, msg) => { if (!String(r[k] || '').trim()) e[k] = msg; };
   if (id === 'request'){ if (!r.isUpdate) e.isUpdate = 'Choose Yes or No.';
-    if (r.isUpdate === 'yes'){ need('standard', 'Name the standard being updated.'); need('title', 'Give the request a name.'); if (!r.sponsors.some(s => s.name.trim())) e.sponsors = 'Add at least one sponsor.'; } }
+    if (r.isUpdate === 'yes'){ need('standard', 'Name the standard being updated.'); need('title', 'Give the request a name.'); if (!r.sponsors.some(s => s.name.trim())) e.sponsors = 'Add at least one sponsor.'; }
+    if (r.isUpdate === 'no' && r.fromIdea){ need('title', 'Give the request a name.'); if (!r.sponsors.some(s => String(s.name || '').trim())) e.sponsors = 'Add at least one sponsor.'; } }
+  if (id === 'current'){ need('challenge', 'Describe the business challenge.'); need('today', 'Describe how the process works today.'); need('pains', 'Describe the inefficiencies, inconsistencies or risks.'); }
+  if (id === 'future'){ need('vision', 'Describe how the process should work in the future.'); need('success', 'Say how success should be evaluated.'); }
+  if (id === 'stake'){ if (!(r.stake || []).some(g => String(g.type || '').trim())) e.stake = 'Add at least one stakeholder group.'; }
   if (id === 'kind'){ if (!r.maintenance) e.maintenance = 'Choose Yes or No.'; else if (r.maintenance === 'no' && !r.admin) e.admin = 'Choose Yes or No.'; }
   if (id === 'plan'){ if (!r.discovery) e.discovery = 'Choose Yes or No.'; if (!r.segments.length) e.segments = 'Choose at least one segment.';
     if (!r.effort) e.effort = 'Choose a level of effort.'; need('completion', 'Choose a completion date.'); }
@@ -470,7 +517,9 @@ function rows(id, r){
   const list = a => a && a.length ? `<ul>${a.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '<span class="none">None</span>';
   const p = pathOf(r), ef = EFFORT.find(e => e[0] === r.effort);
   switch (id){
-    case 'request': return [['Update to an Existing Standard', yn(r.isUpdate)], ['Standard', v(r.standard)], ['Sponsors', list(r.sponsors.filter(s => s.name.trim()).map(s => s.name + (s.company ? ', ' + s.company : '')))], ['Community of Practice Sponsor', v(r.cop)]];
+    case 'request': if (r.isUpdate === 'no') return [['Update to an Existing Standard', yn(r.isUpdate)], ['From Idea', v(r.fromIdea ? r.fromIdea.id + ', sent by ' + r.fromIdea.name + (r.fromIdea.company ? ', ' + r.fromIdea.company : '') + ' (' + r.fromIdea.email + ')' : '')],
+      ['Sponsors', list(r.sponsors.filter(s => String(s.name || '').trim()).map(s => s.name + (s.company ? ', ' + s.company : '')))], ['Community of Practice Sponsor', v(r.cop)]];
+      return [['Update to an Existing Standard', yn(r.isUpdate)], ['Standard', v(r.standard)], ['Sponsors', list(r.sponsors.filter(s => s.name.trim()).map(s => s.name + (s.company ? ', ' + s.company : '')))], ['Community of Practice Sponsor', v(r.cop)]];
     case 'kind': return [['Annual Maintenance', yn(r.maintenance)], ...(r.maintenance === 'no' ? [['Administrative Change Only', yn(r.admin)]] : [])];
     case 'plan': return [['Discovery Needed', yn(r.discovery)], ['MISMO Segment', r.segments.length ? r.segments.map(s => `<span class="pill">${esc(s)}</span>`).join('') : v('')],
       ['Level of Effort', ef ? `${ef[1]} (${ef[2]})` : v('')], ['Reasoning', v(r.effortWhy)], ['Expected Completion', v(fmtDate(r.completion))]];
@@ -479,7 +528,11 @@ function rows(id, r){
       const al = x => (ADOPT.find(a => a[0] === x) || [, 'Adoption Not Given'])[1];
       const g = r.parts.map(x => `<li><b>${esc(x.type)}</b>: ${x.orgs.length ? x.orgs.map(o => `${esc(o.name)} <span style="color:var(--sg)">(${al(o.adopted)})</span>`).join(', ') : '<span class="none">no organizations yet</span>'}</li>`);
       return [['Owning Workgroup', v(r.owner)], ['Stakeholders', g.length ? `<ul>${g.join('')}</ul>` : '<span class="none">None</span>'], ...(adoptionLimited(r) ? [['Why a Revision Helps Adoption', v(r.adoptionWhy)]] : [])]; }
-    case 'adoption': return [['Regulation or Mandate', yn(r.mandate)], ...(r.mandate === 'yes' ? [['Details', v(r.mandateDetails)]] : []), ['MISMO Staff Support', v(r.staff)], ['Partner Organizations', v(r.partners)]];
+    case 'adoption': return [['Regulation or Mandate', yn(r.mandate)], ...(r.mandate === 'yes' ? [['Details', v(r.mandateDetails)]] : []), ['MISMO Staff Support', v(r.staff)], ['Partner Organizations', v(r.partners)], ...(r.isUpdate === 'no' ? [['Market Condition Impacts', v(r.market)], ['Related Technologies', v(r.tech)], ['Consumer Benefit', v(r.consumer)]] : [])];
+    case 'current': return [['Business Challenge', v(r.challenge)], ['How It Works Today', v(r.today)], ['Inefficiencies and Risks', v(r.pains)]];
+    case 'future': return [['Proposed Approach', v(r.vision)], ['Lower Costs', v(r.costs)], ['Evaluating Success', v(r.success)]];
+    case 'stake': return [['Stakeholder Groups', list((r.stake || []).filter(g => String(g.type || '').trim()).map(g => g.type + (g.size ? ' (' + { low:'Low', medium:'Medium', high:'High' }[g.size] + ' implementation)' : '')
+        + (g.problem ? '. Problem: ' + g.problem : '') + (g.benefit ? '. Benefit: ' + g.benefit : '') + (g.roles ? '. Roles: ' + g.roles : '')))], ['Organizations Already Engaged', list(r.engaged || [])]];
     case 'scope': return [['In Scope', list(r.inScope)], ['Out of Scope', list(r.outScope)]];
     case 'deliver': return [['Deliverables', list(deliverables(r))],
       ['Future Phases', v(r.future)], ['Recommendation', r.rec === 'cop' ? 'Community of Practice (fast track)' : r.rec === 'dwg' ? 'Development Work Group (project)' : v('')], ['Reasoning', v(r.recWhy)]];
@@ -506,13 +559,13 @@ function ringSVG(n, total){
 function headHTML(r, o){
   return `<header class="wr-head"><div class="eyebrow">Care and Feeding Work Request \u00b7 ${o.mode === 'fill' ? 'Draft' : 'Submitted ' + esc(fmt(o.submitted))}</div>
     <h1 class="wr-title${r.title ? '' : ' placeholder'}">${esc(r.title || 'Untitled Work Request')}</h1>
-    <div class="wr-sub">${r.standard ? `An update to <b>${esc(r.standard)}</b>` : 'An update to an existing MISMO standard'} \u00b7 ${o.wr ? 'WR# <b>' + esc(o.wr) + '</b>' : 'WR# set by MISMO'}${o.fac ? ' \u00b7 Facilitator <b>' + esc(o.fac) + '</b>' : ''}</div></header>`;
+    <div class="wr-sub">${r.isUpdate === 'no' ? `A new standard${r.fromIdea ? `, from idea <b>${esc(r.fromIdea.id)}</b>` : ''}` : r.standard ? `An update to <b>${esc(r.standard)}</b>` : 'An update to an existing MISMO standard'} \u00b7 ${o.wr ? 'WR# <b>' + esc(o.wr) + '</b>' : 'WR# set by MISMO'}${o.fac ? ' \u00b7 Facilitator <b>' + esc(o.fac) + '</b>' : ''}</div></header>`;
 }
 /* the timeline: finished sections as cards beside a check, the current one open, the rest waiting */
 function timelineHTML(r, o){
   const mode = o.mode, secs = asked(r), p = pathOf(r);
   const skipped = [];                                   // a section that doesn't apply isn't part of the request
-  const order = SECTIONS.concat(r.isUpdate === 'no' ? [NEWSTD] : []);
+  const order = r.isUpdate === 'no' ? asked(r) : SECTIONS;   /* a new standard has its own sections, in its own order (Perry, 16 Oct 2026) */
   const shownList = order.filter(s => secs.includes(s));
   const num = id => String(shownList.findIndex(s => s.id === id) + 1).padStart(2, '0');
   const fin = o.fin || {};
@@ -530,7 +583,7 @@ function timelineHTML(r, o){
       const i = secs.indexOf(s);
       body = `<div class="tl-card now">${s.lead ? `<p class="lead">${esc(s.lead)}</p>` : ''}${ASK[s.id](r)}
         <div class="nav">${i > 0 ? `<button type="button" class="btn" data-back>Back</button>` : ''}<span class="grow"></span>
-          ${s.id === 'newstd' ? '' : `<button type="button" class="btn p" data-next>${nextLabel(s.id)}</button>`}</div></div>`;
+          ${s.id === 'newstd' || (s.id === 'request' && W.r.isUpdate === 'no' && !W.r.fromIdea) ? '' : `<button type="button" class="btn p" data-next>${nextLabel(s.id)}</button>`}</div></div>`;
     }
     else if (kind === 'done' && s.id !== 'newstd') body = `<div class="tl-card">${s.id === 'impact' ? impactDone(r) : kv(rows(s.id, r))}</div>`;
     items += `<li class="tl-item ${kind}" id="sec-${s.id}"><span class="tl-node" aria-hidden="true">${kind === 'done' ? CHECK : num(s.id)}</span><div class="tl-body">
@@ -550,7 +603,7 @@ function glanceHTML(r){
   const saved = W.dirty ? `<div class="saved dirty">Unsaved changes</div>` : W.savedAt ? `<div class="saved">Draft saved ${new Date(W.savedAt).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })}</div>` : `<div class="saved">Not saved yet</div>`;
   const sponsors = r.sponsors.filter(s => s.name.trim()).map(s => esc(s.name + (s.company ? ', ' + s.company : ''))).join('<br>');
   return `<div class="card"><div class="prog">${ringSVG(pr.n, pr.total)}<div><b>${pr.n} of ${pr.total}</b><span>sections done</span></div></div>
-    <h3>At a Glance</h3>${row('Standard', esc(r.standard))}${row('Level of Effort', ef ? `${ef[1]} (${ef[2]})` : '')}${row('Completion', esc(fmtDate(r.completion)))}${row('Sponsors', sponsors)}${pathOf(r) === 'full' ? row('Owning Workgroup', esc(r.owner)) : ''}
+    <h3>At a Glance</h3>${row('Standard', r.isUpdate === 'no' ? 'A new standard' : esc(r.standard))}${row('Level of Effort', ef ? `${ef[1]} (${ef[2]})` : '')}${row('Completion', esc(fmtDate(r.completion)))}${row('Sponsors', sponsors)}${pathOf(r) === 'full' ? row('Owning Workgroup', esc(r.owner)) : ''}
     <div class="acts">${W.step === 'finish' ? `<button type="button" class="btn p" data-submit>Submit Work Request</button>` : `<button type="button" class="btn p" data-savedraft>Save Draft</button>`}<button type="button" class="btn" data-exit>Save and Exit</button></div>${saved}</div>
     <p class="note">MISMO sets the WR# and facilitator after you submit.</p>`;
 }
@@ -558,12 +611,12 @@ const LOGO_SM = '<svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use h
 function documentHTML(r, o){
   const mode = o.mode, secs = asked(r), p = pathOf(r);
   const skipped = (p === 'maintenance' || p === 'admin') ? SECTIONS.filter(s => s.full) : [];
-  const order = SECTIONS.concat(r.isUpdate === 'no' ? [NEWSTD] : []);
+  const order = r.isUpdate === 'no' ? asked(r) : SECTIONS;   /* a new standard has its own sections, in its own order (Perry, 16 Oct 2026) */
   const num = id => String(order.findIndex(s => s.id === id) + 1).padStart(2, '0');
   let h = `<div class="dochead">${LOGO_SM}<span class="run">Care and Feeding Work Request</span></div>
     <div class="cover"><span class="tag"><b>WR</b><span>Work Request</span></span>
       <h1${r.title ? '' : ' class="placeholder"'}>${esc(r.title || 'Untitled Work Request')}</h1>
-      <p class="lead">${r.standard ? `An update to <b>${esc(r.standard)}</b>.` : 'An update to an existing MISMO standard.'}${mode === 'fill' ? ' Each part appears here as you finish it.' : ''}</p>
+      <p class="lead">${r.isUpdate === 'no' ? 'A new standard.' : r.standard ? `An update to <b>${esc(r.standard)}</b>.` : 'An update to an existing MISMO standard.'}${mode === 'fill' ? ' Each part appears here as you finish it.' : ''}</p>
       <dl class="meta">
         <div><dt>WR#</dt><dd${o.wr ? '' : ' class="muted"'}>${esc(o.wr || 'Set by MISMO')}</dd></div>
         <div><dt>MISMO Facilitator</dt><dd${o.fac ? '' : ' class="muted"'}>${esc(o.fac || 'Set by MISMO')}</dd></div>
@@ -584,7 +637,7 @@ function documentHTML(r, o){
       const i = secs.indexOf(s);
       h += `<div class="ask">${s.lead ? `<p class="lead">${esc(s.lead)}</p>` : ''}${ASK[s.id](r)}
         <div class="nav">${i > 0 ? `<button type="button" class="btn" data-back>Back</button>` : ''}<span class="grow"></span>
-          ${s.id === 'newstd' ? '' : `<button type="button" class="btn p" data-next>${nextLabel(s.id)}</button>`}</div></div>`;
+          ${s.id === 'newstd' || (s.id === 'request' && W.r.isUpdate === 'no' && !W.r.fromIdea) ? '' : `<button type="button" class="btn p" data-next>${nextLabel(s.id)}</button>`}</div></div>`;
     }
     else if (isDone && s.id !== 'newstd') h += kv(rows(s.id, r));
     h += `</section>`;
@@ -687,6 +740,7 @@ async function submitRequest(){
   try {
     const id = await mutate('requests', d => { const nid = nextReqId(d); d[nid] = Object.assign({ id:nid }, rec); return nid; });
     await mutate('drafts', d => { delete d[draftId]; }).catch(() => {});      // a leftover draft can be deleted from My Work Requests
+    if (rec.req.fromIdea && ME.decides) await saveIdea(rec.req.fromIdea.id, { reqId:id }, null);   /* the idea now points at its request */
     refreshRequests();
     $('#doneText').innerHTML = `<b>${esc(rec.req.title)}</b> is submitted as ${id}. It\u2019s under My Work Requests, where you can follow it. MISMO will add a WR# and a facilitator, then assign it to an initiative or make it a potential initiative.`;
     W = null; show('done'); const h = document.querySelector('#view-done h2'); if (h) h.focus();
@@ -760,10 +814,10 @@ let view = 'mine', openId = null, filter = 'new';
    Ideas sent through the public Submit an Idea form (GitMISMO.github.io/submit-an-idea/), kept by the relay in
    data/ideas.json, which only administrators of Work Requests and platform administrators can open (relay request 10).
    Each idea is one line until opened. Open = still to reach out ('open') or reached out ('reached'); Done = made a
-   potential initiative ('potential') or closed with a note ('closed'). Turning an idea into a Work Request waits for the
-   new-standard request (the "No" path), which isn't built yet. */
+   potential initiative ('potential'), closed with a note ('closed'), or turned into a Work Request ('workrequest': a new-standard
+   request staff complete, pre-filled from the idea; draftId while in progress, reqId once submitted; Perry, 16 Oct 2026). */
 let ideas = [], itab = 'open', ICLOSE = null;
-const IOPEN = new Set(), IDEA_DONE = new Set(['potential', 'closed']);
+const IOPEN = new Set(), IDEA_DONE = new Set(['potential', 'closed', 'workrequest']);
 function refreshIdeas(){ ideas = Object.values(fileOf('ideas').docs || {}).filter(x => x && x.id)
   .sort((a, b) => (IDEA_DONE.has(a.status) - IDEA_DONE.has(b.status)) || String(b.at).localeCompare(String(a.at))); }
 const ideasToReach = () => ideas.filter(x => x.status === 'open').length;
@@ -776,6 +830,7 @@ function ideaChip(x){
   if (x.status === 'open'){ const late = x.replyBy && x.replyBy < todayDC(); return `<span class="chip ${late ? 'late' : 'due'}">${late ? 'Overdue: reply by ' : 'Reply by '}${esc(dayShort(x.replyBy))}</span>`; }
   if (x.status === 'reached') return `<span class="chip assigned">Reached out ${esc(onDay(x.reachedOutAt))}</span>`;
   if (x.status === 'potential') return `<span class="chip potential">Potential Initiative</span>`;
+  if (x.status === 'workrequest') return `<span class="chip new">Work Request${x.reqId ? ' ' + esc(x.reqId) : ', in progress'}</span>`;
   return `<span class="chip path">Closed</span>`;
 }
 const IB_CHEV = '<svg class="ib-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5"/></svg>';
@@ -789,6 +844,7 @@ function ideaRow(x){
   const hist = [`Received ${esc(whenAt(x.at))} \u00b7 ${esc(x.id)}`];
   if (x.reachedOutAt) hist.push(`Reached out ${esc(onDay(x.reachedOutAt))}${x.reachedOutBy ? ' by ' + esc(x.reachedOutBy.name) : ''}`);
   if (x.status === 'potential') hist.push(`Made a potential initiative, <b>${esc(x.potentialName || '')}</b>, ${esc(onDay(x.decidedAt))}${x.decidedBy ? ' by ' + esc(x.decidedBy.name) : ''}`);
+  if (x.status === 'workrequest') hist.push(`Turned into a Work Request${x.reqId ? ', <b>' + esc(x.reqId) + '</b>,' : ''} ${esc(onDay(x.decidedAt))}${x.decidedBy ? ' by ' + esc(x.decidedBy.name) : ''}`);
   if (x.status === 'closed') hist.push(`Closed ${esc(onDay(x.decidedAt))}${x.decidedBy ? ' by ' + esc(x.decidedBy.name) : ''}${x.closeNote ? ': \u201c' + esc(x.closeNote) + '\u201d' : ''}`);
   const mail = `mailto:${encodeURIComponent(x.email)}?subject=${encodeURIComponent('Your idea for MISMO (' + x.id + ')')}`;
   let acts = '';
@@ -796,7 +852,9 @@ function ideaRow(x){
     ? `<div class="ib-close"><label for="ib-note">Why is it being closed? <span>(kept with the idea)</span></label><textarea id="ib-note" maxlength="1000"></textarea>
         <div class="ib-acts"><button type="button" class="btn p" data-iclosego="${esc(x.id)}">Close idea</button><button type="button" class="btn" data-iclosex>Cancel</button></div></div>`
     : `<div class="ib-acts"><a class="btn" href="${mail}">Email ${esc(first)}</a>${x.status === 'open' ? `<button type="button" class="btn" data-ireach="${esc(x.id)}">Mark as reached out</button>` : ''}<span class="grow"></span>
-        <button type="button" class="btn" data-iclose="${esc(x.id)}">Close, with a note</button><button type="button" class="btn p" data-ipot="${esc(x.id)}">Make a Potential Initiative</button></div>`;
+        <button type="button" class="btn" data-iclose="${esc(x.id)}">Close, with a note</button><button type="button" class="btn" data-ipot="${esc(x.id)}">Make a Potential Initiative</button><button type="button" class="btn p" data-iwr="${esc(x.id)}">Turn into a Work Request</button></div>`;
+  else if (x.status === 'workrequest') acts = x.reqId ? `<div class="ib-acts"><button type="button" class="btn" data-ireq="${esc(x.reqId)}">Open ${esc(x.reqId)}</button></div>`
+    : fileOf('drafts').docs[x.draftId] ? `<div class="ib-acts"><button type="button" class="btn p" data-iresume="${esc(x.draftId)}">Continue the Work Request</button></div>` : '';
   return `<div class="card ib on">${head}<div class="ib-body"><dl class="ib-kv"><dt>The idea</dt><dd class="pre">${esc(x.idea)}</dd>${who ? `<dt>Who\u2019s involved</dt><dd>${esc(who)}</dd>` : ''}
     ${x.why ? `<dt>Why it matters</dt><dd class="pre">${esc(x.why)}</dd>` : ''}<dt>Contact</dt><dd><a href="${mail}">${esc(x.email)}</a>${x.phone ? ' \u00b7 ' + esc(x.phone) : ''}${member ? ' \u00b7 ' + member : ''}</dd></dl>
     <p class="ib-hist">${hist.join('<br>')}</p>${acts}</div></div>`;
@@ -804,7 +862,7 @@ function ideaRow(x){
 function drawIdeas(){
   const open = ideas.filter(x => !IDEA_DONE.has(x.status)), done = ideas.filter(x => IDEA_DONE.has(x.status)), list = itab === 'open' ? open : done;
   $('#page').innerHTML = `<header class="mast"><div><div class="eyebrow">Work Requests</div><h1>Ideas Inbox</h1>
-      <div class="sub">Ideas sent through the public Submit an Idea form. Reach out within two business days, then make each a potential initiative, or close it with a note.</div></div></header>
+      <div class="sub">Ideas sent through the public Submit an Idea form. Reach out within two business days, then turn each into a Work Request, make it a potential initiative, or close it with a note.</div></div></header>
     <div class="ib-bar"><div class="tabs" role="group" aria-label="Show">${[['open', 'Open', open.length], ['done', 'Done', done.length]].map(([k, t, c]) =>
       `<button type="button" class="tab" data-itab="${k}" aria-pressed="${itab === k}">${t}<span>${c}</span></button>`).join('')}</div>
       ${list.length ? `<span class="ib-all"><button type="button" class="linkish" data-iall="1">Expand all</button> \u00b7 <button type="button" class="linkish" data-iall="0">Collapse all</button></span>` : ''}</div>
@@ -813,6 +871,19 @@ function drawIdeas(){
 function saveIdea(id, patch, msg){
   return mutate('ideas', d => { if (!d[id]) throw { code:'GONE' }; Object.assign(d[id], patch); })
     .then(() => { refreshIdeas(); if (view === 'ideas') drawIdeas(); drawRail(); if (msg) toast(msg); return true; }, e => { toast('Not saved: ' + errText(e) + '.'); return false; });
+}
+/* Turn into a Work Request: a new-standard request (the "No" path), pre-filled from the idea, opened for the staff member to
+   complete and submit as their own. The idea is marked with the draft now and the request number once it's submitted. */
+async function ideaToRequest(x){
+  if (!ME.submits){ toast('Your account can read work requests but not start one.'); return; }
+  const now = new Date().toISOString();
+  const r = Object.assign(blank(), { isUpdate:'no', title: x.title || '', sponsors:[{ name: x.name || '', company: x.company || '' }], challenge: x.idea || '', pains: x.why || '',
+    stake: (x.who || []).concat(x.whoOther ? [x.whoOther] : []).map(t => ({ type:t, problem:'', benefit:'', roles:'', size:'' })), engaged: x.company ? [x.company] : [],
+    fromIdea:{ id:x.id, name: x.name || '', company: x.company || '', email: x.email || '', at: x.at || '' } });
+  const w = { id:'d-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), r, step:'request', done:new Set(), fin:{}, errs:{}, savedAt:null, dirty:true, editSeq:0, createdAt:now };
+  if (!(await saveIdea(x.id, { status:'workrequest', draftId:w.id, decidedBy:{ email:ME.email, name:ME.name }, decidedAt:now }, null))) return;
+  W = w; show('wizard'); drawWizard(); saveDraft(true);
+  toast(`A Work Request is started from ${x.id}. Complete it, then submit.`);
 }
 async function ideaPromote(x){
   const S = window.MismoStore; if (!S || !S.potential){ toast('The potential initiative tools could not load. Reload and try again.'); return; }
@@ -832,7 +903,7 @@ async function ideaPromote(x){
 }
 document.addEventListener('click', e => {
   if (view !== 'ideas') return;
-  const t = e.target.closest('[data-itab],[data-iall],[data-iopen],[data-ireach],[data-iclose],[data-iclosex],[data-iclosego],[data-ipot]'); if (!t) return;
+  const t = e.target.closest('[data-itab],[data-iall],[data-iopen],[data-ireach],[data-iclose],[data-iclosex],[data-iclosego],[data-ipot],[data-iwr],[data-iresume],[data-ireq]'); if (!t) return;
   const d = t.dataset, find = id => ideas.find(x => x.id === id);
   if (d.itab){ itab = d.itab; ICLOSE = null; drawIdeas(); return; }
   if (d.iall){ const list = ideas.filter(x => IDEA_DONE.has(x.status) === (itab === 'done')); list.forEach(x => d.iall === '1' ? IOPEN.add(x.id) : IOPEN.delete(x.id)); drawIdeas(); return; }
@@ -843,7 +914,10 @@ document.addEventListener('click', e => {
   if (t.hasAttribute('data-iclosex')){ ICLOSE = null; drawIdeas(); return; }
   if (d.iclosego){ const note = ($('#ib-note').value || '').trim(); if (!note){ toast('Add a few words on why it\u2019s being closed.'); $('#ib-note').focus(); return; }
     t.disabled = true; const id = d.iclosego; saveIdea(id, { status:'closed', closeNote: note, decidedBy:{ email:ME.email, name:ME.name }, decidedAt: new Date().toISOString() }, 'Idea closed').then(okd => { if (okd) ICLOSE = null; if (okd && view === 'ideas') drawIdeas(); }); return; }
-  if (d.ipot){ const x = find(d.ipot); if (x) ideaPromote(x); }
+  if (d.ipot){ const x = find(d.ipot); if (x) ideaPromote(x); return; }
+  if (d.iwr){ const x = find(d.iwr); if (x){ t.disabled = true; ideaToRequest(x); } return; }
+  if (d.iresume){ resume(d.iresume); return; }
+  if (d.ireq){ openId = d.ireq; show('detail'); }
 });
 const mine = () => requests.filter(byMe);
 const byName = x => (x.createdBy && x.createdBy.name) || 'Someone';
@@ -1080,6 +1154,9 @@ document.addEventListener('click', e => {
   else if (d.goto){ goTo(d.goto); }
   else if (d.suggest){ W.r.completion = d.suggest; delete W.errs.completion; dirty(); drawWizard(); document.getElementById('f-completion').focus(); }
   else if (d.addsponsor !== undefined){ W.r.sponsors.push({ name:'', company:'' }); dirty(); drawWizard(); const rs = document.querySelectorAll('[data-row="sponsors"][data-f="name"]'); rs[rs.length - 1].focus(); }
+  else if (d.addstake !== undefined){ (W.r.stake = W.r.stake || []).push({ type:'', problem:'', benefit:'', roles:'', size:'' }); delete W.errs.stake; dirty(); drawWizard();
+    const f = document.querySelector(`#stk-${W.r.stake.length - 1} input`); if (f) f.focus(); }
+  else if (d.ssize){ const [i, v] = d.ssize.split(':'); W.r.stake[+i].size = W.r.stake[+i].size === v ? '' : v; dirty(); redraw(); }
   else if (d.delrow){ W.r[d.delrow].splice(+d.i, 1); dirty(); redraw(); }
   else if (d.add){ const inp = document.querySelector(`[data-adder="${d.add}"]`); const v = inp.value.trim(); if (v){ W.r[d.add].push(v); delete W.errs[d.add]; dirty(); drawWizard(); document.querySelector(`[data-adder="${d.add}"]`).focus(); } }
   else if (d.del){ W.r[d.del].splice(+d.i, 1); dirty(); drawWizard(); }
@@ -1113,7 +1190,9 @@ function pdfRows(id, r){
   const list = a => a && a.length ? { list: a } : { text: 'None', muted: true };
   const ef = EFFORT.find(e => e[0] === r.effort);
   switch (id){
-    case 'request': return [['Update to an Existing Standard', yn(r.isUpdate)], ['Standard', v(r.standard)],
+    case 'request': if (r.isUpdate === 'no') return [['Update to an Existing Standard', yn(r.isUpdate)], ['From Idea', v(r.fromIdea ? r.fromIdea.id + ', sent by ' + r.fromIdea.name + (r.fromIdea.company ? ', ' + r.fromIdea.company : '') + ' (' + r.fromIdea.email + ')' : '')],
+      ['Sponsors', list(r.sponsors.filter(s => t(s.name)).map(s => s.name + (t(s.company) ? ', ' + s.company : '')))], ['Community of Practice Sponsor', v(r.cop)]];
+      return [['Update to an Existing Standard', yn(r.isUpdate)], ['Standard', v(r.standard)],
       ['Sponsors', list(r.sponsors.filter(s => t(s.name)).map(s => s.name + (t(s.company) ? ', ' + s.company : '')))], ['Community of Practice Sponsor', v(r.cop)]];
     case 'kind': return [['Annual Maintenance', yn(r.maintenance)], ...(r.maintenance === 'no' ? [['Administrative Change Only', yn(r.admin)]] : [])];
     case 'plan': return [['Discovery Needed', yn(r.discovery)], ['MISMO Segment', v(r.segments.join(', '))], ['Level of Effort', v(ef ? `${ef[1]} (${ef[2]})` : '')],
@@ -1121,7 +1200,11 @@ function pdfRows(id, r){
     case 'status': return [['Updates Requested', v(r.updates)], ['How They Solve It', v(r.solves)]];
     case 'people': return [['Owning Workgroup', v(r.owner)], ['Stakeholders', r.parts.length ? { groups: r.parts } : { text: 'None', muted: true }],
       ...(adoptionLimited(r) ? [['Why a Revision Helps Adoption', v(r.adoptionWhy)]] : [])];
-    case 'adoption': return [['Regulation or Mandate', yn(r.mandate)], ...(r.mandate === 'yes' ? [['Details', v(r.mandateDetails)]] : []), ['MISMO Staff Support', v(r.staff)], ['Partner Organizations', v(r.partners)]];
+    case 'adoption': return [['Regulation or Mandate', yn(r.mandate)], ...(r.mandate === 'yes' ? [['Details', v(r.mandateDetails)]] : []), ['MISMO Staff Support', v(r.staff)], ['Partner Organizations', v(r.partners)], ...(r.isUpdate === 'no' ? [['Market Condition Impacts', v(r.market)], ['Related Technologies', v(r.tech)], ['Consumer Benefit', v(r.consumer)]] : [])];
+    case 'current': return [['Business Challenge', v(r.challenge)], ['How It Works Today', v(r.today)], ['Inefficiencies and Risks', v(r.pains)]];
+    case 'future': return [['Proposed Approach', v(r.vision)], ['Lower Costs', v(r.costs)], ['Evaluating Success', v(r.success)]];
+    case 'stake': return [['Stakeholder Groups', list((r.stake || []).filter(g => String(g.type || '').trim()).map(g => g.type + (g.size ? ' (' + { low:'Low', medium:'Medium', high:'High' }[g.size] + ' implementation)' : '')
+        + (g.problem ? '. Problem: ' + g.problem : '') + (g.benefit ? '. Benefit: ' + g.benefit : '') + (g.roles ? '. Roles: ' + g.roles : '')))], ['Organizations Already Engaged', list(r.engaged || [])]];
     case 'scope': return [['In Scope', list(r.inScope)], ['Out of Scope', list(r.outScope)]];
     case 'deliver': return [['Deliverables', list(deliverables(r))],
       ['Future Phases', v(r.future)], ['Recommendation', r.rec === 'cop' ? { text: 'Community of Practice (fast track)' } : r.rec === 'dwg' ? { text: 'Development Work Group (project)' } : { text: 'Not answered', muted: true }], ['Reasoning', v(r.recWhy)]];
@@ -1186,7 +1269,7 @@ function buildPDF(r, meta){
   }
   /* the sections */
   const secs = asked(r), p = pathOf(r);
-  const order = SECTIONS.filter(s => secs.includes(s)), num = id => String(order.findIndex(s => s.id === id) + 1).padStart(2, '0');
+  const order = r.isUpdate === 'no' ? secs.filter(s => s.id !== 'newstd') : SECTIONS.filter(s => secs.includes(s)), num = id => String(order.findIndex(s => s.id === id) + 1).padStart(2, '0');
   order.forEach(s => {
     const skip = false;                                   // sections that don't apply are left out entirely
     if (skip){

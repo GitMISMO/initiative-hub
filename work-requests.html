@@ -129,6 +129,11 @@
   .chip.assigned{background:var(--good-soft);color:var(--good)}
   .chip.potential{background:var(--warn-soft);color:var(--warn-ink)}
   .chip.path{background:var(--sunk);color:var(--ink-2)}
+  /* A new standard's stakeholder groups (Perry, 16 Oct 2026) */
+  .stk{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;padding:12px 14px} .stk-f{display:flex;flex-direction:column;gap:5px;font-size:13px;min-width:0} .stk-f>span:first-child{font-weight:700}
+  .stk-f:first-child,.stk-f:last-child{grid-column:1 / -1}
+  .stk-f>textarea,.stk-f>input[type=text]{width:100%;font:inherit;font-size:14px;border:1px solid var(--line-3);border-radius:4px;padding:8px 10px;background:var(--input-bg,var(--surface));color:var(--ink)} .stk-f>textarea{min-height:70px;resize:vertical}
+  @media (max-width:760px){ .stk{grid-template-columns:1fr} }
   /* Ideas Inbox (Perry, 16 Oct 2026) */
   .chip.due{background:var(--warn-soft);color:var(--warn-ink)} .chip.late{background:var(--bad-soft);color:var(--bad)}
   .rail .count.warn{background:#E0A83C;color:#06202f}
