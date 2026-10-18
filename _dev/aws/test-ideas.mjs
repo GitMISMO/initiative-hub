@@ -23,10 +23,14 @@ globalThis.fetch = async (url, opts = {}) => {
   const m = url.match(/^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/contents\/([^?]+)/);
   if (!m) return R(404, {});
   const key = m[1] + ':' + decodeURIComponent(m[2]), h = repo[key];
-  if (method === 'GET') { const v = h && h[h.length - 1]; return v ? R(200, { sha: v.sha, content: Buffer.from(JSON.stringify(v.data)).toString('base64') }) : R(404, {}); }
+  if (method === 'GET') { const v = h && h[h.length - 1]; if (!v) return R(404, {});
+    const bytes = v.raw ? Buffer.from(v.raw, 'base64') : Buffer.from(JSON.stringify(v.data));
+    if ((opts.headers || {}).Accept === 'application/vnd.github.raw') return { status: 200, ok: true, headers: { get: () => null }, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) };
+    return R(200, { sha: v.sha, content: bytes.toString('base64') }); }
   if (method === 'PUT') { if (ghDown && m[1] === 'Org/Requests') return R(500, {}); const body = JSON.parse(opts.body), cur = h && h[h.length - 1];
     if ((cur ? cur.sha : undefined) !== (body.sha || undefined)) return R(409, {});
-    put(key, JSON.parse(Buffer.from(body.content, 'base64').toString()), body.message); return R(cur ? 200 : 201, { content: { sha: repo[key].at(-1).sha } }); }
+    let data = null, raw = null; try { data = JSON.parse(Buffer.from(body.content, 'base64').toString()); } catch (e) { raw = body.content; }
+    put(key, data, body.message); if (raw) repo[key].at(-1).raw = raw; return R(cur ? 200 : 201, { content: { sha: repo[key].at(-1).sha } }); }
   return R(405, {});
 };
 const relay = await import('./index.mjs'); const { handler } = relay;
@@ -87,6 +91,47 @@ mailDown = true; r = await send({}, { ip: '192.0.2.40' }); mailDown = false;
 ok('if the emails fail, the idea is still kept and the sender still told it\u2019s in', r.statusCode === 200 && J(r).reference && ideasFile().docs[J(r).reference]);
 ghDown = true; r = await send({}, { ip: '192.0.2.41' }); ghDown = false;
 ok('if GitHub can\u2019t save it, the sender is told to try again (not that it went through)', r.statusCode === 502 && J(r).error === 'NOT_SAVED' && /try again/.test(J(r).message));
+
+/* ---------- company, and enough detail (Perry, 18 Oct 2026) ---------- */
+r = await send({ company: '' }, { ip: '192.0.2.50' }); ok('Company is needed', r.statusCode === 400 && J(r).problems.some(p => /Your company is needed/.test(p)), J(r));
+r = await send({ idea: 'Make documents standard.' }, { ip: '192.0.2.51' }); ok('a one-line idea is asked for a little more detail', r.statusCode === 400 && J(r).problems.some(p => /a little more about the idea/.test(p)), J(r));
+
+/* ---------- attachments ---------- */
+r = await send({}, { ip: '192.0.2.60' }); d = J(r); const ref = d.reference, ticket = d.attach;
+ok('a saved idea\u2019s answer carries a ticket for attachments', r.statusCode === 200 && typeof ticket === 'string' && ticket.split('.').length === 3, d);
+const attach = (name, bytes, o = {}) => call('POST', '/hub-requests/ideas/attach', { body: { ticket: o.ticket === undefined ? ticket : o.ticket, name, data: Buffer.from(bytes).toString('base64') }, origin: o.origin === undefined ? ORIGIN : o.origin, ip: '192.0.2.61' });
+const PDF = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(2000, 65)]);
+r = await attach('Fraud proposal.pdf', PDF);
+const files = () => (ideasFile().docs[ref].files || []);
+ok('a PDF is attached: saved under the idea in the private repository, and listed on the idea', r.statusCode === 200 && files().length === 1 && files()[0].path === `data/idea-files/${ref}/1-Fraud-proposal.pdf` && files()[0].size === PDF.length && files()[0].type === 'application/pdf' && !!repo['Org/Requests:' + files()[0].path], files());
+r = await attach('sheet.xlsx', Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(500, 1)])); ok('an Excel file (its zip start) too', r.statusCode === 200 && files().length === 2);
+r = await attach('photo.jpg', Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 2)])); ok('a JPEG too', r.statusCode === 200);
+r = await attach('notes.txt', Buffer.from('Plain notes, line one.\nLine two.')); ok('and plain text', r.statusCode === 200 && files().length === 4);
+r = await attach('setup.exe', Buffer.from('MZ\x90\x00')); ok('a program is refused: only the listed kinds of file', r.statusCode === 400 && J(r).error === 'TYPE' && /PDF, Word, Excel/.test(J(r).message));
+r = await attach('invoice.pdf', Buffer.from('MZ\x90\x00 this is really a program')); ok('a file pretending to be a PDF is refused', r.statusCode === 400 && J(r).error === 'CONTENT');
+r = await attach('data.csv', Buffer.from([0x61, 0x00, 0x62])); ok('...and so is "text" with binary in it', r.statusCode === 400 && J(r).error === 'CONTENT');
+r = await attach('empty.pdf', Buffer.alloc(0)); ok('an empty file is refused', r.statusCode === 400 && J(r).error === 'EMPTY');
+r = await attach('three-mb.pdf', Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(3 * 1024 * 1024, 66)])); ok('a 3 MB PDF goes through (the usual 1 MB request limit doesn\u2019t apply here)', r.statusCode === 200, { s: r.statusCode, b: (r.body || '').slice(0, 120) });
+ideasFile().docs[ref].files.pop();   /* keep the count for the checks after */
+r = await attach('big.pdf', Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(4 * 1024 * 1024)])); ok('over 4 MB is refused, with what to do instead', r.statusCode === 413 && /Email a larger one/.test(J(r).message), { s: r.statusCode, b: (r.body || '').slice(0, 160) });
+r = await call('POST', '/hub-requests/ideas/attach', { raw: 'x'.repeat(5_900_000), ip: '192.0.2.62' }); ok('a body over the limit is refused before it\u2019s read', r.statusCode === 413);
+r = await attach('x.pdf', PDF, { origin: 'https://elsewhere.example' }); ok('from another site: refused', r.statusCode === 403 && J(r).error === 'ORIGIN');
+r = await attach('x.pdf', PDF, { ticket: 'not.a.ticket' }); ok('without a real ticket: refused', r.statusCode === 403 && J(r).error === 'TICKET');
+r = await attach('x.pdf', PDF, { ticket: T.kellie }); ok('a sign-in session is not a ticket', r.statusCode === 403 && J(r).error === 'TICKET');
+{ const real = Date.now; Date.now = () => real() + 31 * 60_000; try { r = await attach('late.pdf', PDF); } finally { Date.now = real; } }
+ok('after 30 minutes the ticket has run out', r.statusCode === 403 && J(r).error === 'TICKET');
+r = await attach('../../access.json.pdf', PDF);
+ok('a name can\u2019t climb out of the idea\u2019s folder', r.statusCode === 200 && files().at(-1).path.startsWith(`data/idea-files/${ref}/5-`) && !files().at(-1).path.includes('..'), files().at(-1));
+r = await attach('sixth.pdf', PDF); ok('at most five files', r.statusCode === 400 && J(r).error === 'TOO_MANY_FILES');
+/* downloads: administrators only */
+r = await call('GET', '/hub-requests/ideas/file', { token: T.amy, ip: '192.0.2.63' }); ok('Work Requests staff can\u2019t download attachments', r.statusCode === 403);
+r = await call('GET', '/hub-requests/ideas/file', { ip: '192.0.2.64' }); ok('nor can someone not signed in', r.statusCode === 401);
+r = await handler({ rawPath: '/hub-requests/ideas/file', rawQueryString: `ref=${ref}&i=0`, requestContext: { http: { method: 'GET', sourceIp: '192.0.2.65' } }, headers: { origin: ORIGIN, authorization: 'Bearer ' + T.kellie } });
+ok('a Work Requests administrator downloads the PDF, byte for byte', r.statusCode === 200 && J(r).name === 'Fraud proposal.pdf' && Buffer.from(J(r).data, 'base64').equals(PDF), r.statusCode);
+r = await handler({ rawPath: '/hub-requests/ideas/file', rawQueryString: `ref=${ref}&i=9`, requestContext: { http: { method: 'GET', sourceIp: '192.0.2.66' } }, headers: { origin: ORIGIN, authorization: 'Bearer ' + T.perry } });
+ok('...and asking for one that isn\u2019t there finds nothing', r.statusCode === 404);
+r = await handler({ rawPath: '/hub/ideas/file', rawQueryString: `ref=${ref}&i=0`, requestContext: { http: { method: 'GET', sourceIp: '192.0.2.67' } }, headers: { origin: ORIGIN, authorization: 'Bearer ' + T.perry } });
+ok('only through the Work Requests project', r.statusCode === 404);
 
 for (let i = 0; i < 3; i++) await send({}, { ip: '192.0.2.99' });
 r = await send({}, { ip: '192.0.2.99' }); ok('a fourth idea in an hour from one address: asked to wait', r.statusCode === 429 && /try again in an hour/.test(J(r).message));

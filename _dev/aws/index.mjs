@@ -1768,9 +1768,10 @@ function cleanIdea(b) {
   const problems = [], text = (v, max, one) => { let t = String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').replace(/\r\n?/g, '\n'); if (one) t = t.replace(/\s+/g, ' '); t = t.trim(); return t.length > max ? null : t; };
   const f = (key, max, one, need, say) => { const t = text(b[key], max, one); if (t === null) { problems.push(`${say} is too long (${max} characters at most).`); return ''; } if (need && t.length < need) problems.push(`${say} is needed.`); return t; };
   const idea = { title: f('title', 150, true, 3, 'A name for your idea'), idea: f('idea', 4000, false, 10, 'A description of the idea'), why: f('why', 4000, false, 0, 'Why it matters'),
-    name: f('name', 100, true, 2, 'Your name'), company: f('company', 150, true, 0, 'Company'), email: f('email', 200, true, 0, 'Email'), phone: f('phone', 40, true, 0, 'Phone'),
+    name: f('name', 100, true, 2, 'Your name'), company: f('company', 150, true, 2, 'Your company'), email: f('email', 200, true, 0, 'Email'), phone: f('phone', 40, true, 0, 'Phone'),
     whoOther: f('whoOther', 200, true, 0, 'Who else') };
   if (!/^[^\s@]{1,64}@[^\s@]+\.[A-Za-z]{2,}$/.test(idea.email)) problems.push('An email address we can reply to is needed.');
+  if (idea.idea.length >= 10 && idea.idea.length < 40) problems.push('Tell us a little more about the idea: a few sentences, with enough detail for us to understand it.');
   idea.who = Array.isArray(b.who) ? [...new Set(b.who.map(String))].filter(x => IDEA_WHO.includes(x)) : [];
   idea.member = ['yes', 'no', 'unsure'].includes(b.member) ? b.member : '';
   return { idea, problems };
@@ -1817,7 +1818,69 @@ async function ideaSubmit(event, proj, headers) {
     const t = `Hello ${x.name || email},\n\nA new idea came in through the public form: ${idea.title}\n\nFrom ${idea.name}${idea.company ? ', ' + idea.company : ''} (${idea.email})\nWho's involved: ${who}\n\nReply by ${due} (two business days). It's in the Ideas Inbox:\nhttps://resources.mismo.org/initiative-hub/work-requests.html#ideas`;
     await sendMail({ kind: 'idea-alert', to: email, subject: `New idea (${ref}): ${idea.title}`, text: t, html: htmlOf(t) }).catch(e => console.warn('idea alert:', e && e.message));
   }
-  return respond(200, { ok: true, reference: ref, replyBy });
+  return respond(200, { ok: true, reference: ref, replyBy, attach: ideaTicket(ref, Math.floor(now / 1000)) });   /* attachments follow, one by one */
+}
+
+/* Attachments to an idea (relay request 10; Perry, 18 Oct 2026). The public form sends the idea first; its answer carries
+ * a ticket (signed with a key of its own, 30 minutes) that lets that one idea take files, one request each:
+ * POST /hub-requests/ideas/attach { ticket, name, data (base64) }, no sign-in, from the project's own site.
+ * At most 5 files of 4 MB (a request to the relay carries 6 MB, and base64 adds a third). Only PDF, Word, Excel,
+ * PowerPoint, PNG, JPEG, text and CSV, and only when the file's first bytes are what that kind of file starts with
+ * (text and CSV: no NUL bytes). Files go to data/idea-files/<IDEA>/ in the private Work Requests repository, and the
+ * idea lists them; administrators of Work Requests and platform administrators download them through
+ * GET /hub-requests/ideas/file?ref=&i= (signed in). Nothing is ever opened or run on the way. */
+const IDEA_FILES_MAX = 5, IDEA_FILE_MAX_BYTES = 4 * 1024 * 1024, IDEA_FILE_BODY_MAX = 5_800_000, IDEA_TICKET_SECONDS = 30 * 60;
+const IDEA_FILE_TYPES = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint',
+  pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', csv:'text/csv', txt:'text/plain', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg' };
+function fileLooksLike(ext, buf) {
+  const hex = buf.subarray(0, 8).toString('hex');
+  if (ext === 'pdf') return buf.subarray(0, 5).toString('latin1') === '%PDF-';
+  if (ext === 'docx' || ext === 'xlsx' || ext === 'pptx') return hex.startsWith('504b0304');
+  if (ext === 'doc' || ext === 'xls' || ext === 'ppt') return hex === 'd0cf11e0a1b11ae1';
+  if (ext === 'png') return hex === '89504e470d0a1a0a';
+  if (ext === 'jpg' || ext === 'jpeg') return hex.startsWith('ffd8ff');
+  return !buf.includes(0);   /* txt, csv */
+}
+const ideaTicket = (ref, now) => signToken({ kind:'idea-attach', sub: ref, iat: now, exp: now + IDEA_TICKET_SECONDS }, keyFor('idea-attach'));
+async function ideaAttach(event, proj, headers) {
+  if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
+  if (String(event.body || '').length > IDEA_FILE_BODY_MAX) return respond(413, { error: 'TOO_LARGE', message: 'Files can be up to 4 MB each. Email a larger one to MISMO with your reference.' });
+  const parsed = parseBody(event, IDEA_FILE_BODY_MAX); if (parsed.error) return parsed.error;   /* the usual 1 MB limit would stop files at about 750 KB */
+  const b = parsed.body || {}, t = verifyToken(b.ticket, keyFor('idea-attach'));
+  if (t.error || t.kind !== 'idea-attach' || !/^IDEA-\d{4,}$/.test(String(t.sub || ''))) return respond(403, { error: 'TICKET', message: 'The time to add files has run out. Email them to MISMO with your reference.' });
+  const raw = String(b.name || '').replace(/[\\/\u0000-\u001f\u007f]/g, ' ').trim().slice(-120), ext = ((raw.match(/\.([A-Za-z0-9]{1,5})$/) || [])[1] || '').toLowerCase();
+  if (!IDEA_FILE_TYPES[ext]) return respond(400, { error: 'TYPE', message: 'That kind of file can\u2019t be attached. PDF, Word, Excel, PowerPoint, PNG or JPEG images, text and CSV files can.' });
+  const buf = Buffer.from(String(b.data || ''), 'base64');
+  if (!buf.length) return respond(400, { error: 'EMPTY', message: 'That file is empty.' });
+  if (buf.length > IDEA_FILE_MAX_BYTES) return respond(413, { error: 'TOO_LARGE', message: 'Files can be up to 4 MB each. Email a larger one to MISMO with your reference.' });
+  if (!fileLooksLike(ext, buf)) return respond(400, { error: 'CONTENT', message: `That file doesn\u2019t look like a .${ext} file, so it wasn\u2019t attached.` });
+  const branch = proj.branch || 'main', cur = await readFile(proj.repo, branch, IDEA_PATH);
+  const doc = cur.status === 200 && cur.data && cur.data.docs ? cur.data.docs[t.sub] : null;
+  if (!doc) return respond(404, { error: 'NO_IDEA' });
+  const had = Array.isArray(doc.files) ? doc.files.length : 0;
+  if (had >= IDEA_FILES_MAX) return respond(400, { error: 'TOO_MANY_FILES', message: `An idea can have up to ${IDEA_FILES_MAX} attachments.` });
+  const safe = (raw.replace(/[^A-Za-z0-9._ ()-]/g, '_').replace(/\s+/g, ' ').replace(/^[.\s]+/, '') || 'file') .slice(-100);
+  const path = `data/idea-files/${t.sub}/${had + 1}-${safe.replace(/[ ()]/g, '-')}`;
+  const put = await github('PUT', `/repos/${proj.repo}/contents/${path}`, { message: `An attachment for ${t.sub}`, content: buf.toString('base64'), branch });
+  if (put.status !== 201 && put.status !== 200) return respond(502, { error: 'NOT_SAVED', message: 'That file couldn\u2019t be saved just now. Email it to MISMO with your reference.' });
+  const w = await updateRepoJson(proj.repo, branch, IDEA_PATH, d => { const x = d.docs && d.docs[t.sub];
+    if (x) x.files = (Array.isArray(x.files) ? x.files : []).concat([{ name: safe, path, size: buf.length, type: IDEA_FILE_TYPES[ext], at: new Date().toISOString() }]); return d; }, `An attachment listed for ${t.sub}`);
+  if (w.error) return respond(502, { error: 'NOT_SAVED', message: 'That file couldn\u2019t be saved just now. Email it to MISMO with your reference.' });
+  return respond(200, { ok: true, name: safe });
+}
+async function ideaFile(event, proj, who) {
+  const pa = who.role === 'admin' ? { ok: true } : await isPlatformAdmin(lowerOf(who.email));
+  if (!pa.ok) return respond(403, { error: 'ADMINS_ONLY' });
+  const q = new URLSearchParams(event.rawQueryString || ''), ref = q.get('ref'), i = Number(q.get('i'));
+  const cur = await readFile(proj.repo, proj.branch || 'main', IDEA_PATH);
+  const f = cur.status === 200 && cur.data && cur.data.docs && cur.data.docs[ref] && Array.isArray(cur.data.docs[ref].files) ? cur.data.docs[ref].files[i] : null;
+  if (!f || !String(f.path).startsWith(`data/idea-files/${ref}/`)) return respond(404, { error: 'NO_FILE' });
+  const r = await fetch(`${GITHUB_API}/repos/${proj.repo}/contents/${f.path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(proj.branch || 'main')}`,
+    { headers: { Authorization: `Bearer ${env('GITHUB_TOKEN')}`, Accept: 'application/vnd.github.raw', 'User-Agent': 'mismo-initiative-hub-save-relay' } }).catch(() => null);
+  if (!r || !r.ok) return respond(502, { error: 'UNREADABLE' });
+  const buf = Buffer.from(await r.arrayBuffer());
+  return respond(200, { name: f.name, type: f.type, size: buf.length, data: buf.toString('base64') });
 }
 
 async function attemptSignIn(email, password, origin) {
@@ -2008,6 +2071,10 @@ export async function handler(event, context) {
     if (!proj || proj.key !== IDEA_PROJECT) return respond(404, { error: 'NOT_FOUND' });
     return ideaSubmit(event, proj, headers);
   }
+  if (method === 'POST' && subPath === '/ideas/attach') {   /* relay request 10: a file for an idea just sent, no sign-in */
+    if (!proj || proj.key !== IDEA_PROJECT) return respond(404, { error: 'NOT_FOUND' });
+    return ideaAttach(event, proj, headers);
+  }
   if (method === 'POST' && subPath === '/auth/code') {   /* relay request 10: the emailed code */
     if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });
     if (!process.env.AUTH_SECRET) return respond(500, { error: 'NO_AUTH_SECRET', message: 'AUTH_SECRET is not set on the function.' });
@@ -2184,7 +2251,8 @@ export async function handler(event, context) {
   const isFacilitators = subPath === '/facilitators';
   const isAsk = subPath === '/ask';
   const isBreakglass = /^\/breakglass(\/[A-Za-z0-9-]+)?$/.test(subPath), isActivity = subPath === '/activity', isUsage = subPath === '/ask-usage';
-  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk && !isBreakglass && !isActivity && !isUsage) return respond(404, { error: 'NOT_FOUND' });
+  const isIdeaFile = subPath === '/ideas/file';   /* relay request 10: an idea's attachment, for administrators */
+  if (!dataMatch && !potentialMatch && !isFacilitators && !configMatch && !commitMatch && !fileMatch && !isAccess && !isAsk && !isBreakglass && !isActivity && !isUsage && !isIdeaFile) return respond(404, { error: 'NOT_FOUND' });
   if (configMatch && !CONFIG_FILES[configMatch[1]]) return respond(404, { error: 'NOT_FOUND' });
 
   const who = await authenticate(headers, repo, branch);
@@ -2226,6 +2294,7 @@ export async function handler(event, context) {
 
   if (isAsk) return method === 'POST' ? askRoute(proj, who, event) : respond(405, { error: 'METHOD' });
   if (isBreakglass) return breakGlass(method, subPath, event, who);
+  if (isIdeaFile) return proj.key !== IDEA_PROJECT ? respond(404, { error: 'NOT_FOUND' }) : method === 'GET' ? ideaFile(event, proj, who) : respond(405, { error: 'METHOD' });
   if (isActivity) return method === 'GET' ? activity(event, who) : respond(405, { error: 'METHOD' });
   if (isUsage) return method === 'GET' ? askUsage(who) : respond(405, { error: 'METHOD' });
 
