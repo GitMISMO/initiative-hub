@@ -306,6 +306,21 @@ Monday to Wednesday, each tested as it is built. By Wednesday evening: freeze th
 prepare the package: the Word document for IT (built like `IT-Update-Relay-Code-9.docx`, from `make9.js`, kept vague
 on what it enables), the request document, the commit and the fingerprint. Perry sends it Thursday; no relay changes
 that week, no request. The deploy is one paste of the whole `_dev/aws/index.mjs`, so everything in it goes together.
+**Mock-up, agree, preview, then push (Perry, 18 Oct 2026).** Perry always sees a mock-up first. Anything that changes
+what people see (a page, a layout, a new control or section, wording on screen) goes in this order, and nothing is
+pushed before the last step:
+1. **Mock-ups** on the design canvas (the design studio), usually a few lettered options, in the look of the place it lives.
+2. **Agreement**: Perry picks one, or asks for changes and sees them again on the canvas.
+3. **Build it** to the agreed mock-up, tested as usual.
+4. **A working preview** for Perry to review: the built page published as a Claude artifact he can click through (with
+   anything that would send or save stood in, and the preview saying so). Changes he asks for go back into the build
+   and a fresh preview.
+5. **Push** only when Perry says so after reviewing the preview.
+Not covered (nothing anyone sees changes): relay source collected for the next request, tests, notes, build scripts,
+and putting back something that was working (say so to Perry when it's done). Before 18 Oct this wasn't followed for
+some changes that went straight live: the admin console's Security section, the glossary's Staging search and Import
+count, the Hub sidebar's Ideas Inbox link, and the inbox's Submit an Idea button.
+
 **One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
 good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
 off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
