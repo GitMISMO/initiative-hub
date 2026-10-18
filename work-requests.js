@@ -856,7 +856,8 @@ function ideaRow(x){
   else if (x.status === 'workrequest') acts = x.reqId ? `<div class="ib-acts"><button type="button" class="btn" data-ireq="${esc(x.reqId)}">Open ${esc(x.reqId)}</button></div>`
     : fileOf('drafts').docs[x.draftId] ? `<div class="ib-acts"><button type="button" class="btn p" data-iresume="${esc(x.draftId)}">Continue the Work Request</button></div>` : '';
   return `<div class="card ib on">${head}<div class="ib-body"><dl class="ib-kv"><dt>The idea</dt><dd class="pre">${esc(x.idea)}</dd>${who ? `<dt>Who\u2019s involved</dt><dd>${esc(who)}</dd>` : ''}
-    ${x.why ? `<dt>Why it matters</dt><dd class="pre">${esc(x.why)}</dd>` : ''}<dt>Contact</dt><dd><a href="${mail}">${esc(x.email)}</a>${x.phone ? ' \u00b7 ' + esc(x.phone) : ''}${member ? ' \u00b7 ' + member : ''}</dd></dl>
+    ${x.why ? `<dt>Why it matters</dt><dd class="pre">${esc(x.why)}</dd>` : ''}<dt>Contact</dt><dd><a href="${mail}">${esc(x.email)}</a>${x.phone ? ' \u00b7 ' + esc(x.phone) : ''}${member ? ' \u00b7 ' + member : ''}</dd>
+    ${(x.files || []).length ? `<dt>Attachments</dt><dd class="ib-files">${x.files.map((f, i) => `<button type="button" class="linkish" data-ifile="${esc(x.id)}:${i}">${esc(f.name)}</button> <span class="ib-sz">${f.size < 1048576 ? Math.max(1, Math.round(f.size / 1024)) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB'}</span>`).join('<br>')}</dd>` : ''}</dl>
     <p class="ib-hist">${hist.join('<br>')}</p>${acts}</div></div>`;
 }
 function drawIdeas(){
@@ -886,6 +887,19 @@ async function ideaToRequest(x){
   W = w; show('wizard'); drawWizard(); saveDraft(true);
   toast(`A Work Request is started from ${x.id}. Complete it, then submit.`);
 }
+/* An idea's attachment, for administrators (relay request 10): read through the relay from the private repository, saved as a file. */
+async function ideaDownload(ref, i, btn){
+  const tok = RS && RS.token(); if (!tok){ toast('Sign in again to download attachments.'); return; }
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`${RELAY_URL}/${PROJECT}/ideas/file?ref=${encodeURIComponent(ref)}&i=${i}`, { cache:'no-store', headers:{ 'Authorization':'Bearer ' + tok } });
+    const b = await r.json().catch(() => ({}));
+    if (!r.ok || !b.data){ toast(r.status === 403 ? 'Attachments are for Work Requests administrators.' : 'That attachment couldn\u2019t be downloaded just now.'); return; }
+    const bytes = Uint8Array.from(atob(b.data), c => c.charCodeAt(0)), url = URL.createObjectURL(new Blob([bytes], { type: b.type || 'application/octet-stream' }));
+    const a = document.createElement('a'); a.href = url; a.download = b.name || 'attachment'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) { toast('That attachment couldn\u2019t be downloaded just now.'); }
+  finally { if (btn) btn.disabled = false; }
+}
 async function ideaPromote(x){
   const S = window.MismoStore; if (!S || !S.potential){ toast('The potential initiative tools could not load. Reload and try again.'); return; }
   const btn = document.querySelector(`[data-ipot="${x.id}"]`); if (btn) btn.disabled = true;
@@ -904,7 +918,7 @@ async function ideaPromote(x){
 }
 document.addEventListener('click', e => {
   if (view !== 'ideas') return;
-  const t = e.target.closest('[data-itab],[data-iall],[data-iopen],[data-ireach],[data-iclose],[data-iclosex],[data-iclosego],[data-ipot],[data-iwr],[data-iresume],[data-ireq]'); if (!t) return;
+  const t = e.target.closest('[data-itab],[data-iall],[data-iopen],[data-ireach],[data-iclose],[data-iclosex],[data-iclosego],[data-ipot],[data-iwr],[data-iresume],[data-ireq],[data-ifile]'); if (!t) return;
   const d = t.dataset, find = id => ideas.find(x => x.id === id);
   if (d.itab){ itab = d.itab; ICLOSE = null; drawIdeas(); return; }
   if (d.iall){ const list = ideas.filter(x => IDEA_DONE.has(x.status) === (itab === 'done')); list.forEach(x => d.iall === '1' ? IOPEN.add(x.id) : IOPEN.delete(x.id)); drawIdeas(); return; }
@@ -918,6 +932,7 @@ document.addEventListener('click', e => {
   if (d.ipot){ const x = find(d.ipot); if (x) ideaPromote(x); return; }
   if (d.iwr){ const x = find(d.iwr); if (x){ t.disabled = true; ideaToRequest(x); } return; }
   if (d.iresume){ resume(d.iresume); return; }
+  if (d.ifile){ const [ref, i] = d.ifile.split(':'); ideaDownload(ref, +i, t); return; }
   if (d.ireq){ openId = d.ireq; show('detail'); }
 });
 const mine = () => requests.filter(byMe);
