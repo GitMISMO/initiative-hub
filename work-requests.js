@@ -862,7 +862,8 @@ function ideaRow(x){
 function drawIdeas(){
   const open = ideas.filter(x => !IDEA_DONE.has(x.status)), done = ideas.filter(x => IDEA_DONE.has(x.status)), list = itab === 'open' ? open : done;
   $('#page').innerHTML = `<header class="mast"><div><div class="eyebrow">Work Requests</div><h1>Ideas Inbox</h1>
-      <div class="sub">Ideas sent through the public Submit an Idea form. Reach out within two business days, then turn each into a Work Request, make it a potential initiative, or close it with a note.</div></div></header>
+      <div class="sub">Ideas sent through the public Submit an Idea form. Reach out within two business days, then turn each into a Work Request, make it a potential initiative, or close it with a note.</div></div>
+      <a class="btn p" href="/submit-an-idea/" target="_blank" rel="noopener" title="Opens the public form in a new tab, to send an idea on someone\u2019s behalf">+ Submit an Idea</a></header>
     <div class="ib-bar"><div class="tabs" role="group" aria-label="Show">${[['open', 'Open', open.length], ['done', 'Done', done.length]].map(([k, t, c]) =>
       `<button type="button" class="tab" data-itab="${k}" aria-pressed="${itab === k}">${t}<span>${c}</span></button>`).join('')}</div>
       ${list.length ? `<span class="ib-all"><button type="button" class="linkish" data-iall="1">Expand all</button> \u00b7 <button type="button" class="linkish" data-iall="0">Collapse all</button></span>` : ''}</div>
