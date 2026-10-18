@@ -1883,6 +1883,71 @@ async function ideaFile(event, proj, who) {
   return respond(200, { name: f.name, type: f.type, size: buf.length, data: buf.toString('base64') });
 }
 
+/* =====================================================================================
+ * SUGGESTIONS FOR THE BUSINESS GLOSSARY (relay request 10; Perry, 18 Oct 2026, from the glossary chat)
+ * POST /glossary-data/suggestions/submit, with no sign-in: the public glossary's Suggest a Term form. Built like the ideas
+ * route (IDEAS FROM THE PUBLIC FORM): it only adds, into data/suggestions.json of the private glossary-data repository
+ * (SUG-0001 on), which only people with Edit or Admin on glossary-data and platform administrators can open through
+ * /data (never View; the rule is in the /data route). The sender gets a receipt repeating nothing they typed; the glossary
+ * console's administrators and the platform administrators get an alert.
+ * Against misuse, as for ideas, with counters of its own: an Origin from the project's site; 16 kB at most; the hidden
+ * field `website` filled, or under 3 seconds from opening, or no opening time: answered as if accepted, kept nowhere, no
+ * email; 3 an hour from one address and 30 an hour in all; every field checked, line breaks out of one-line fields.
+ * ===================================================================================== */
+const SUG_PROJECT = 'glossary-data', SUG_PATH = 'data/suggestions.json', SUG_MAX_BYTES = 16_000;
+const sugSeen = { ip: new Map(), all: [] };
+function sugAllowed(ip, now) {
+  const hour = now - 3_600_000;
+  sugSeen.all = sugSeen.all.filter(t => t > hour);
+  for (const [k, v] of sugSeen.ip) { const keep = v.filter(t => t > hour); if (keep.length) sugSeen.ip.set(k, keep); else sugSeen.ip.delete(k); }
+  const mine = sugSeen.ip.get(ip) || [];
+  if (mine.length >= IDEA_PER_IP_HOUR || sugSeen.all.length >= IDEA_ALL_HOUR) return false;
+  mine.push(now); sugSeen.ip.set(ip, mine); sugSeen.all.push(now); return true;
+}
+function cleanSuggestion(b) {
+  const problems = [], text = (v, max, one) => { let t = String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').replace(/\r\n?/g, '\n'); if (one) t = t.replace(/\s+/g, ' '); t = t.trim(); return t.length > max ? null : t; };
+  const f = (key, max, one, need, say) => { const t = text(b[key], max, one); if (t === null) { problems.push(`${say} is too long (${max} characters at most).`); return ''; } if (need && t.length < need) problems.push(t.length ? `${say} is too short (${need} characters at least).` : `${say} is needed.`); return t; };
+  const kind = b.kind === 'new' || b.kind === 'better' ? b.kind : '';
+  if (!kind) problems.push('Choose whether this is a new term or a better definition for an existing one.');
+  const s = { kind, term: f('term', 150, true, 2, 'The term'), definition: f('definition', 4000, false, 10, 'The definition'), why: f('why', 2000, false, 0, 'Why'),
+    sourceRef: f('sourceRef', 500, true, 0, 'The source or reference'), name: f('name', 120, true, 2, 'Your name'), email: f('email', 200, true, 0, 'Email'),
+    organization: f('organization', 150, true, 2, 'Your organization') };
+  if (!/^[^\s@]{1,64}@[^\s@]+\.[A-Za-z]{2,}$/.test(s.email)) problems.push('An email address we can reply to is needed.');
+  const id = String(b.termId ?? '');
+  if (kind === 'better' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) s.termId = id;   /* kept only when it's a real glossary ID */
+  return { s, problems };
+}
+async function suggestionSubmit(event, proj, headers) {
+  if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
+  if (String(event.body || '').length > SUG_MAX_BYTES) return respond(413, { error: 'TOO_LARGE', message: 'That is more than the form takes. Shorten the longer answers and try again.' });
+  const parsed = parseBody(event); if (parsed.error) return parsed.error;
+  const b = parsed.body || {}, now = Date.now(), started = Number(b.startedAt);
+  if (String(b.website || '').trim() || !Number.isFinite(started) || now - started < IDEA_MIN_MS) return respond(200, { ok: true, reference: null });   /* a robot: as if accepted, kept nowhere */
+  const ip = (event.requestContext && event.requestContext.http && event.requestContext.http.sourceIp) || 'unknown';
+  const { s, problems } = cleanSuggestion(b);
+  if (problems.length) return respond(400, { error: 'INVALID', problems });
+  if (!sugAllowed(ip, now)) return respond(429, { error: 'TOO_MANY', message: 'A few suggestions have just been sent from here. Please try again in an hour, or email MISMO directly.' });
+  const at = new Date(now).toISOString(); let ref = null;
+  const w = await updateRepoJson(proj.repo, proj.branch || 'main', SUG_PATH, d => {
+    d.docs = d.docs && typeof d.docs === 'object' ? d.docs : {};
+    const n = Object.keys(d.docs).map(k => Number((k.match(/^SUG-(\d+)$/) || [])[1]) || 0).reduce((a, x) => Math.max(a, x), 0) + 1;
+    ref = 'SUG-' + String(n).padStart(4, '0');
+    d.docs[ref] = { id: ref, at, status: 'new', via: 'public form', ...s };
+    return d;
+  }, 'A new suggestion from the public glossary');
+  if (w.error) return respond(502, { error: 'NOT_SAVED', message: 'Your suggestion couldn\u2019t be saved just now. Please try again in a minute.' });
+  const receipt = `Hello,\n\nThank you for suggesting a term for MISMO\u2019s Business Glossary. The glossary team reviews every suggestion.\n\nYour reference is ${ref}. Mention it if you write to MISMO about this suggestion.\n\nMISMO`;
+  await sendMail({ kind: 'suggestion-receipt', to: s.email, subject: `Your suggestion for MISMO\u2019s Business Glossary (${ref})`, text: receipt, html: htmlOf(receipt) }).catch(e => console.warn('suggestion receipt:', e && e.message));
+  const dir = await loadAccess();
+  const admins = dir.error ? [] : Object.entries(dir.people).filter(([, x]) => !isExpired(x) && (x.platformAdmin === true || normaliseRole((x.access || {}).glossary) === 'admin'));
+  const start = s.definition.length > 240 ? s.definition.slice(0, 240).replace(/\s+\S*$/, '') + '\u2026' : s.definition;
+  for (const [email, x] of admins) {
+    const t = `Hello ${x.name || email},\n\nA suggestion came in through the public glossary: ${s.term} (${s.kind === 'new' ? 'a new term' : 'a better definition for an existing term'})\n\nFrom ${s.name}, ${s.organization} (${s.email})\n\n${start}\n\nIt's in the glossary console's Suggestions:\nhttps://resources.mismo.org/glossary/console/#open=suggestions`;
+    await sendMail({ kind: 'suggestion-alert', to: email, subject: `New glossary suggestion (${ref}): ${s.term}`, text: t, html: htmlOf(t) }).catch(e => console.warn('suggestion alert:', e && e.message));
+  }
+  return respond(200, { ok: true, reference: ref, at });
+}
+
 async function attemptSignIn(email, password, origin) {
   const dir = await loadAccess();
   if (dir.error) return { error: dir.error };
@@ -2067,6 +2132,10 @@ export async function handler(event, context) {
    * The only route that sees a password. Everything else takes the token it returns.
    * When Cognito replaces this, the page keeps calling something that returns a token and
    * the rest of the relay is untouched — which is the point of doing it this way now. */
+  if (method === 'POST' && subPath === '/suggestions/submit') {   /* relay request 10: the public glossary's Suggest a Term, no sign-in */
+    if (!proj || proj.key !== SUG_PROJECT) return respond(404, { error: 'NOT_FOUND' });
+    return suggestionSubmit(event, proj, headers);
+  }
   if (method === 'POST' && subPath === '/ideas/submit') {   /* relay request 10: the public Submit an Idea form, no sign-in */
     if (!proj || proj.key !== IDEA_PROJECT) return respond(404, { error: 'NOT_FOUND' });
     return ideaSubmit(event, proj, headers);
@@ -2428,6 +2497,15 @@ export async function handler(event, context) {
   if (OWNED_FILES[proj.key] && (fileMatch || commitMatch)) {
     return respond(403, { error: 'NOT_ALLOWED', message: 'Work requests are read and saved one person at a time.' });
   }
+  /* Glossary suggestions (relay request 10) are read and saved only through /data, where the Edit-or-Admin rule is: the file and
+   * commit routes can't reach data/suggestions.json, however the path is written. */
+  if (proj.key === SUG_PROJECT && (fileMatch || commitMatch)) {
+    const norm = x => String(x || '').replace(/\\/g, '/').split('/').filter(seg => seg && seg !== '.').join('/');
+    let paths = [];
+    if (fileMatch) { try { paths = [decodeURIComponent(fileMatch[1])]; } catch { paths = [fileMatch[1]]; } }
+    else { const pb = parseBody(event, MAX_COMMIT_BYTES); paths = (pb.body && Array.isArray(pb.body.files) ? pb.body.files : []).map(f => (f && f.path) || ''); }
+    if (paths.some(x => norm(x) === SUG_PATH)) return respond(403, { error: 'NOT_ALLOWED', message: 'Glossary suggestions are read and saved through the console\u2019s Suggestions section.' });
+  }
   if (membersPaths(proj).size && (fileMatch || commitMatch)) {
     const mp = membersPaths(proj); let paths = [];
     if (fileMatch) paths = [decodeURIComponent(fileMatch[1])];
@@ -2463,6 +2541,12 @@ export async function handler(event, context) {
     if (proj.key === IDEA_PROJECT && id === 'ideas') {
       const pa = who.role === 'admin' ? { ok: true } : await isPlatformAdmin(lowerOf(who.email));
       if (!pa.ok) return respond(403, { error: 'ADMINS_ONLY', message: 'Ideas from the public form are for Work Requests administrators.' });
+    }
+    /* Glossary suggestions hold names and emails: Edit or Admin on glossary-data, or a platform administrator; never View
+     * (relay request 10; see SUGGESTIONS FOR THE BUSINESS GLOSSARY). */
+    if (proj.key === SUG_PROJECT && id === 'suggestions') {
+      const pa = who.role === 'admin' || who.role === 'staff' ? { ok: true } : await isPlatformAdmin(lowerOf(who.email));
+      if (!pa.ok) return respond(403, { error: 'EDITORS_ONLY', message: 'Glossary suggestions are for people who edit the glossary.' });
     }
     /* Work Requests: each person's own (see WORK REQUESTS: EACH PERSON'S OWN). */
     const ownRule = OWNED_FILES[proj.key] && OWNED_FILES[proj.key][id];
