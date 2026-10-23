@@ -658,7 +658,7 @@ function progress(){ const secs = asked(W.r).filter(s => s.id !== 'newstd'); ret
 function drawWizard(focus){
   closePop(); ACO = null;
   /* Text typed into an add box but not yet added survives the redraw (choosing an answer
-     elsewhere in the section redraws it). */
+     elsewhere in the section redraws it). Adding an item empties its box first, so it isn't carried over (facilitator, 23 Oct 2026). */
   const pending = [...document.querySelectorAll('#wizard [data-adder], #wizard [data-phadder], #wizard [data-orgadder]')]
     .filter(i => i.value.trim()).map(i => [i.dataset.adder ? `[data-adder="${i.dataset.adder}"]` : i.dataset.phadder !== undefined ? `[data-phadder="${i.dataset.phadder}"]` : `[data-orgadder="${i.dataset.orgadder}"]`, i.value]);
   $('#wizard').innerHTML = `<div class="wr">${headHTML(W.r, { mode:'fill' })}<div class="wr-grid"><div>${timelineHTML(W.r, { mode:'fill', fin:W.fin })}</div>
@@ -1174,14 +1174,14 @@ document.addEventListener('click', e => {
     const f = document.querySelector(`#stk-${W.r.stake.length - 1} input`); if (f) f.focus(); }
   else if (d.ssize){ const [i, v] = d.ssize.split(':'); W.r.stake[+i].size = W.r.stake[+i].size === v ? '' : v; dirty(); redraw(); }
   else if (d.delrow){ W.r[d.delrow].splice(+d.i, 1); dirty(); redraw(); }
-  else if (d.add){ const inp = document.querySelector(`[data-adder="${d.add}"]`); const v = inp.value.trim(); if (v){ W.r[d.add].push(v); delete W.errs[d.add]; dirty(); drawWizard(); document.querySelector(`[data-adder="${d.add}"]`).focus(); } }
+  else if (d.add){ const inp = document.querySelector(`[data-adder="${d.add}"]`); const v = inp.value.trim(); if (v){ W.r[d.add].push(v); inp.value = ''; delete W.errs[d.add]; dirty(); drawWizard(); document.querySelector(`[data-adder="${d.add}"]`).focus(); } }
   else if (d.del){ W.r[d.del].splice(+d.i, 1); dirty(); drawWizard(); }
-  else if (d.addorg !== undefined){ const gi = +d.addorg, inp = document.querySelector(`[data-orgadder="${gi}"]`), v = inp.value.trim(); if (v){ W.r.parts[gi].orgs.push({ name:v, adopted:'' }); dirty(); drawWizard(); document.querySelector(`[data-orgadder="${gi}"]`).focus(); } }
+  else if (d.addorg !== undefined){ const gi = +d.addorg, inp = document.querySelector(`[data-orgadder="${gi}"]`), v = inp.value.trim(); if (v){ W.r.parts[gi].orgs.push({ name:v, adopted:'' }); inp.value = ''; dirty(); drawWizard(); document.querySelector(`[data-orgadder="${gi}"]`).focus(); } }
   else if (d.delorg){ const [gi, oi] = d.delorg.split(':').map(Number); W.r.parts[gi].orgs.splice(oi, 1); dirty(); drawWizard(); const a = document.querySelector(`[data-orgadder="${gi}"]`); if (a) a.focus(); }
   else if (d.delgroup !== undefined){ W.r.parts.splice(+d.delgroup, 1); dirty(); drawWizard(); document.getElementById('f-addgroup').focus(); }
   else if (d.adopt){ const [gi, oi, v] = d.adopt.split(':'); const o = W.r.parts[+gi].orgs[+oi]; o.adopted = o.adopted === v ? '' : v; dirty(); redraw(); }
   else if (d.view){ W.r.impact[d.view] = !W.r.impact[d.view]; dirty(); redraw(); }
-  else if (d.addph !== undefined){ const inp = document.querySelector(`[data-phadder="${d.addph}"]`); const v = inp.value.trim(); if (v){ W.r.phases[+d.addph].push(v); dirty(); drawWizard(); document.querySelector(`[data-phadder="${d.addph}"]`).focus(); } }
+  else if (d.addph !== undefined){ const inp = document.querySelector(`[data-phadder="${d.addph}"]`); const v = inp.value.trim(); if (v){ W.r.phases[+d.addph].push(v); inp.value = ''; dirty(); drawWizard(); document.querySelector(`[data-phadder="${d.addph}"]`).focus(); } }
   else if (d.delph !== undefined){ W.r.phases[+d.delph].splice(+d.i, 1); dirty(); drawWizard(); }
   else if (d.addphase !== undefined){ W.r.phases.push([]); dirty(); drawWizard(); document.querySelector(`[data-phadder="${W.r.phases.length - 1}"]`).focus(); }
   else if (d.delphase !== undefined){ W.r.phases.splice(+d.delphase, 1); dirty(); drawWizard(); }
