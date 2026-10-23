@@ -837,6 +837,10 @@ personal access token in a plaintext file:
 
 Carried forward from earlier sessions, still outstanding as of this handoff:
 
+- **Sponsor logos on the initiative overviews (Perry, 23 Oct 2026).** The overviews name their sponsor in text only
+  ("sponsored by Cadence"); the six initiative dashboards already show sponsor logos in a sponsor tile
+  (`.sponsor-tile-logo`, e.g. `mcd-dashboard.html`). Add the sponsor's logo to each overview, ideally from the same
+  logo files. Visible change: mock-ups on the canvas first (standing rule), then build, preview, push on Perry's word.
 - **Show-password eye button (future upgrade, Perry, 2 Oct).** An eye toggle on every password box people
   type into: the sign-in screen and Change password (both in `/assets/session.js`) and
   `/reset-password.html`. A real button with an aria-label that says what it does ("Show password" /
