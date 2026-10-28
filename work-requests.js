@@ -742,7 +742,7 @@ async function submitRequest(){
     await mutate('drafts', d => { delete d[draftId]; }).catch(() => {});      // a leftover draft can be deleted from My Work Requests
     if (rec.req.fromIdea && ME.decides) await saveIdea(rec.req.fromIdea.id, { reqId:id }, null);   /* the idea now points at its request */
     refreshRequests();
-    $('#doneText').innerHTML = `<b>${esc(rec.req.title)}</b> is submitted as ${id}. It\u2019s under My Work Requests, where you can follow it. MISMO will add a WR# and a facilitator, then assign it to an initiative or make it a potential initiative.`;
+    $('#doneText').innerHTML = `<b>${esc(rec.req.title)}</b> is submitted as ${id}. It\u2019s under My Work Requests, where you can follow it. MISMO will confirm it, give it a WR#, and send it to the executive team for approval.`;
     W = null; show('done'); const h = document.querySelector('#view-done h2'); if (h) h.focus();
   } catch (e){
     if (W){ W.submitting = false; document.querySelectorAll('[data-submit]').forEach(b => { b.disabled = false; }); }
@@ -803,12 +803,12 @@ async function promote(x){
   try { const list = await S.potential.list(); const taken = new Set((list.items || []).map(i => i.id)); const base = id.slice(0, 36); let n = 2; while (taken.has(id)) id = base + '-' + n++; } catch (e) {}
   const res = await S.potential.put(id, Object.assign({}, v.content, { updates: raw.updates }), null);
   if (!res.ok){ if (btn) btn.disabled = false; toast('The potential initiative could not be saved (' + res.reason + ').'); return; }
-  await updateReq(x.id, { status:'potential', potentialId:id, potentialName:name, decidedBy:{ email:ME.email, name:ME.name }, decidedAt: now.toISOString() }, 'Potential initiative created: ' + name);
+  await changeReq(x.id, dd => { Object.assign(dd, { status:'potential', potentialId:id, potentialName:name }); logIt(dd, 'potential', { to:name }); }, 'Potential initiative created: ' + name);
 }
 function dirty(){ if (W) W.editSeq = (W.editSeq || 0) + 1; if (W && !W.dirty){ W.dirty = true; const s = document.querySelector('.glance .saved'); if (s){ s.textContent = 'Unsaved changes'; s.classList.add('dirty'); } } }
 
 /* ─────────────── the sidebar: the person's own list, and All for those allowed ─────────────── */
-let view = 'mine', openId = null, filter = 'new';
+let view = 'mine', openId = null, filter = null;   /* filter: the All Work Requests tab; null = the one it opens on */
 
 /* ─────────────── Ideas Inbox (Perry, 16 Oct 2026; design E2) ───────────────
    Ideas sent through the public Submit an Idea form (GitMISMO.github.io/submit-an-idea/), kept by the relay in
@@ -937,9 +937,9 @@ document.addEventListener('click', e => {
 });
 const mine = () => requests.filter(byMe);
 const byName = x => (x.createdBy && x.createdBy.name) || 'Someone';
-const statusWord = x => x.status === 'assigned' ? 'Accepted' : x.status === 'potential' ? 'Accepted' : 'Submitted';
+const statusWord = x => ({ awaiting:'Awaiting Approval', info:'Needs More Information', approved:'Approved', assigned:'Approved', potential:'Approved', declined:'Declined' })[x.status] || 'Submitted';
 function drawRail(){
-  const drafts = myDrafts(), subs = mine(), newN = requests.filter(x => x.status === 'new').length;
+  const drafts = myDrafts(), subs = mine(), toConfirm = inStage('confirm').length, allN = toConfirm || inStage('queue').length;
   const I = d => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
   const cur = k => (view === k || (k === 'mine' && view === 'detail' && openId && byMe(requests.find(q => q.id === openId) || {}))) ? ' aria-current="page"' : '';
   const items = drafts.map(([id, d]) => ({ key:'draft:' + id, t: d.r.title || 'Untitled Work Request', dot:'draft', label:'Draft' }))
@@ -957,18 +957,26 @@ function drawRail(){
         <button type="button" data-view-go="mine" title="My Work Requests"${cur('mine')}>${I('M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5')}<span>My Work Requests</span><b class="count">${items.length}</b></button>
       </nav>
       ${items.length ? `<div class="mine" role="list" aria-label="My work requests">${items.map(it => `<button type="button" role="listitem" data-mine="${it.key}" title="${esc(it.t)}: ${it.label}"${active === it.key ? ' aria-current="true"' : ''}><i class="dot-${it.dot}" aria-hidden="true"></i><span>${esc(it.t)}</span></button>`).join('')}</div>` : ''}
-      ${ME.decides ? `<nav aria-label="Everyone's work requests"><button type="button" data-view-go="ideas" title="Ideas Inbox"${view === 'ideas' ? ' aria-current="page"' : ''}>${I('M4 13l2.5-8h11l2.5 8v6H4z M4 13h5l1 2h4l1-2h5')}<span>Ideas Inbox</span><b class="count${ideasToReach() ? ' warn' : ''}">${ideasToReach()}</b></button><button type="button" data-view-go="all" title="All Work Requests"${cur('all') || (view === 'detail' && !cur('mine') ? ' aria-current="page"' : '')}>${I('M4 6h16 M4 12h16 M4 18h10')}<span>All Work Requests</span><b class="count${newN ? ' hot' : ''}">${newN}</b></button></nav>` : ''}
+      ${ME.decides ? `<nav aria-label="Everyone's work requests"><button type="button" data-view-go="ideas" title="Ideas Inbox"${view === 'ideas' ? ' aria-current="page"' : ''}>${I('M4 13l2.5-8h11l2.5 8v6H4z M4 13h5l1 2h4l1-2h5')}<span>Ideas Inbox</span><b class="count${ideasToReach() ? ' warn' : ''}">${ideasToReach()}</b></button><button type="button" data-view-go="all" title="All Work Requests"${cur('all') || (view === 'detail' && !cur('mine') ? ' aria-current="page"' : '')}>${I('M4 6h16 M4 12h16 M4 18h10')}<span>All Work Requests</span><b class="count${toConfirm ? ' warn' : ''}" title="${toConfirm ? 'To confirm' : 'In the Approval Queue'}">${allN}</b></button></nav>` : ''}
     </div>`;
 }
 /* ─────────────── My Work Requests ─────────────── */
 function requesterStatus(x){
-  if (x.status === 'assigned') return `Accepted. It\u2019s now part of <b>${esc(x.assignedTo)}</b>.`;
-  if (x.status === 'potential') return `Accepted as a new potential initiative: <b>${esc(x.potentialName)}</b>.`;
-  return 'Submitted, and waiting for MISMO to review it.';
+  const s = x.status;
+  if (s === 'awaiting') return `Confirmed as <b>${esc(x.wr)}</b>, and with the executive team for approval.${x.scheduledFor ? ' Scheduled for ' + esc(fmtDate(x.scheduledFor)) + '.' : ''}`;
+  if (s === 'info') return `The executive team needs more information${x.infoNote ? ': \u201c' + esc(x.infoNote) + '\u201d' : '.'}`;
+  if (s === 'approved') return 'Approved by the executive team.';
+  if (s === 'assigned') return `Approved, and now part of <b>${esc(x.assignedTo)}</b>.`;
+  if (s === 'potential') return `Approved, and now a potential initiative: <b>${esc(x.potentialName)}</b>.`;
+  if (s === 'declined') return `Declined${x.declineReason ? ': \u201c' + esc(x.declineReason) + '\u201d' : '.'}`;
+  return 'Submitted, and waiting for MISMO to confirm it.';
 }
 function chipFor(x){
-  if (x.status === 'assigned') return `<span class="chip assigned">Accepted</span>`;
-  if (x.status === 'potential') return `<span class="chip potential">Accepted</span>`;
+  const s = x.status;
+  if (s === 'awaiting') return `<span class="chip new">${x.scheduledFor ? 'Scheduled ' + esc(md(x.scheduledFor)) : 'Awaiting Approval'}</span>`;
+  if (s === 'info') return `<span class="chip wait">Needs More Information</span>`;
+  if (s === 'approved' || s === 'assigned' || s === 'potential') return `<span class="chip ready">Approved</span>`;
+  if (s === 'declined') return `<span class="chip no">Declined</span>`;
   return `<span class="chip new">Submitted</span>`;
 }
 const fmt = d => new Date(d + 'T12:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
@@ -985,59 +993,322 @@ function drawMine(){
         <button type="button" class="btn p" data-resume="${id}">Resume</button><button type="button" class="btn" data-deldraft="${id}">Delete</button></div>`; }).join('')}</div>`
       : `<div class="card empty">No drafts. A request you start is saved here until you submit it, and follows your sign-in to any computer.</div>`}</section>
     <section class="mine-list" aria-labelledby="h-s"><h2 id="h-s" style="font-size:15px;margin:0 0 8px">Submitted</h2>${subs.length ? `<div class="reqs">${subs.map(x => `<button type="button" class="card req" data-open="${x.id}">
-        <h3>${esc(x.req.title)}</h3><div class="meta"><span>Update to ${esc(x.req.standard)}</span><span>${x.id}${x.wr ? ' \u00b7 ' + esc(x.wr) : ''} \u00b7 submitted ${fmt(x.submitted)}</span></div>
+        <h3>${esc(x.req.title)}</h3><div class="meta"><span>${esc(reqLine(x))}</span><span>${x.id}${x.wr ? ' \u00b7 ' + esc(x.wr) : ''} \u00b7 submitted ${fmt(x.submitted)}</span></div>
         <div class="status">${requesterStatus(x)}</div><div class="right">${chipFor(x)}</div></button>`).join('')}</div>`
       : `<div class="card empty">Nothing submitted yet.</div>`}</section>`;
 }
-/* ─────────────── All Work Requests (only for people allowed to see all) ─────────────── */
-function counts(){ return { new: requests.filter(x => x.status === 'new').length, assigned: requests.filter(x => x.status === 'assigned').length, potential: requests.filter(x => x.status === 'potential').length, all: requests.length }; }
-function staffChip(x){
-  if (x.status === 'assigned') return `<span class="chip assigned">Assigned to ${esc(x.assignedTo)}</span>`;
-  if (x.status === 'potential') return `<span class="chip potential">Potential Initiative</span>`;
-  return `<span class="chip new">New</span>`;
+/* ─────────────── All Work Requests, a tab for each step (Perry, 28 Oct 2026; design B on the canvas) ───────────────
+   To Confirm ('new') → Approval Queue ('awaiting', 'info') → Approved ('approved'; 'assigned' and 'potential' once it is
+   in the Hub) · Archive ('declined') · All. The page opens on To Confirm when anything waits there, else on the Approval
+   Queue, else To Confirm; coming back from a request keeps the tab (B2).
+   Confirm gives the next WR#: WR<year>_<n>, the year it is confirmed in (Eastern time), the count going up within that
+   year and starting again at 1 on January 1, never reused (a declined request keeps its number). It is worked out on the
+   copy being saved, so two people confirming at once can't take the same number: the second save is re-applied on top
+   of the first and takes the next one. A request that already has a WR# (typed in before this change) keeps it.
+   The facilitator is the person who sent the request when they are on the facilitator roster; otherwise staff choose one
+   before Confirm is allowed. The relay clears decision fields on a facilitator's own submission (relay request 8), so the
+   automatic facilitator is shown from the sender and saved at Confirm.
+   Staff record the executive team's decision (Perry, 28 Oct 2026): Awaiting Approval (where every request starts, with
+   the date it is scheduled for approval), Needs More Information (a note for the facilitator; stays in the queue),
+   Approved (moves to Approved, then into the Hub: those steps are still to be worked out), Declined (a reason; moves to
+   the Archive). Every step is kept in the request's log, shown as its History.
+   Emails (MAIL_ON): the relay sends them, not the page, so the hints about who is emailed show only once the relay
+   update is live. Scheduled and Approved also go to the sponsor who sent the idea, when they are still listed as a
+   sponsor (Perry, 28 Oct 2026). */
+const MAIL_ON = window.WR_MAIL_ON === true;
+const STAGES = [['confirm', 'To Confirm', 'Step 2'], ['queue', 'Approval Queue', 'Step 3'], ['approved', 'Approved', 'Step 4'], ['archive', 'Archive', 'Declined'], ['all', 'All', 'Every Step']];
+const stageOf = x => x.status === 'awaiting' || x.status === 'info' ? 'queue' : ['approved', 'assigned', 'potential'].includes(x.status) ? 'approved' : x.status === 'declined' ? 'archive' : 'confirm';
+const inStage = k => requests.filter(x => k === 'all' || stageOf(x) === k);
+const firstTab = () => inStage('confirm').length ? 'confirm' : inStage('queue').length ? 'queue' : 'confirm';
+const norm = s => String(s || '').trim().toLowerCase();
+const isFac = n => !!norm(n) && L.facilitators.some(f => norm(f) === norm(n));
+const sentByFac = x => !!(x.createdBy && isFac(x.createdBy.name));
+const autoFac = x => x.facilitator || (sentByFac(x) ? x.createdBy.name : '');
+const yearET = d => +new Intl.DateTimeFormat('en-US', { timeZone:'America/New_York', year:'numeric' }).format(d || new Date());
+function nextWR(docs, year){
+  let n = 0; const re = new RegExp('^WR' + year + '_(\\d+)$', 'i');
+  Object.values(docs || {}).forEach(d => { const m = re.exec(String((d && d.wr) || '').trim()); if (m) n = Math.max(n, +m[1]); });
+  return 'WR' + year + '_' + (n + 1);
+}
+const wrKey = wr => { const m = /^WR(\d{4})_(\d+)$/i.exec(String(wr || '').trim()); return m ? +m[1] * 100000 + +m[2] : 9e9; };
+/* the sponsor who sent the idea the request came from, while they are still listed as a sponsor */
+const ideaSponsor = r => r && r.fromIdea && r.fromIdea.email && (r.sponsors || []).some(s => norm(s.name) && norm(s.name) === norm(r.fromIdea.name)) ? r.fromIdea : null;
+const ME_BY = () => ({ email:ME.email, name:ME.name });
+const logIt = (d, kind, extra) => { d.log = (d.log || []).concat([Object.assign({ kind, at:new Date().toISOString(), by:ME_BY() }, extra || {})]); };
+const md = ymd => ymd ? new Date(ymd + 'T12:00').toLocaleDateString('en-US', Object.assign({ month:'short', day:'numeric' }, +ymd.slice(0, 4) === yearET() ? {} : { year:'numeric' })) : '';
+const reqLine = x => x.req.isUpdate === 'no' ? 'A new standard' + (x.req.fromIdea ? ', from idea ' + x.req.fromIdea.id : '') : 'Update to ' + (x.req.standard || 'an existing standard');
+const DL = '<svg class="i dl" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14"/></svg>';
+const WOPEN = new Set(), DEC = {}, SCHED = {};
+let qf = 'all', DLM = false;
+
+function stChip(x){
+  const s = x.status;
+  if (s === 'new') return autoFac(x) ? `<span class="chip ready">Ready to Confirm</span>` : `<span class="chip wait">Needs a Facilitator</span>`;
+  if (s === 'awaiting') return `<span class="chip new">Awaiting Approval</span>`;
+  if (s === 'info') return `<span class="chip wait">Needs More Information</span>`;
+  if (s === 'declined') return `<span class="chip no">Declined</span>`;
+  if (s === 'assigned' || s === 'potential') return `<span class="chip ready">Approved, in the Hub</span>`;
+  if (s === 'approved') return `<span class="chip ready">Approved</span>`;
+  return `<span class="chip path">${esc(s || 'Submitted')}</span>`;
+}
+const COLS = { confirm:['WR#', 'Request', 'From', 'Submitted', 'Status'], queue:['WR#', 'Request', 'Facilitator', 'Scheduled For', 'Status'],
+  approved:['WR#', 'Request', 'Facilitator', 'Approved', 'Status'], archive:['WR#', 'Request', 'From', 'Declined', 'Status'], all:['WR#', 'Request', 'From', 'Submitted', 'Step'] };
+function sortFor(k, list){
+  const by = (f, dir) => list.slice().sort((a, b) => dir * String(f(a) || '').localeCompare(String(f(b) || '')));
+  if (k === 'confirm') return by(x => x.submittedAt || x.submitted, 1);
+  if (k === 'queue') return list.slice().sort((a, b) => wrKey(a.wr) - wrKey(b.wr));
+  if (k === 'approved' || k === 'archive') return by(x => x.decidedAt, -1);
+  return by(x => x.submittedAt || x.submitted, -1);
+}
+function wlRow(x, k){
+  const on = WOPEN.has(x.id), s = x.status;
+  const wr = x.wr ? `<span class="wl-wr">${esc(x.wr)}</span>` : `<span class="wl-wr next">${s === 'new' ? 'Set on Confirm' : 'None'}</span>`;
+  const person = k === 'queue' || k === 'approved' ? (autoFac(x) || 'Not chosen') : byName(x);
+  const date = k === 'queue' ? (s === 'awaiting' && x.scheduledFor ? md(x.scheduledFor) : 'Not yet') : (k === 'approved' || k === 'archive') ? onDay(x.decidedAt) : md(x.submitted);
+  const head = `<button type="button" class="wl-head" data-wopen="${esc(x.id)}" aria-expanded="${on}">${IB_CHEV}${wr}<b>${esc(x.req.title || 'Untitled Work Request')}</b><span class="wl-p">${esc(person)}</span><span class="wl-d">${esc(date)}</span>${stChip(x)}</button>`;
+  const pdf = k === 'queue' ? `<button type="button" class="btn ic" data-pdf="req:${esc(x.id)}" aria-label="Download PDF for ${esc(x.wr || x.id)}" title="Download PDF">${DL}</button>` : '';
+  if (!on) return `<div class="card ib wl" data-row="${esc(x.id)}"><div class="wl-top">${head}${pdf}</div></div>`;
+  const r = x.req;
+  return `<div class="card ib wl on" data-row="${esc(x.id)}"><div class="wl-top">${head}${pdf}</div><div class="ib-body">
+    <dl class="ib-kv"><dt>Request</dt><dd>${esc(reqLine(x))}</dd><dt>Sponsors</dt><dd>${esc(sponsorsText(r) || 'None listed')}</dd>
+      <dt>Submitted</dt><dd>${esc(fmt(x.submitted))}, by ${esc(byName(x))} \u00b7 ${esc(x.id)}</dd></dl>
+    ${stepHTML(x, 'row')}<ul class="wl-hist" aria-label="History">${historyLines(x).map(h => `<li>${h}</li>`).join('')}</ul></div></div>`;
 }
 function drawAll(){
-  const c = counts(), tabs = [['new','New'],['assigned','Assigned'],['potential','Potential Initiatives'],['all','All']];
-  const shown = requests.filter(x => filter === 'all' || x.status === filter);
+  if (!filter || !STAGES.some(s => s[0] === filter)) filter = firstTab();
+  const k = filter, all = inStage(k), list = sortFor(k, all.filter(x => k !== 'queue' || qf === 'all' || x.status === qf));
+  const n = key => inStage(key).length;
+  const chev = `<span class="st-chev" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>`;
+  const st = ([key, t, small]) => `<button type="button" class="st${n(key) ? '' : ' zero'}" data-st="${key}" aria-pressed="${filter === key}"><small>${small}</small><b>${t}<span>${n(key)}</span></b></button>`;
+  const strip = st(STAGES[0]) + chev + st(STAGES[1]) + chev + st(STAGES[2]) + `<span class="st-gap" aria-hidden="true"></span>` + st(STAGES[3]) + st(STAGES[4]);
+  let bar = '';
+  if (k === 'queue'){
+    const c = v => all.filter(x => v === 'all' || x.status === v).length;
+    bar = `<div class="tabs" role="group" aria-label="Status">${[['all', 'All'], ['awaiting', 'Awaiting Approval'], ['info', 'Needs More Information']].map(([v, t]) =>
+      `<button type="button" class="tab" data-qf="${v}" aria-pressed="${qf === v}">${t}<span>${c(v)}</span></button>`).join('')}</div>`;
+  } else bar = `<span class="wl-count">${list.length} ${list.length === 1 ? 'request' : 'requests'}${k === 'confirm' && list.length ? ', oldest first' : ''}</span>`;
+  const tools = list.length ? `<span class="ib-all"><button type="button" class="linkish" data-wall="1">Expand All</button> \u00b7 <button type="button" class="linkish" data-wall="0">Collapse All</button></span>` : '';
+  const dl = k === 'queue' && list.length ? `<div class="dlm"><button type="button" class="btn" data-dlmenu aria-haspopup="menu" aria-expanded="${DLM}">${DL}Download All PDFs (${list.length})${CHEV}</button>${DLM ? `<div class="dlm-pop" role="menu" aria-label="Download all">
+      <button type="button" role="menuitem" data-dlall="one"><b>One PDF, with a Contents Page</b><small>All ${list.length} in WR# order, ready to send to the executive team.</small></button>
+      <button type="button" role="menuitem" data-dlall="zip"><b>Separate PDFs in a .zip File</b><small>One file per request, each named by its WR#.</small></button></div>` : ''}</div>` : '';
+  const empty = { confirm:'Nothing to confirm. New Work Requests arrive here.', queue: all.length ? 'Nothing here with that status.' : 'Nothing is waiting on the executive team.', approved:'Nothing approved yet.', archive:'Nothing declined.', all:'No Work Requests yet.' }[k];
+  const foot = { confirm:'Confirm stays off until a request has a facilitator. The WR# can\u2019t be typed: the Hub gives the next number at the moment you confirm.',
+    queue:'Sorted by WR#. Needs More Information keeps a request here until it\u2019s set back to Awaiting Approval or decided.',
+    approved:'How an approved request moves into the Hub is still to be worked out. Today\u2019s two choices are on each request\u2019s own page.',
+    archive:'Nothing here is deleted. A declined request keeps its WR#, and can go back to the Approval Queue if it was declined by mistake.', all:'' }[k];
   $('#page').innerHTML = `<header class="mast"><div><div class="eyebrow">Work Requests</div><h1>All Work Requests</h1>
-      <div class="sub">Every request submitted, until it is assigned to an existing initiative or becomes a potential initiative.${ME.decides ? ' Set the WR# and decide from each one.' : ''}</div></div>
+      <div class="sub">Every Work Request, step by step: confirmed by MISMO, then decided by the executive team.</div></div>
       ${ME.submits ? `<button type="button" class="btn p" data-newreq>+ New Work Request</button>` : ''}</header>
-    <div class="tabs" role="group" aria-label="Show">${tabs.map(([k, t]) => `<button type="button" class="tab" data-filter="${k}" aria-pressed="${filter === k}">${t}<span>${c[k]}</span></button>`).join('')}</div>
-    <div class="reqs">${shown.length ? shown.map(x => `<button type="button" class="card req" data-open="${x.id}">
-        <h3>${esc(x.req.title)}</h3>
-        <div class="meta"><span>From ${esc(byName(x))}</span><span>Update to ${esc(x.req.standard)}</span><span>${x.id}${x.wr ? ' \u00b7 ' + esc(x.wr) : ''} \u00b7 ${fmt(x.submitted)}</span></div>
-        <div class="right">${staffChip(x)}</div></button>`).join('') : `<div class="card empty">${requests.length ? 'Nothing here.' : 'No work requests yet.'}</div>`}</div>
-    <div class="card seeall">Each person sees only the requests they created. Administrators of Work Requests and platform administrators see all of them.</div>`;
+    <div class="stages" role="group" aria-label="Show">${strip}</div>
+    <div class="wl-bar">${bar}<span class="grow"></span>${tools}${dl}</div>
+    ${list.length ? `<div class="wl-cols${k === 'queue' ? ' pdf' : ''}" aria-hidden="true"><span></span>${COLS[k].map(t => `<span>${t}</span>`).join('')}</div>` : ''}
+    <div class="ideas wl-list">${list.length ? list.map(x => wlRow(x, k)).join('') : `<div class="card empty">${empty}</div>`}</div>
+    ${foot && list.length ? `<p class="wl-foot">${foot}</p>` : ''}`;
 }
+/* what the request's current step asks of staff: in its line on the list ('row') and beside it on its own page ('side') */
+function stepHTML(x, where){
+  const k = stageOf(x);
+  const acts = more => `<div class="ib-acts">${where === 'row' ? `<button type="button" class="btn" data-pdf="req:${esc(x.id)}">${DL}Download PDF</button><button type="button" class="btn" data-open="${esc(x.id)}">Open the Full Request</button>` : ''}<span class="grow"></span>${more || ''}</div>`;
+  if (k === 'confirm') return confirmHTML(x, acts);
+  if (k === 'queue') return queueHTML(x, acts);
+  if (k === 'approved') return approvedHTML(x, acts, where);
+  return archiveHTML(x, acts);
+}
+function confirmHTML(x, acts){
+  const id = x.id, fac = autoFac(x), by = byName(x), first = by.split(/\s+/)[0] || by;
+  const facNote = !fac ? `<div class="wl-note warn">${esc(by)} isn\u2019t a facilitator, so choose one before confirming.</div>`
+    : sentByFac(x) && norm(fac) === norm(x.createdBy.name) ? `<small class="wl-hint">Set automatically: ${esc(first)} sent it.</small>` : '';
+  const wr = x.wr || nextWR(fileOf('requests').docs, yearET());
+  return `<div class="wl-step"><div class="wl-f"><label for="f-fac-${esc(id)}">MISMO Facilitator</label>${acHTML('fac-' + id, { value:fac, options:L.facilitators.map(f => ({ value:f, label:f })),
+      placeholder:'Search facilitators', label:'MISMO facilitator', onPick: v => setFac(id, v) })}${facNote}</div>
+    <div class="wl-f"><span class="wl-lbl" id="wrl-${esc(id)}">WR#</span><div class="wl-wrbox" aria-labelledby="wrl-${esc(id)}">${esc(wr)}</div><small class="wl-hint">${x.wr ? 'Given before this change, so it keeps this number.' : 'Given when you confirm: the next number for ' + yearET() + '.'}</small></div></div>
+    ${acts(`${fac ? '' : '<span class="wl-why">Choose a facilitator first.</span>'}<button type="button" class="btn p" data-confirm="${esc(id)}"${fac ? '' : ' disabled'}>Confirm and Send for Approval</button>`)}
+    ${MAIL_ON && fac ? `<small class="wl-hint">Confirming emails ${esc(fac)}${x.createdBy && norm(x.createdBy.name) !== norm(fac) ? ' and ' + esc(by) : ''}.</small>` : ''}`;
+}
+const DEC_OPTS = [['awaiting', 'Awaiting Approval', 'Stays here. Where every request starts.'], ['info', 'Needs More Information', 'Stays here, with a note for the facilitator.'],
+  ['approved', 'Approved', 'Moves to Approved, ready for the Hub.'], ['declined', 'Declined', 'Moves to the Archive, with the reason.']];
+function mailTo(x, kind){
+  const fac = autoFac(x), sp = ideaSponsor(x.req), sender = x.createdBy && x.createdBy.name, who = [];
+  if (fac) who.push(fac);
+  if ((kind === 'approved' || kind === 'declined') && sender && norm(sender) !== norm(fac)) who.push(sender);
+  if ((kind === 'scheduled' || kind === 'approved') && sp && norm(sp.name) !== norm(fac) && norm(sp.name) !== norm(sender)) who.push(sp.name + ' (the sponsor who sent the idea)');
+  return who.length < 3 ? who.join(' and ') : who.slice(0, -1).join(', ') + ', and ' + who[who.length - 1];
+}
+function queueHTML(x, acts){
+  const id = x.id, P = DEC[id] || { status:x.status, note:'' }, s = P.status, changing = s !== x.status;
+  let sched = '';
+  if (x.status === 'awaiting'){
+    const pend = SCHED[id];
+    if (x.scheduledFor && pend === undefined) sched = `<div class="wl-sched"><div class="t"><b>Scheduled for Approval</b><span>${esc(fmtLong(x.scheduledFor))}</span></div>
+        <button type="button" class="btn" data-schedchange="${esc(id)}">Change Date</button><button type="button" class="btn ghost" data-schedclear="${esc(id)}">Remove the Date</button></div>`;
+    else sched = `<div class="wl-sched"><div class="t"><b id="schl-${esc(id)}">Scheduled for Approval</b><span>${x.scheduledFor ? 'Now ' + esc(fmtLong(x.scheduledFor)) + '. Choose the new date.' : 'Not scheduled yet. Choose the date of the executive team\u2019s meeting.'}</span></div>
+        ${datepick('sch-' + id, { value: pend || '', min: todayDC(), onPick: v => { SCHED[id] = v; redrawWR(); const sb = document.querySelector(`[data-schedsave="${id}"]`); if (sb) sb.focus(); } })}
+        <button type="button" class="btn p" data-schedsave="${esc(id)}"${pend && pend !== x.scheduledFor ? '' : ' disabled'}>Save Date</button>${pend !== undefined && x.scheduledFor ? `<button type="button" class="btn ghost" data-schedx="${esc(id)}">Cancel</button>` : ''}
+        ${MAIL_ON ? `<small class="wl-hint" style="flex-basis:100%">Saving the date emails ${esc(mailTo(x, 'scheduled'))}.</small>` : ''}</div>`;
+  }
+  const info = x.status === 'info' && x.infoNote ? `<div class="wl-note warn"><b>Needs More Information.</b> \u201c${esc(x.infoNote)}\u201d${x.infoBy ? `<br><small>${esc(x.infoBy.name)}, ${esc(onDay(x.infoAt))}</small>` : ''}</div>` : '';
+  const opts = DEC_OPTS.map(([v, t, h]) => `<label class="choice${s === v ? ' on' : ''}"><input type="radio" name="dec-${esc(id)}" value="${v}" data-dec="${esc(id)}"${s === v ? ' checked' : ''}><span><b>${t}</b><small>${h}</small></span></label>`).join('');
+  let follow = '';
+  if (changing && (s === 'info' || s === 'declined')){
+    const lab = s === 'info' ? 'What Does the Executive Team Need?' : 'Reason';
+    const hint = s === 'info' ? (MAIL_ON ? autoFac(x) + ' gets this by email.' : 'Kept with the request, for the facilitator.') : (MAIL_ON ? 'Kept in the Archive, and emailed to ' + mailTo(x, 'declined') + '.' : 'Kept with the request in the Archive.');
+    follow = `<div class="wl-f"><label for="dn-${esc(id)}">${lab}</label><textarea id="dn-${esc(id)}" data-decnote="${esc(id)}" maxlength="2000" placeholder="${esc(hint)}">${esc(P.note || '')}</textarea></div>`;
+  } else if (changing && s === 'approved') follow = `<p class="wl-hint">It moves to Approved${MAIL_ON ? ', and ' + esc(mailTo(x, 'approved')) + ' get an email' : ''}.</p>`;
+  else if (changing && s === 'awaiting') follow = `<p class="wl-hint">It goes back to waiting for the executive team.</p>`;
+  return `${sched}${info}<fieldset class="wl-dec"><legend>Executive Team\u2019s Decision</legend><div class="choices">${opts}</div></fieldset>${follow}
+    ${acts(changing ? `<button type="button" class="btn" data-deccancel="${esc(id)}">Cancel</button><button type="button" class="btn p" data-decsave="${esc(id)}">Save Status</button>` : '')}`;
+}
+function approvedHTML(x, acts, where){
+  const r = x.req, back = `<button type="button" class="btn" data-reopen="${esc(x.id)}">Move Back to the Approval Queue</button>`;
+  if (x.status === 'assigned') return `<div class="outcome assigned"><b>In the Hub: part of ${esc(x.assignedTo)}.</b></div>${acts(`<button type="button" class="btn" data-undo="${esc(x.id)}">Undo</button>`)}`;
+  if (x.status === 'potential') return `<div class="outcome potential"><b>In the Hub: a potential initiative, ${esc(x.potentialName)}.</b></div>${x.potentialId ? `<a class="btn ghost" href="potential.html?id=${encodeURIComponent(x.potentialId)}">Open the Potential Initiative \u2192</a>` : ''}${acts(`<button type="button" class="btn" data-undo="${esc(x.id)}">Undo</button>`)}`;
+  const match = L.initiatives.find(n => n.toLowerCase() === (r.standard || '').toLowerCase());
+  const box = `<div class="wl-next"><b>Next: Into the Hub <span class="chip wait">To Be Worked Out</span></b>
+    <span class="wl-hint" style="margin:0">The steps for moving an approved request into the Hub are still to be worked out. ${where === 'side' ? 'Today\u2019s two choices are here as a starting point.' : 'Today\u2019s two choices are on the request\u2019s own page.'}</span>
+    ${where === 'side' ? `<div class="decide"><button type="button" class="btn" data-mode="assign">Assign to an Existing Initiative</button><button type="button" class="btn" data-mode="potential">Make a Potential Initiative</button></div><div id="decideForm"></div>` : ''}
+    ${match ? `<span class="wl-hint" style="margin:0">\u201c${esc(r.standard)}\u201d matches an existing initiative on the Hub.</span>` : ''}</div>`;
+  return `${box}${acts(back)}`;
+}
+function archiveHTML(x, acts){
+  return `<div class="wl-note bad"><b>Declined.</b> ${x.declineReason ? '\u201c' + esc(x.declineReason) + '\u201d' : ''}${x.decidedBy ? `<br><small>${esc(x.decidedBy.name)}, ${esc(onDay(x.decidedAt))}</small>` : ''}</div>
+    ${acts(`<button type="button" class="btn" data-reopen="${esc(x.id)}">Move Back to the Approval Queue</button>`)}`;
+}
+function historyLines(x){
+  const by = e => e.by && e.by.name ? ' by ' + esc(e.by.name) : '';
+  const out = [`Submitted ${esc(fmt(x.submitted))} by ${esc(byName(x))} \u00b7 ${esc(x.id)}`];
+  const log = x.log || [];
+  if (x.confirmedAt && !log.some(e => e.kind === 'confirmed')) out.push(`Confirmed as <b>${esc(x.wr)}</b> ${esc(onDay(x.confirmedAt))}${by({ by:x.confirmedBy })}`);
+  log.forEach(e => {
+    const t = { confirmed:`Confirmed as <b>${esc(e.wr || '')}</b>`, scheduled:`Scheduled for approval on <b>${esc(fmtDate(e.date))}</b>`, unscheduled:'Approval date removed',
+      info:`Needs More Information: \u201c${esc(e.note || '')}\u201d`, awaiting:'Set back to Awaiting Approval', approved:'<b>Approved</b>', declined:`<b>Declined</b>: \u201c${esc(e.note || '')}\u201d`,
+      reopened:'Moved back to the Approval Queue', assigned:`Moved into the Hub: part of ${esc(e.to || '')}`, potential:`Moved into the Hub: a potential initiative, ${esc(e.to || '')}`, undone:'Move into the Hub undone' }[e.kind];
+    if (t) out.push(`${t} \u00b7 ${esc(onDay(e.at))}${by(e)}`);
+  });
+  return out;
+}
+function redrawWR(){
+  refreshRequests(); drawRail();
+  if (view === 'all') drawAll(); else if (view === 'detail') drawDetail(); else if (view === 'mine') drawMine();
+}
+function changeReq(id, fn, msg){
+  return mutate('requests', docs => { const d = docs[id]; if (!d) throw { code:'GONE' }; const out = fn(d, docs); d.updatedAt = new Date().toISOString(); return out; })
+    .then(out => { redrawWR(); if (msg) toast(typeof msg === 'function' ? msg(out) : msg); return out === undefined ? true : out; },
+          e => { toast('Not saved: ' + errText(e) + '.'); return false; });
+}
+function setFac(id, v){
+  return changeReq(id, d => { d.facilitator = v; }, v ? 'Facilitator saved: ' + v : 'Facilitator cleared')
+    .then(ok => { const c = document.querySelector(`[data-confirm="${id}"]`); if (ok && c && !c.disabled) c.focus(); return ok; });
+}
+async function confirmReq(id){
+  const x = requests.find(q => q.id === id); if (!x) return;
+  if (!autoFac(x)){ toast('Choose a facilitator first.'); return; }
+  const fac = autoFac(x), keepAt = refocusNext(id);
+  const wr = await changeReq(id, (d, docs) => {
+    if (d.status !== 'new') return d.wr;                                    // someone else confirmed it meanwhile
+    const now = new Date();
+    d.wr = String(d.wr || '').trim() || nextWR(docs, yearET(now));
+    d.facilitator = d.facilitator || autoFac(d) || fac;
+    d.status = 'awaiting'; d.confirmedBy = ME_BY(); d.confirmedAt = now.toISOString();
+    logIt(d, 'confirmed', { wr:d.wr });
+    return d.wr;
+  }, w => `Confirmed as ${w} and moved to the Approval Queue.`);
+  if (wr) { WOPEN.delete(id); keepAt(); }
+}
+/* after a request leaves the list, the focus goes to the next line (or the tabs), not to the top of the page */
+function refocusNext(id){
+  const rows = [...document.querySelectorAll('.wl-list [data-row]')].map(e => e.dataset.row), i = rows.indexOf(id);
+  return () => { if (view !== 'all'){ return; } const left = [...document.querySelectorAll('.wl-list [data-wopen]')];
+    const t = left[Math.min(i, left.length - 1)] || document.querySelector('.stages [aria-pressed="true"]'); if (t) t.focus(); };
+}
+function saveSched(id, date){
+  return changeReq(id, d => {
+    if (d.status !== 'awaiting') throw { code:'MOVED', message:'its status changed meanwhile' };
+    d.scheduledFor = date || ''; d.scheduledBy = ME_BY(); d.scheduledAt = new Date().toISOString();
+    logIt(d, date ? 'scheduled' : 'unscheduled', date ? { date } : {});
+  }, date ? 'Scheduled for approval on ' + fmtDate(date) + '.' : 'Approval date removed.').then(ok => { if (ok){ delete SCHED[id]; redrawWR(); } return ok; });
+}
+const DEC_MSG = { awaiting:'Set back to Awaiting Approval.', info:'Marked Needs More Information. It stays in the Approval Queue.', approved:'Approved. It\u2019s now under Approved.', declined:'Declined. It\u2019s now in the Archive.' };
+async function saveDecision(id){
+  const x = requests.find(q => q.id === id), P = DEC[id]; if (!x || !P || P.status === x.status) return;
+  const note = String(P.note || '').trim(), ta = document.getElementById('dn-' + id);
+  if (P.status === 'info' && !note){ toast('Add a note on what the executive team needs.'); if (ta) ta.focus(); return; }
+  if (P.status === 'declined' && !note){ toast('Add the reason it was declined.'); if (ta) ta.focus(); return; }
+  const leaving = P.status === 'approved' || P.status === 'declined', keepAt = refocusNext(id);
+  const ok = await changeReq(id, d => {
+    const now = new Date().toISOString();
+    if (d.status !== 'awaiting' && d.status !== 'info') throw { code:'MOVED', message:'its status changed meanwhile' };
+    d.status = P.status;
+    if (P.status === 'info'){ d.infoNote = note; d.infoBy = ME_BY(); d.infoAt = now; d.scheduledFor = ''; logIt(d, 'info', { note }); }
+    if (P.status === 'awaiting') logIt(d, 'awaiting');
+    if (P.status === 'approved'){ d.decidedBy = ME_BY(); d.decidedAt = now; logIt(d, 'approved'); }
+    if (P.status === 'declined'){ d.declineReason = note; d.decidedBy = ME_BY(); d.decidedAt = now; logIt(d, 'declined', { note }); }
+  }, DEC_MSG[P.status]);
+  if (ok){ delete DEC[id]; if (leaving) WOPEN.delete(id); redrawWR(); if (leaving) keepAt(); }
+}
+function reopenReq(id){
+  return changeReq(id, d => { d.status = 'awaiting'; d.decidedBy = null; d.decidedAt = null; d.declineReason = ''; logIt(d, 'reopened'); }, 'Moved back to the Approval Queue.');
+}
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.dataset || !t.dataset.dec) return;
+  const id = t.dataset.dec, x = requests.find(q => q.id === id); if (!x) return;
+  DEC[id] = { status:t.value, note:(DEC[id] && DEC[id].note) || '' }; if (DEC[id].status === x.status) delete DEC[id];
+  redrawWR(); const r = document.querySelector(`input[name="dec-${id}"][value="${t.value}"]`); if (r) r.focus();
+});
+document.addEventListener('input', e => { const t = e.target; if (t.dataset && t.dataset.decnote && DEC[t.dataset.decnote]) DEC[t.dataset.decnote].note = t.value; });
+document.addEventListener('click', e => {
+  if (view !== 'all' && view !== 'detail') return;
+  if (DLM && !e.target.closest('.dlm')){ DLM = false; if (view === 'all') drawAll(); }
+  const t = e.target.closest('[data-st],[data-qf],[data-wopen],[data-wall],[data-confirm],[data-schedsave],[data-schedchange],[data-schedclear],[data-schedx],[data-decsave],[data-deccancel],[data-reopen],[data-undo],[data-dlmenu],[data-dlall]'); if (!t) return;
+  const d = t.dataset;
+  if (d.st){ filter = d.st; DLM = false; drawAll(); const b = document.querySelector(`[data-st="${d.st}"]`); if (b) b.focus(); return; }
+  if (d.qf){ qf = d.qf; drawAll(); const b = document.querySelector(`[data-qf="${d.qf}"]`); if (b) b.focus(); return; }
+  if (d.wall){ inStage(filter).forEach(x => d.wall === '1' ? WOPEN.add(x.id) : WOPEN.delete(x.id)); drawAll(); return; }
+  if (d.wopen){ const id = d.wopen; WOPEN.has(id) ? WOPEN.delete(id) : WOPEN.add(id); drawAll(); const h = document.querySelector(`[data-wopen="${id}"]`); if (h) h.focus(); return; }
+  if (d.confirm){ t.disabled = true; confirmReq(d.confirm); return; }
+  if (d.schedsave){ const v = SCHED[d.schedsave]; if (v){ t.disabled = true; saveSched(d.schedsave, v); } return; }
+  if (d.schedchange){ const x = requests.find(q => q.id === d.schedchange); SCHED[d.schedchange] = (x && x.scheduledFor) || ''; redrawWR(); const p = document.getElementById('f-sch-' + d.schedchange); if (p) p.focus(); return; }
+  if (d.schedx){ delete SCHED[d.schedx]; redrawWR(); return; }
+  if (d.schedclear){ t.disabled = true; saveSched(d.schedclear, ''); return; }
+  if (d.deccancel){ delete DEC[d.deccancel]; redrawWR(); return; }
+  if (d.decsave){ saveDecision(d.decsave); return; }
+  if (d.reopen){ t.disabled = true; reopenReq(d.reopen); return; }
+  if (d.undo){ t.disabled = true; changeReq(d.undo, x => { x.status = 'approved'; x.assignedTo = ''; x.potentialId = ''; x.potentialName = ''; logIt(x, 'undone'); }, 'Undone. It\u2019s back under Approved, waiting to move into the Hub.'); return; }
+  if (d.dlmenu !== undefined){ DLM = !DLM; drawAll(); const f = DLM ? document.querySelector('.dlm-pop button') : document.querySelector('[data-dlmenu]'); if (f) f.focus(); return; }
+  if (d.dlall){ DLM = false; drawAll(); downloadAll(d.dlall); return; }
+});
+document.addEventListener('keydown', e => {
+  if (!DLM || view !== 'all') return;
+  const items = [...document.querySelectorAll('.dlm-pop button')], i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape'){ e.preventDefault(); DLM = false; drawAll(); const b = document.querySelector('[data-dlmenu]'); if (b) b.focus(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); const n = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]; if (n) n.focus(); }
+});
 /* ─────────────── one request ─────────────── */
+const SIDE_TITLE = { confirm:'Confirm', queue:'Executive Team\u2019s Decision', approved:'Approved', archive:'Declined' };
 function drawDetail(){
   const x = requests.find(q => q.id === openId); if (!x) { show(ME.decides ? 'all' : 'mine'); return; }
-  const r = x.req, mineToo = byMe(x);
-  const pdfBtn = `<button type="button" class="btn" data-pdf="req:${x.id}" style="margin-top:12px">Download PDF</button>`;
+  const r = x.req, mineToo = byMe(x), k = stageOf(x);
+  const pdfBtn = `<button type="button" class="btn" data-pdf="req:${x.id}" style="margin-top:12px">${DL}Download PDF</button>`;
   let side;
   if (ME.decides){
-    const match = L.initiatives.find(n => n.toLowerCase() === (r.standard || '').toLowerCase());
-    let decision;
-    if (x.status === 'assigned') decision = `<div class="outcome assigned"><b>Assigned to ${esc(x.assignedTo)}.</b> The request is now part of that initiative\u2019s work.${x.decidedBy ? `<br><small>By ${esc(x.decidedBy.name)}, ${esc(fmt(String(x.decidedAt || '').slice(0, 10)))}</small>` : ''}</div><button type="button" class="btn ghost" data-undo style="margin-top:6px">Undo Decision</button>`;
-    else if (x.status === 'potential') decision = `<div class="outcome potential"><b>Became a potential initiative:</b> ${esc(x.potentialName)}.${x.decidedBy ? `<br><small>By ${esc(x.decidedBy.name)}, ${esc(fmt(String(x.decidedAt || '').slice(0, 10)))}</small>` : ''}</div>${x.potentialId ? `<a class="btn ghost" href="potential.html?id=${encodeURIComponent(x.potentialId)}" style="margin-top:6px">Open the Potential Initiative \u2192</a>` : ''}`;
-    else decision = `<div class="decide"><button type="button" class="btn p" data-mode="assign">Assign to an Existing Initiative</button>
-        <button type="button" class="btn" data-mode="potential">Make a Potential Initiative</button></div><div id="decideForm"></div>`;
-    side = `<div class="card"><h3>From ${esc(byName(x))}</h3><p style="margin:0;font-size:12.5px;color:var(--ink-3)">${x.id} \u00b7 submitted ${fmt(x.submitted)} \u00b7 ${staffChip(x)}</p>${pdfBtn}</div>
-      <div class="card"><h3>MISMO Office</h3>
-        <label for="d-wr">WR#</label><input type="text" id="d-wr" data-meta="wr" value="${esc(x.wr || '')}" placeholder="For example: WR2026_15">
-        <label for="f-fac">MISMO Facilitator</label>${acHTML('fac', { value:x.facilitator || '', options:L.facilitators.map(f => ({ value:f, label:f })), placeholder:'Search facilitators', label:'MISMO facilitator',
-          onPick: v => { updateReq(x.id, { facilitator:v }, v ? 'Facilitator saved' : 'Facilitator cleared'); } })}</div>
-      <div class="card"><h3>Decision</h3>${decision}</div>
-      ${match && x.status === 'new' ? `<p style="margin:0;font-size:12.5px;color:var(--ink-3)">\u201c${esc(r.standard)}\u201d matches an existing initiative on the Hub.</p>` : ''}`;
+    side = `<div class="card"><h3>From ${esc(byName(x))}</h3><p style="margin:0;font-size:12.5px;color:var(--ink-3)">${x.id} \u00b7 submitted ${fmt(x.submitted)}</p><div style="margin-top:8px">${stChip(x)}</div>${pdfBtn}</div>
+      <div class="card wl-side"><h3>${SIDE_TITLE[k]}</h3>${stepHTML(x, 'side')}</div>
+      <div class="card"><h3>History</h3><ul class="wl-hist">${historyLines(x).map(h => `<li>${h}</li>`).join('')}</ul></div>`;
   } else {
-    const steps = [['Submitted', fmt(x.submitted), 'ok'], ['Reviewed by MISMO', x.status === 'new' ? 'Not yet' : 'Done', x.status === 'new' ? 'now' : 'ok'],
-      ['Outcome', x.status === 'new' ? 'Assigned to an initiative, or made a potential initiative' : x.status === 'assigned' ? 'Part of ' + x.assignedTo : 'New potential initiative: ' + x.potentialName, x.status === 'new' ? '' : 'ok']];
+    const done = k === 'approved' || k === 'archive';
+    const team = k === 'queue' ? (x.status === 'info' ? 'Needs more information' + (x.infoNote ? ': \u201c' + x.infoNote + '\u201d' : '') : 'Awaiting approval' + (x.scheduledFor ? ', scheduled for ' + fmtDate(x.scheduledFor) : ''))
+      : done ? 'Done' : 'Not yet';
+    const outcome = k === 'approved' ? (x.status === 'assigned' ? 'Approved, and now part of ' + x.assignedTo : x.status === 'potential' ? 'Approved, and now a potential initiative: ' + x.potentialName : 'Approved')
+      : k === 'archive' ? 'Declined' + (x.declineReason ? ': \u201c' + x.declineReason + '\u201d' : '') : 'Approved or declined';
+    const steps = [['Submitted', fmt(x.submitted), 'ok'], ['Confirmed by MISMO', k === 'confirm' ? 'Not yet' : (x.wr || 'Done'), k === 'confirm' ? 'now' : 'ok'],
+      ['With the Executive Team', team, k === 'queue' ? 'now' : done ? 'ok' : ''], ['Decision', outcome, k === 'approved' ? 'ok' : k === 'archive' ? 'bad' : '']];
     side = `<div class="card"><h3>${mineToo ? 'Where It Stands' : 'From ' + esc(byName(x))}</h3><ol class="timeline">${steps.map(([t, s, c]) => `<li class="${c}"><b>${t}</b>${esc(s)}</li>`).join('')}</ol>${pdfBtn}</div>
-      <p style="margin:0;font-size:12.5px;color:var(--ink-3)">MISMO adds the WR# and facilitator when it reviews the request.</p>`;
+      <p style="margin:0;font-size:12.5px;color:var(--ink-3)">MISMO confirms the request, gives it a WR#, and sends it to the executive team for approval.</p>`;
   }
-  $('#page').innerHTML = `<button type="button" class="btn ghost" data-view-go="${mineToo ? 'mine' : 'all'}" style="margin-bottom:10px">\u2190 ${mineToo ? 'My Work Requests' : 'All Work Requests'}</button>
-    <div class="wr">${headHTML(r, { mode:'view', wr:x.wr, fac:x.facilitator, submitted:x.submitted })}<div class="wr-grid"><div>${timelineHTML(r, { mode:'view', fin: x.fin || Object.fromEntries(SECTIONS.map(s => [s.id, x.submitted])) })}</div><aside class="side">${side}</aside></div></div>`;
+  const back = mineToo && !ME.decides ? 'mine' : ME.decides ? 'all' : 'mine';
+  $('#page').innerHTML = `<button type="button" class="btn ghost" data-view-go="${back}" data-keep style="margin-bottom:10px">\u2190 ${back === 'mine' ? 'My Work Requests' : 'All Work Requests'}</button>
+    <div class="wr">${headHTML(r, { mode:'view', wr:x.wr, fac:autoFac(x), submitted:x.submitted })}<div class="wr-grid"><div>${timelineHTML(r, { mode:'view', fin: x.fin || Object.fromEntries(SECTIONS.map(s => [s.id, x.submitted])) })}</div><aside class="side">${side}</aside></div></div>`;
 }
+
 function decideForm(mode){
   const x = requests.find(q => q.id === openId), r = x.req;
   const match = L.initiatives.find(n => n.toLowerCase() === (r.standard || '').toLowerCase());
@@ -1144,21 +1415,19 @@ document.addEventListener('click', e => {
   if (d.pick){ if (OPEN && OPEN.id === d.pick){ closePop(true); } else openPick(d.pick); return; }
   if (OPEN && d.mon){ OPEN.month = new Date(OPEN.month.getFullYear(), OPEN.month.getMonth() + (+d.mon), 1); const f = new Date(OPEN.focus + 'T12:00'); f.setMonth(f.getMonth() + (+d.mon)); OPEN.focus = iso(f); drawCal(false); return; }
   if (OPEN && d.day){ const p = PICK[OPEN.id]; closePop(); p.onPick(d.day); const f = document.getElementById('f-completion'); if (f) f.focus(); return; }
-  if (d.viewGo){ if (W && W.dirty) saveDraft(true); W = null; openId = null; show(d.viewGo); return; }
+  if (d.viewGo){ if (W && W.dirty) saveDraft(true); W = null; openId = null; if (d.viewGo === 'all' && d.keep === undefined){ filter = null; qf = 'all'; WOPEN.clear(); } show(d.viewGo); return; }
   if (d.newreq !== undefined){ if (W && W.dirty) saveDraft(true); startWizard(); return; }
   if (d.mine){ const [k, id] = d.mine.split(':'); if (W && W.dirty) saveDraft(true); W = null; if (k === 'draft') resume(id); else { openId = id; show('detail'); } return; }
   if (b.id === 'themeBtn'){ const next = isDark() ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', next); try { localStorage.setItem('resources:hub:theme', next); } catch (err) {} paintTheme(); return; }
   if (d.resume){ resume(d.resume); return; }
   if (d.deldraft){ const id = d.deldraft; mutate('drafts', dd => { delete dd[id]; }).then(() => { show(view); toast('Draft deleted'); }, er => toast('The draft could not be deleted: ' + errText(er) + '.')); return; }
-  if (d.filter){ filter = d.filter; drawAll(); return; }
   if (d.open){ openId = d.open; show('detail'); return; }
   if (d.mode !== undefined){ if (d.mode) decideForm(d.mode); else $('#decideForm').innerHTML = ''; return; }
   if (d.assign !== undefined){ const x0 = requests.find(q => q.id === openId), f = $('#decideForm'); if (!f.dataset.choice){ toast('Choose an initiative first.'); return; }
     b.disabled = true; const choice = f.dataset.choice;
-    updateReq(x0.id, { status:'assigned', assignedTo:choice, decidedBy:{ email:ME.email, name:ME.name }, decidedAt:new Date().toISOString() }, null)
+    changeReq(x0.id, dd => { Object.assign(dd, { status:'assigned', assignedTo:choice }); logIt(dd, 'assigned', { to:choice }); }, null)
       .then(ok => { if (!ok){ b.disabled = false; return; } return addToOverview(x0, choice).then(m => toast('Assigned to ' + choice + '. ' + m)); }); return; }
   if (d.promote !== undefined){ const x0 = requests.find(q => q.id === openId); promote(x0); return; }
-  if (d.undo !== undefined){ const x0 = requests.find(q => q.id === openId); updateReq(x0.id, { status:'new', assignedTo:'', decidedBy:null, decidedAt:null }, 'Decision undone'); return; }
   if (d.pdf){ makePDF(d.pdf); return; }
   if (d.again !== undefined){ startWizard(); return; }
   if (d.gomine !== undefined){ show('mine'); return; }
@@ -1228,11 +1497,22 @@ function pdfRows(id, r){
   }
   return [];
 }
-function buildPDF(r, meta){
+function pdfDoc(title){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'letter', compress:true });
   for (const [file, name] of Object.entries(PDF_FACES)){ doc.addFileToVFS(file, PDF_FONTS[file]); doc.addFont(file, name, 'normal'); }
-  doc.setProperties({ title: r.title || 'Untitled Work Request', subject: 'Care and Feeding Work Request', author: 'MISMO', creator: 'MISMO Initiative Hub' });
+  doc.setProperties({ title, subject: 'Care and Feeding Work Request', author: 'MISMO', creator: 'MISMO Initiative Hub' });
+  return doc;
+}
+/* the page footers, once the count is known */
+function numberPages(doc){
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++){ doc.setPage(i); doc.setFont('MONO', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 152, 150);
+    doc.text('Where our industry builds what\u2019s next.', 54, 792 - 32); doc.text(`Page ${i} of ${n}`, 612 - 54, 792 - 32, { align:'right' }); }
+}
+/* One request as a PDF. With ctx ({ doc }), it is added to that PDF instead, starting on a new page (Download All). */
+function buildPDF(r, meta, ctx){
+  const doc = ctx ? ctx.doc : pdfDoc(r.title || 'Untitled Work Request');
   const PW = 612, PH = 792, ML = 54, MR = 54, CW = PW - ML - MR, TOP = 84, BOT = 62, LW = 150, VX = ML + LW + 12, VW = CW - LW - 12;
   const C = { dc:[15,49,76], ps:[80,164,219], sg:[75,75,75], mute:[150,152,150], ink:[15,49,76], soft:[69,97,121], good:[15,123,92], warn:[138,95,22], bad:[179,55,44], white:[255,255,255] };
   let y = 0;
@@ -1248,7 +1528,7 @@ function buildPDF(r, meta){
   }
   const room = h => y + h <= PH - BOT;
   /* the cover */
-  newPage(true);
+  newPage(!ctx);
   const tw = tag(ML, y, 'WR'); font('MONO', 8, C.ps); doc.text('Work Request', ML + tw + 8, y + 9.2); y += 28;
   const tl = lines(r.title || 'Untitled Work Request', CW, 'A800', 24); font('A800', 24, C.dc); doc.text(tl, ML, y + 18, { lineHeightFactor: 1.08 }); y += tl.length * 24 * 1.08 + 8;
   font('LF4', 10.5, C.soft); const lead = lines(r.standard ? `An update to ${r.standard}.` : 'An update to an existing MISMO standard.', CW, 'LF4', 10.5); doc.text(lead, ML, y + 10); y += lead.length * 13 + 12;
@@ -1313,32 +1593,92 @@ function buildPDF(r, meta){
     });
     y += 16;
   });
-  /* page numbers, once the count is known */
-  const n = doc.getNumberOfPages();
-  for (let i = 1; i <= n; i++){ doc.setPage(i); font('MONO', 7, C.mute); doc.text('Where our industry builds what\u2019s next.', ML, PH - 32); doc.text(`Page ${i} of ${n}`, PW - MR, PH - 32, { align:'right' }); }
+  if (ctx) return;
+  numberPages(doc);
+  return doc.output('blob');
+}
+/* Download All, as one PDF: a contents page (WR#, request, facilitator, status, the page it starts on), then each
+   request as it downloads on its own (Perry, 28 Oct 2026). */
+function buildPacket(list){
+  const doc = pdfDoc('Work Requests for Approval');
+  const PW = 612, ML = 54, MR = 54, PER = 16, cpages = Math.max(1, Math.ceil(list.length / PER)), starts = [];
+  for (let i = 1; i < cpages; i++) doc.addPage();
+  list.forEach(x => { starts.push(doc.getNumberOfPages() + 1); buildPDF(x.req, metaOf(x), { doc }); });
+  const ink = [15, 49, 76], soft = [69, 97, 121], sky = [80, 164, 219], mute = [150, 152, 150];
+  const font = (n, z, c) => { doc.setFont(n, 'normal'); doc.setFontSize(z); doc.setTextColor(...(c || ink)); };
+  const cols = [[ML, 70, 'WR#'], [ML + 78, 200, 'Request'], [ML + 286, 100, 'Facilitator'], [ML + 394, 82, 'Status']];
+  const short = x => x.status === 'awaiting' ? (x.scheduledFor ? 'Scheduled ' + md(x.scheduledFor) : 'Awaiting Approval') : x.status === 'info' ? 'Needs More Information' : statusLine(x);
+  for (let pg = 0; pg < cpages; pg++){
+    doc.setPage(pg + 1);
+    doc.addImage(pdfLogo(), 'PNG', ML, 34, 84, 12.8, 'logo', 'FAST');
+    font('MONO', 7.5, mute); doc.text('Work Requests for Approval', PW - MR, 44, { align:'right' });
+    let y = 84;
+    if (pg === 0){
+      font('A800', 24, ink); doc.text('Work Requests for Approval', ML, y + 18); y += 34;
+      font('LF4', 10.5, soft); doc.text(`From the Approval Queue, ${fmtDate(todayDC())}. ${list.length} ${list.length === 1 ? 'request' : 'requests'}, in WR# order.`, ML, y + 6); y += 26;
+    }
+    doc.setDrawColor(...ink); doc.setLineWidth(1.2); doc.line(ML, y + 14, PW - MR, y + 14);
+    cols.forEach(([cx, , t]) => { font('LF6', 8, soft); doc.text(t, cx, y + 9); }); font('LF6', 8, soft); doc.text('Page', PW - MR, y + 9, { align:'right' });
+    y += 24;
+    list.slice(pg * PER, pg * PER + PER).forEach((x, i) => {
+      const at = pg * PER + i, t = doc.splitTextToSize(x.req.title || 'Untitled Work Request', cols[1][1]).slice(0, 2), st = doc.splitTextToSize(short(x), cols[3][1]).slice(0, 2);
+      const h = Math.max(t.length, st.length) * 12 + 12;
+      font('MONO', 9, ink); doc.text(x.wr || x.id, cols[0][0], y + 10);
+      font('LF6', 9.5, ink); doc.text(t, cols[1][0], y + 10, { lineHeightFactor:1.25 });
+      font('LF4', 9, soft); doc.text(doc.splitTextToSize(autoFac(x) || 'Not chosen', cols[2][1]).slice(0, 2), cols[2][0], y + 10, { lineHeightFactor:1.25 });
+      font('LF4', 9, soft); doc.text(st, cols[3][0], y + 10, { lineHeightFactor:1.25 });
+      font('MONO', 9, ink); doc.text(String(starts[at]), PW - MR, y + 10, { align:'right' });
+      doc.setDrawColor(...sky); doc.setLineWidth(0.5); doc.line(ML, y + h - 2, PW - MR, y + h - 2);
+      y += h;
+    });
+  }
+  numberPages(doc);
   return doc.output('blob');
 }
 const pdfName = (r, wr) => ((wr ? wr + ' ' : '') + (r.title || 'Untitled Work Request')).replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim() + '.pdf';
-function statusLine(x){ return x.status === 'assigned' ? 'Assigned to ' + x.assignedTo : x.status === 'potential' ? 'Became a potential initiative' : 'Submitted, in review'; }
+function statusLine(x){ const s = x.status;
+  return s === 'awaiting' ? 'Awaiting Approval' + (x.scheduledFor ? ', scheduled for ' + fmtDate(x.scheduledFor) : '') : s === 'info' ? 'Needs More Information' : s === 'approved' ? 'Approved'
+    : s === 'assigned' ? 'Approved; part of ' + x.assignedTo : s === 'potential' ? 'Approved; a potential initiative' : s === 'declined' ? 'Declined' : 'Waiting to be confirmed'; }
+const metaOf = x => ({ wr:x.wr, fac:autoFac(x), submitted:x.submitted, status:statusLine(x) });
 function loadScript(src){ return new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => bad(new Error(src)); document.head.appendChild(s); }); }
 async function pdfReady(){ if (!window.jspdf) await loadScript('vendor/jspdf-2.5.1.umd.min.js'); if (!window.WR_PDF) await loadScript('work-requests-pdf-assets.js'); }
 async function makePDF(key){
   try { await pdfReady(); } catch (e){ toast('The PDF tool could not load. Check the connection and try again.'); return; }
   let r, meta;
   if (key === 'draft'){ r = W.r; meta = { status:'Draft' }; }
-  else { const x = requests.find(q => q.id === key.slice(4)); if (!x) return; r = x.req; meta = { wr:x.wr, fac:x.facilitator, submitted:x.submitted, status:statusLine(x) }; }
+  else { const x = requests.find(q => q.id === key.slice(4)); if (!x) return; r = x.req; meta = metaOf(x); }
   let blob; try { blob = buildPDF(r, meta); } catch (e){ console.error(e); toast('The PDF could not be made.'); return; }
-  const filename = pdfName(r, meta.wr);
-  window.__lastPDF = { blob, filename };            // for the prototype's own tests
+  await saveFile(blob, pdfName(r, meta.wr), 'PDF');
+}
+async function saveFile(blob, filename, what){
+  window.__lastPDF = { blob, filename };            // for the page's own tests
   const viaViewer = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('downloads').catch(() => null) : null;
   if (viaViewer){
-    try { await viaViewer.save({ filename, data: blob }); toast('PDF saved'); }
-    catch (e){ toast(e && e.code === 'declined' ? 'Download cancelled' : e && e.code === 'rate_limited' ? 'A save is already waiting for you to confirm.' : 'The PDF could not be saved here.'); }
+    try { await viaViewer.save({ filename, data: blob }); toast(what + ' saved'); }
+    catch (e){ toast(e && e.code === 'declined' ? 'Download cancelled' : e && e.code === 'rate_limited' ? 'A save is already waiting for you to confirm.' : 'The ' + what + ' could not be saved here.'); }
     return;
   }
   const u = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 5000);
-  toast('PDF downloaded');
+  toast(what + ' downloaded');
+}
+/* Download All PDFs, from the Approval Queue (what its status tab shows, in WR# order): one PDF with a contents page,
+   or each request's own PDF in one .zip file (JSZip 3.10.1, MIT, in vendor/, loaded only when first used). */
+async function downloadAll(kind){
+  const list = sortFor('queue', inStage('queue').filter(x => qf === 'all' || x.status === qf)); if (!list.length) return;
+  try { await pdfReady(); if (kind === 'zip' && !window.JSZip) await loadScript('vendor/jszip-3.10.1.min.js'); }
+  catch (e){ toast('The download tool could not load. Check the connection and try again.'); return; }
+  toast(`Making ${list.length === 1 ? 'the PDF' : 'the ' + list.length + ' PDFs'}\u2026`);
+  const stem = 'Approval Queue, ' + fmtDate(todayDC()).replace(',', '');
+  try {
+    if (kind === 'zip'){
+      const zip = new window.JSZip(), used = new Set();
+      list.forEach(x => { let n = pdfName(x.req, x.wr || x.id); while (used.has(n)) n = n.replace(/\.pdf$/, ' (' + x.id + ').pdf'); used.add(n); zip.file(n, buildPDF(x.req, metaOf(x))); });
+      const blob = await zip.generateAsync({ type:'blob' });
+      window.__lastZip = { names:[...used] };
+      await saveFile(blob, stem + '.zip', 'Zip file');
+    } else await saveFile(buildPacket(list), stem + '.pdf', 'PDF');
+  } catch (e){ console.error(e); toast('The download could not be made.'); }
 }
 
 /* the theme button, as the Hub's */
@@ -1357,7 +1697,8 @@ async function poll(){
   refreshRequests(); drawRail();
   if (view === 'ideas' && !ICLOSE) drawIdeas();
   const busy = document.activeElement && document.activeElement.closest && document.activeElement.closest('.side, #decideForm');
-  if (view === 'mine') drawMine(); else if (view === 'all') drawAll(); else if (view === 'detail' && !busy && !($('#decideForm') && $('#decideForm').innerHTML)) drawDetail();
+  const busyAll = OPEN || ACO || DLM || Object.keys(DEC).length || Object.keys(SCHED).length || (document.activeElement && document.activeElement.closest && document.activeElement.closest('.wl .ib-body'));
+  if (view === 'mine') drawMine(); else if (view === 'all' && !busyAll) drawAll(); else if (view === 'detail' && !busy && !busyAll && !($('#decideForm') && $('#decideForm').innerHTML)) drawDetail();
 }
 function boot(){
   if (!RS){ banner('<b>The sign-in couldn\u2019t load.</b> Reload the page. If it keeps happening, the page isn\u2019t being opened from resources.mismo.org.'); return; }

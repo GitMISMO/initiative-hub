@@ -669,6 +669,37 @@ Care and Feeding form), built from the prototype Perry approved. The repo files 
   Hub and Work Requests.
 - The new-standard path ("No" to the first question) is not built yet: it shows a placeholder.
 
+## Work Requests: Confirm and Approve (Perry, 28 Oct 2026)
+
+Canvas page "Work Requests: Confirm and Approve" (design B chosen, B2 for the opening tab). All Work Requests has a tab
+for each step: **To Confirm** (`new`) → **Approval Queue** (`awaiting`, `info`) → **Approved** (`approved`; `assigned` and
+`potential` once in the Hub) · **Archive** (`declined`) · All. It opens on To Confirm when anything waits there, else on
+the Approval Queue, else To Confirm; coming back from a request keeps the tab. Each request is a collapsible line.
+- **Confirm** gives the WR#: `WR<year>_<n>`, the year it is confirmed in (Eastern time), counting up within the year,
+  starting again at 1 on January 1 (WR2027_1), never reused (declined requests keep theirs). Worked out in the save's
+  callback, so a 409 re-applies it on the latest copy and two people can't take one number. A request that already has
+  a WR# (the five typed in before this, WR2026_14 to _18) keeps it.
+- **The facilitator** is the sender when their name is on the facilitator roster; otherwise staff choose one and Confirm
+  stays off until they do. The relay clears decision fields on a facilitator's own submission (request 8), so the
+  automatic one is shown from `createdBy` and saved at Confirm.
+- **Staff record the executive team's decision** (the executive team doesn't sign in): Awaiting Approval (with
+  `scheduledFor`, the approval meeting date: today or later, change or remove), Needs More Information (`infoNote`,
+  required; clears the date; stays in the queue), Approved (`decidedBy/At`), Declined (`declineReason`, required).
+  Move Back to the Approval Queue undoes either. Every step is kept in `log` and shown as History. How an approved
+  request moves into the Hub is still to be worked out: today's Assign and Make a Potential Initiative sit in a dashed
+  "To Be Worked Out" box on the request's page.
+- **Downloads:** a PDF on each Approval Queue line; Download All PDFs as one PDF with a contents page (`buildPacket`) or
+  a .zip of each request's PDF (JSZip 3.10.1, MIT, `vendor/`, loaded on first use).
+- **Emails are not sent yet.** Only the relay can send them (through the Power Automate flow): submitted, confirmed,
+  scheduled, needs more information, approved, declined; Scheduled and Approved also go to the sponsor who sent the
+  idea while still listed as a sponsor (`ideaSponsor`). The page's hints about who is emailed show only when
+  `window.WR_MAIL_ON` is true, so switch it on with the relay update.
+- **No pills** (Perry, 28 Oct 2026; MISMO website style guide: tags 4px, never pills): tabs, tags and toggles are
+  squared like the buttons. Only the sidebar counts, shared with every page, are rounded.
+- Tests in `initiative-hub-data/_dev/wr-checks/`: `t-wr-approval.mjs` (69), `t-wr-no-pills.mjs` (every view measured),
+  `t-wr-preview.mjs` (the preview). Preview: `make-wr-preview.py` builds one file from the real page with the sign-in
+  and relay stood in (`wr-preview-shell.js`: View As, the emails it would send, Reset).
+
 ## Submit an Idea and the Ideas Inbox (16 Oct 2026)
 
 The public form is `GitMISMO.github.io/submit-an-idea/` (design B; MISMO's website links to it in place of Smartsheet).
@@ -684,6 +715,9 @@ MISMO staff complete them. In the inbox, Turn into a Work Request makes a draft 
 submit). Its sections (`asked()`): request, plan, current, future, stake, adoption (+ market, tech, consumer), scope, deliver
 (with the Adoption Plan), impact. "No" without an idea points to Submit an Idea and goes no further.
 Page tests: `initiative-hub-data/_dev/ideas-checks/`.
+**Not saving yet (checked 28 Oct 2026):** the live relay's `/version` is request 9 (commit `fe9b747`), which has no
+`/ideas/submit`, so the form gets 404 and tells visitors it isn't switched on yet; `data/ideas.json` doesn't exist.
+It starts working when IT deploys request 10.
 
 ## The Hub is behind the sign-in (30 Sept 2026)
 
