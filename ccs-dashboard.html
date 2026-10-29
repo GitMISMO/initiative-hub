@@ -781,10 +781,16 @@ function nextMeeting() {
 }
 const timeLabel = () => SCHED.time.replace(/\s*(am|pm)/gi, (s, p) => ' ' + p.toUpperCase());   /* "3–4pm ET" → "3–4 PM ET" */
 const ORD = ['1st', '2nd', '3rd', '4th', '5th'], DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+let WHEN_HTML = null;   /* the card's countdown-and-time line as built, to bring back (below) */
 function renderMeeting() {
   const n = nextMeeting(), card = document.querySelector('.mcard'); if (!card) return;
+  const wl = card.querySelector('.m-when'), bl = card.querySelector('.m-btns');
+  if (wl && WHEN_HTML === null) WHEN_HTML = wl.innerHTML;
   if (!SCHED) { $('#countdown').textContent = 'No meetings scheduled yet'; $('#mtMon').textContent = '—'; $('#mtDay').textContent = '—'; $('#mtDow').textContent = '';
     const b = card.querySelector('.m-btns'); if (b) b.style.display = 'none'; const w = card.querySelector('.m-when'); if (w) w.innerHTML = '<b id="countdown">No meetings scheduled yet</b>'; return; }
+  /* A schedule can arrive after the card was drawn without one (a workgroup whose meetings are only in Meeting Trackers):
+     bring back the time and the buttons, Join on Zoom and the meeting calendar with its invites (Perry, 29 Oct 2026). */
+  if (bl) bl.style.display = ''; if (wl && !$('#mTime') && WHEN_HTML) wl.innerHTML = WHEN_HTML;
   const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], DOWL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   if (!n) { $('#countdown').textContent = 'Meetings paused'; $('#mtMon').textContent = '—'; $('#mtDay').textContent = '—'; $('#mtDow').textContent = ''; card.classList.remove('live'); return; }
   card.classList.toggle('live', n.live);
