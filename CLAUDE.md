@@ -324,6 +324,14 @@ count, the Hub sidebar's Ideas Inbox link, and the inbox's Submit an Idea button
 **One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
 good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
 off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
+**Request 10, as of 30 Oct 2026 (never sent to IT before; Perry).** Besides pins, Activity, two-step (off), Submit an
+Idea and Suggest a Term, it now carries Jonna's MISMO Link AI beta agreements (her "request 11" package from
+`mismo-link/_dev/relay-request-11/`, merged as-is; the signer's copy names the version only when it is a plain version
+number) and the Scheduler's outside-guest routes (from Vanessa's `MISMO-Scheduler-v2.zip`, also written as "request 11").
+"Request 11" is therefore free again. **The guest routes ship switched off:** they answer 404 until the `scheduler`
+entry in `_internal/projects.json` says `"guestLinks": true` (anything else is off). Don't turn them on until the
+Scheduler page stops saving over guest answers it hasn't seen: it saves a whole request at a time and, after a 409,
+re-applies its own copy. Turning them on is a projects.json change (no IT), with Perry's OK.
 **Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
 repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
 repositories it touches, so treat changes to that list like code changes.
