@@ -368,14 +368,17 @@ async function projectConfig(key) {
   const readable = Array.from(new Set([...writable, ...cleanPrefixes(p.readable)]));
   /* Relay request 9 (6 Oct 2026). 'ask': true lets the project use POST /{project}/ask, which spends money, so it is
    * opt-in per tool by a reviewed commit. 'membersOnly' names data files whose items carry a members list, each with
-   * the emails that may see every item (see MEMBERS-ONLY FILES). */
+   * the emails that may see every item (see MEMBERS-ONLY FILES).
+   * Relay request 10 (Perry, 30 Oct 2026). 'guestLinks': true switches on the Scheduler's outside-guest routes (see THE
+   * SCHEDULER'S OUTSIDE GUESTS). Off unless exactly true, so they ship switched off and are turned on by a reviewed commit
+   * to projects.json, with no deploy. */
   const membersOnly = {};
   if (p.membersOnly && typeof p.membersOnly === 'object' && !Array.isArray(p.membersOnly)) {
     for (const [file, all] of Object.entries(p.membersOnly)) {
       if (DASHBOARD_ID.test(file) && Array.isArray(all)) membersOnly[file] = all.filter(e => typeof e === 'string' && e.includes('@')).map(e => e.trim().toLowerCase());
     }
   }
-  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, membersOnly };
+  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, guestLinks: p.guestLinks === true, membersOnly };
 }
 
 /* ---------- what /commit may write ----------
@@ -2228,6 +2231,10 @@ async function ownedData(rule, method, id, event, who, repo, branch) {
  * a robot: answered as if accepted, kept nowhere); at least 2 seconds between the page opening and sending; per running copy,
  * 60 views and 10 answers an hour from one address and 300 answers an hour in all; 8 kB at most; every field checked.
  * The organizer is emailed (through the same Power Automate mail flow) when a guest answers. Nothing is ever emailed to a guest.
+ * SWITCHED OFF until the scheduler entry in projects.json says "guestLinks": true (Perry, 30 Oct 2026); until then all three
+ * answer 404 NOT_FOUND, as a relay without them does. Why: the staff page saves a whole request at a time and, after a
+ * conflict, re-applies its own copy, so an answer that arrived since it last looked would be saved over. Turn the links on
+ * only once the page keeps answers it hasn't seen.
  * ===================================================================================== */
 const SCHED_PROJECT = 'scheduler', SCHED_PATH = 'data/requests.json';
 const SCHED_VIEW_PER_IP = 60, SCHED_ANS_PER_IP = 10, SCHED_ANS_ALL = 300, SCHED_MIN_MS = 2000, SCHED_MAX_BYTES = 8_000;
@@ -2374,6 +2381,9 @@ export async function handler(event, context) {
   }
   if (subPath === '/poll/view' || subPath === '/poll/answer' || subPath === '/poll/ready') {   /* relay request 10: the Scheduler's outside guests, no sign-in */
     if (!proj || proj.key !== SCHED_PROJECT) return respond(404, { error: 'NOT_FOUND' });
+    /* switched off unless the project says guestLinks: true (Perry, 30 Oct 2026): until then all three answer exactly as a
+     * relay without them does, so the live page keeps guest links off and staff type answers in by hand */
+    if (!proj.guestLinks) return respond(404, { error: 'NOT_FOUND' });
     if (method === 'GET' && subPath === '/poll/ready') return respond(200, { ok: true });
     if (method !== 'POST') return respond(405, { error: 'METHOD' });
     return subPath === '/poll/view' ? schedView(event, proj, headers) : schedAnswer(event, proj, headers);

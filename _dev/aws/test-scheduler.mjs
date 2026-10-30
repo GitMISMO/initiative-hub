@@ -26,13 +26,28 @@ globalThis.fetch = async (url, opts = {}) => {
     put(key, JSON.parse(Buffer.from(body.content, 'base64').toString()), body.message); return R(200, { content: { sha: repo[key].at(-1).sha } }); }
   return R(405, {});
 };
-const { handler } = await import('./index.mjs');
+const { handler, __resetProjectsCache } = await import('./index.mjs');
 let failed = 0; const ok = (n, c, d) => { if (!c) failed++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c || d === undefined ? '' : '  ' + JSON.stringify(d).slice(0, 300))); };
 const J = r => JSON.parse(r.body);
 const call = (m, path, { body, origin = ORIGIN, ip = '203.0.113.1' } = {}) => handler({ rawPath: path, requestContext: { http: { method: m, sourceIp: ip } },
   headers: { ...(origin ? { origin } : {}), 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
 const file = () => repo['Org/Sched:data/requests.json'].at(-1).data.docs[REQ.id];
 let r, d;
+
+/* ---------- switched off until projects.json says guestLinks: true (Perry, 30 Oct 2026) ---------- */
+{
+  const before = repo['Org/Sched:data/requests.json'].length; mails.length = 0;
+  r = await call('GET', '/scheduler/poll/ready'); ok('off by default: ready answers 404, so the live page keeps guest links off', r.statusCode === 404 && J(r).error === 'NOT_FOUND', J(r));
+  r = await call('POST', '/scheduler/poll/view', { body: { r: REQ.id, g: 'g1.' + CODE_B } }); ok('...a right link can\u2019t view', r.statusCode === 404);
+  r = await call('POST', '/scheduler/poll/answer', { body: { r: REQ.id, g: 'g1.' + CODE_B, yes: ['v0'], startedAt: Date.now() - 9000 } });
+  ok('...or answer: nothing written, nobody emailed', r.statusCode === 404 && repo['Org/Sched:data/requests.json'].length === before && mails.length === 0);
+  put('Org/Config:projects.json', { scheduler: { repo: 'Org/Sched', origin: ORIGIN, writable: ['data/'], ask: true, guestLinks: 'yes' }, 'hub-requests': { repo: 'Org/Requests', origin: ORIGIN, writable: ['data/'] } });
+  __resetProjectsCache();
+  r = await call('GET', '/scheduler/poll/ready'); ok('anything but exactly true stays off', r.statusCode === 404);
+  put('Org/Config:projects.json', { scheduler: { repo: 'Org/Sched', origin: ORIGIN, writable: ['data/'], ask: true, guestLinks: true }, 'hub-requests': { repo: 'Org/Requests', origin: ORIGIN, writable: ['data/'], guestLinks: true } });
+  __resetProjectsCache();
+}
+/* ---------- switched on: the rest of this suite ---------- */
 
 r = await call('GET', '/scheduler/poll/ready'); ok('ready: 200 ok, no sign-in', r.statusCode === 200 && J(r).ok === true, J(r));
 r = await call('GET', '/hub-requests/poll/ready'); ok('...only on the scheduler project', r.statusCode === 404);
