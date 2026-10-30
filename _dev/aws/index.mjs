@@ -1733,7 +1733,7 @@ async function codeRoute(event, proj) {
 }
 
 /* =====================================================================================
- * MISMO LINK AI BETA AGREEMENTS (relay request 11; Jonna, 30 Oct 2026)
+ * MISMO LINK AI BETA AGREEMENTS (relay request 10; Jonna, 30 Oct 2026, sent as her request 11)
  * POST /mismo-link/agreements/submit, with no sign-in: the two public signing pages at
  * resources.mismo.org/mismo-link/sign/ (the company's SaaS Subscriber Agreement) and /user/ (each tester's
  * User SaaS Agreement). Built like IDEAS FROM THE PUBLIC FORM: it only adds; nothing is read back through it.
@@ -2212,6 +2212,110 @@ async function ownedData(rule, method, id, event, who, repo, branch) {
   return respond(409, { error: 'CONFLICT', message: 'Too many saves at once. Try again.' });
 }
 
+/* =====================================================================================
+ * THE SCHEDULER'S OUTSIDE GUESTS (relay request 10; Vanessa Rios, Oct 2026, sent as request 11)
+ * Two routes with no sign-in, for respond.html: someone outside MISMO, sent a private link by a staff member,
+ * marks which offered times work.
+ *   POST /scheduler/poll/view   { r, g }                                        -> what that one guest needs to see
+ *   POST /scheduler/poll/answer { r, g, yes[], maybe[], note, startedAt, website } -> saves their answer
+ *   GET  /scheduler/poll/ready                                                  -> { ok: true }, so the staff page knows links work
+ * r is the request id; g is "<guest id>.<code>". The code is 24 random characters made in the staff member's browser and kept
+ * only in the PRIVATE scheduler-data repository (data/requests.json); it travels in the link's #fragment, never in an address
+ * a server logs. A wrong code answers exactly as a missing request does (404 NOT_FOUND), so neither can be told apart.
+ * view never returns another guest's name, email or answer, the MISMO attendees, the email that started the request, or the log.
+ * answer only ever changes that one guest's own answer (and adds a line to the log); it cannot touch times, people or anything else.
+ * Against misuse, as the ideas route: only from the project's own site (Origin required); a field people never see (filled means
+ * a robot: answered as if accepted, kept nowhere); at least 2 seconds between the page opening and sending; per running copy,
+ * 60 views and 10 answers an hour from one address and 300 answers an hour in all; 8 kB at most; every field checked.
+ * The organizer is emailed (through the same Power Automate mail flow) when a guest answers. Nothing is ever emailed to a guest.
+ * ===================================================================================== */
+const SCHED_PROJECT = 'scheduler', SCHED_PATH = 'data/requests.json';
+const SCHED_VIEW_PER_IP = 60, SCHED_ANS_PER_IP = 10, SCHED_ANS_ALL = 300, SCHED_MIN_MS = 2000, SCHED_MAX_BYTES = 8_000;
+const schedSeen = { view: new Map(), ans: new Map(), all: [] };
+function schedAllowed(kind, ip, now) {
+  const hour = now - 3_600_000, map = schedSeen[kind], cap = kind === 'view' ? SCHED_VIEW_PER_IP : SCHED_ANS_PER_IP;
+  for (const [k, v] of map) { const keep = v.filter(t => t > hour); if (keep.length) map.set(k, keep); else map.delete(k); }
+  if (kind === 'ans') { schedSeen.all = schedSeen.all.filter(t => t > hour); if (schedSeen.all.length >= SCHED_ANS_ALL) return false; }
+  const mine = map.get(ip) || [];
+  if (mine.length >= cap) return false;
+  mine.push(now); map.set(ip, mine); if (kind === 'ans') schedSeen.all.push(now); return true;
+}
+const schedSame = (a, b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
+/* the request and the guest a link names, or null; the code is compared in constant time */
+function schedFind(file, r, g) {
+  if (typeof r !== 'string' || !/^[a-z0-9]{6,24}$/.test(r) || typeof g !== 'string') return null;
+  const m = /^([a-z0-9]{1,16})\.([A-Za-z0-9_-]{16,64})$/.exec(g); if (!m) return null;
+  const req = file && file.docs && file.docs[r];
+  if (!req || typeof req !== 'object' || !Array.isArray(req.guests)) return null;
+  const guest = req.guests.find(x => x && x.id === m[1]);
+  if (!guest || typeof guest.code !== 'string' || !schedSame(guest.code, m[2])) return null;
+  return { req, guest };
+}
+function schedStatus(req) { return req.status === 'cancelled' ? 'cancelled' : req.status === 'booked' ? 'booked' : 'open'; }
+const schedIp = event => (event.requestContext && event.requestContext.http && event.requestContext.http.sourceIp) || 'unknown';
+function schedPre(event, proj, headers, kind) {
+  if (headers['origin'] !== proj.origin) return { error: respond(403, { error: 'ORIGIN', message: 'This page only works from MISMO’s own site.' }) };
+  if (String(event.body || '').length > SCHED_MAX_BYTES) return { error: respond(413, { error: 'TOO_LARGE' }) };
+  const parsed = parseBody(event); if (parsed.error) return { error: parsed.error };
+  if (!schedAllowed(kind, schedIp(event), Date.now())) return { error: respond(429, { error: 'TOO_MANY', message: 'Too many tries from here. Please wait a few minutes.' }) };
+  return { body: parsed.body || {} };
+}
+async function schedView(event, proj, headers) {
+  const pre = schedPre(event, proj, headers, 'view'); if (pre.error) return pre.error;
+  const file = await readFile(proj.repo, proj.branch || 'main', SCHED_PATH);
+  if (file.status !== 200 && file.status !== 404) return respond(502, { error: 'UNREADABLE', message: 'Your times couldn’t be loaded just now.' });
+  const hit = schedFind(file.data, pre.body.r, pre.body.g);
+  if (!hit) return respond(404, { error: 'NOT_FOUND' });
+  const { req, guest } = hit, status = schedStatus(req), now = Date.now();
+  const slots = (Array.isArray(req.slots) ? req.slots : []).filter(s => s && typeof s.id === 'string' && Number.isFinite(s.s) && Number.isFinite(s.e))
+    .filter(s => status !== 'open' || s.e > now).map(s => ({ id: s.id, s: s.s, e: s.e }));
+  const chosen = status === 'booked' ? slots.find(s => s.id === req.chosen) || null : null;
+  const a = guest.answer && typeof guest.answer === 'object' ? guest.answer : null;
+  return respond(200, {
+    status, title: String(req.title || 'Meeting'), purpose: String(req.purpose || ''), organizer: String(req.ownerName || ''), organizerEmail: String(req.owner || ''),
+    duration: Number(req.duration) || 30, where: String(req.where || ''), guest: String(guest.name || ''),
+    slots: status === 'open' ? slots : [], chosen,
+    answer: a ? { yes: Array.isArray(a.yes) ? a.yes : [], maybe: Array.isArray(a.maybe) ? a.maybe : [], note: String(a.note || ''), at: a.at || null } : null
+  });
+}
+async function schedAnswer(event, proj, headers) {
+  const pre = schedPre(event, proj, headers, 'ans'); if (pre.error) return pre.error;
+  const b = pre.body, now = Date.now(), started = Number(b.startedAt);
+  if (String(b.website || '').trim() || !Number.isFinite(started) || now - started < SCHED_MIN_MS) return respond(200, { ok: true });   /* a robot: as if accepted, kept nowhere */
+  const ids = v => Array.isArray(v) ? [...new Set(v.filter(x => typeof x === 'string' && /^[a-z0-9]{1,16}$/.test(x)))].slice(0, 60) : [];
+  const yes = ids(b.yes), maybe = ids(b.maybe).filter(x => !yes.includes(x));
+  let note = String(b.note ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').replace(/\r\n?/g, '\n').trim();
+  if (note.length > 1000) return respond(400, { error: 'INVALID', problems: ['The note is too long (1,000 characters at most).'] });
+  let found = null, refused = null;
+  const w = await updateRepoJson(proj.repo, proj.branch || 'main', SCHED_PATH, d => {
+    const hit = schedFind(d, b.r, b.g);
+    if (!hit) { refused = respond(404, { error: 'NOT_FOUND' }); throw new Error('stop'); }
+    const st = schedStatus(hit.req);   /* CLOSED either way, which the live guest page knows; status and message say which */
+    if (st !== 'open') { refused = respond(409, { error: 'CLOSED', status: st, message: st === 'cancelled' ? 'This meeting is no longer being scheduled, so nothing more is needed from you.' : 'This meeting is already booked.' }); throw new Error('stop'); }
+    const known = new Set((hit.req.slots || []).map(s => s && s.id));
+    const at = new Date(now).toISOString();
+    hit.guest.answer = { yes: yes.filter(x => known.has(x)), maybe: maybe.filter(x => known.has(x)), note, at: now, via: 'link' };
+    if (!hit.guest.sentAt) hit.guest.sentAt = now;
+    hit.req.log = (Array.isArray(hit.req.log) ? hit.req.log : []).concat({ at: now, by: String(hit.guest.name || hit.guest.email || 'A guest'), what: 'Answered through their link' }).slice(-80);
+    hit.req.updatedAt = now; hit.req.updatedBy = String(hit.guest.name || 'A guest');
+    found = { req: JSON.parse(JSON.stringify(hit.req)), guest: JSON.parse(JSON.stringify(hit.guest)), at };
+    return d;
+  }, 'A guest answered through their Scheduler link').catch(e => (refused ? { refused: true } : { error: 'THROWN' }));
+  if (refused) return refused;
+  if (!w || w.error) return respond(502, { error: 'NOT_SAVED', message: 'Your answers couldn’t be saved just now. Please try again in a minute.' });
+  /* the organizer hears about it; a failed email can't undo the save, so it is only logged */
+  const { req, guest } = found, total = (req.slots || []).length, y = guest.answer.yes.length, mb = guest.answer.maybe.length;
+  const waiting = (req.guests || []).filter(x => x && !x.answer).map(x => x.name || x.email);
+  if (typeof req.owner === 'string' && /@/.test(req.owner)) {
+    const t = `Hello ${String(req.ownerName || '').split(' ')[0] || 'there'},\n\n${guest.name || guest.email}${guest.org ? ' (' + guest.org + ')' : ''} marked the times for “${req.title}”: ${y} of ${total} work${mb ? ', ' + mb + ' maybe' : ''}.` +
+      (guest.answer.note ? `\n\nTheir note: “${guest.answer.note}”` : '') +
+      (waiting.length ? `\n\nStill waiting on: ${waiting.join(', ')}.` : '\n\nEveryone has answered. Time to pick the time and book it.') +
+      `\n\nSee everyone’s answers in the Scheduler:\nhttps://resources.mismo.org/scheduler/#r=${b.r}`;
+    await sendMail({ kind: 'scheduler-answer', to: req.owner, subject: `${guest.name || 'A guest'} answered: ${req.title}`, text: t, html: htmlOf(t) }).catch(e => console.warn('scheduler mail:', e && e.message));
+  }
+  return respond(200, { ok: true });
+}
+
 export async function handler(event, context) {
   currentContext = context || null;
   const method = (event.requestContext?.http?.method || 'GET').toUpperCase();
@@ -2256,7 +2360,7 @@ export async function handler(event, context) {
     if (!proj || proj.key !== SUG_PROJECT) return respond(404, { error: 'NOT_FOUND' });
     return suggestionSubmit(event, proj, headers);
   }
-  if (method === 'POST' && subPath === '/agreements/submit') {   /* relay request 11: the MISMO Link AI beta signing pages, no sign-in */
+  if (method === 'POST' && subPath === '/agreements/submit') {   /* relay request 10: the MISMO Link AI beta signing pages, no sign-in */
     if (!proj || proj.key !== AGR_PROJECT) return respond(404, { error: 'NOT_FOUND' });
     return agreementSubmit(event, proj, headers);
   }
@@ -2267,6 +2371,12 @@ export async function handler(event, context) {
   if (method === 'POST' && subPath === '/ideas/attach') {   /* relay request 10: a file for an idea just sent, no sign-in */
     if (!proj || proj.key !== IDEA_PROJECT) return respond(404, { error: 'NOT_FOUND' });
     return ideaAttach(event, proj, headers);
+  }
+  if (subPath === '/poll/view' || subPath === '/poll/answer' || subPath === '/poll/ready') {   /* relay request 10: the Scheduler's outside guests, no sign-in */
+    if (!proj || proj.key !== SCHED_PROJECT) return respond(404, { error: 'NOT_FOUND' });
+    if (method === 'GET' && subPath === '/poll/ready') return respond(200, { ok: true });
+    if (method !== 'POST') return respond(405, { error: 'METHOD' });
+    return subPath === '/poll/view' ? schedView(event, proj, headers) : schedAnswer(event, proj, headers);
   }
   if (method === 'POST' && subPath === '/auth/code') {   /* relay request 10: the emailed code */
     if (!proj) return respond(404, { error: 'UNKNOWN_PROJECT' });

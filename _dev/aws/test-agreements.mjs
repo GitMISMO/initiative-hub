@@ -1,4 +1,4 @@
-/* The MISMO Link AI beta signing route (relay request 11; Jonna, 30 Oct 2026).
+/* The MISMO Link AI beta signing route (relay request 10; Jonna, 30 Oct 2026, sent as her request 11).
  * Run: node test-agreements.mjs. A stand-in GitHub and mail flow, as in test-ideas.mjs. */
 import { pbkdf2Sync } from 'node:crypto';
 const ORIGIN = 'https://resources.example';
