@@ -1740,7 +1740,11 @@ async function codeRoute(event, proj) {
  * Each signature goes into data/signatures.json of the PRIVATE mismo-link-data repository, where MISMO Link HQ
  * (Who Has Signed, Testers and Access) reads it for people with MISMO Link access.
  * Emails: the signer gets a copy that repeats nothing they typed (the agreement, version, time and reference, and
- * what happens next); the beta team gets an alert with the details. Who the beta team is lives in
+ * what happens next). The version comes from the page, so the copy names it only when it is a plain version number
+ * ("1.0" or "1.0 (updated 07/01/2026)"); anything else is left out of the email, never refused, so the copy can't
+ * carry someone's own words to an address they typed, and a new version label on the pages can never stop a
+ * signature (Perry, 30 Oct 2026). The record keeps what was sent. The beta team gets an alert with the details.
+ * Who the beta team is lives in
  * data/settings.json of the same repository ({"notify":[{"name","email"}]}), edited in MISMO Link HQ, so changing
  * who is told is never a relay change. If that list is empty, MISMO Link administrators are told instead.
  *   Subscriber Agreement signed -> "schedule the kick-off call within 3 business days and send the User Agreement link"
@@ -1758,6 +1762,7 @@ const AGR_KNOWN = {
 const AGR_PAGES = { subscriber: 'https://resources.mismo.org/mismo-link/sign/', user: 'https://resources.mismo.org/mismo-link/user/' };
 const AGR_HQ = 'https://resources.mismo.org/mismo-link/';
 const AGR_PER_IP_HOUR = 5, AGR_ALL_HOUR = 40, AGR_MIN_MS = 3000, AGR_MAX_BYTES = 32_000;
+const AGR_VERSION = /^\d{1,3}(\.\d{1,3}){0,3}( \(updated \d{2}\/\d{2}\/\d{4}\))?$/;   /* "1.0", "1.0 (updated 07/01/2026)" */
 const agrSeen = { ip: new Map(), all: [] };
 function agrAllowed(ip, now) {
   const hour = now - 3_600_000;
@@ -1832,7 +1837,8 @@ async function agreementSubmit(event, proj, headers) {
   const next = s.kind === 'user'
     ? 'You will hear from a member of the team within 3 business days with instructions and credentials.'
     : 'You will hear from a member of the team to schedule a kick-off call within 3 business days.';
-  const copy = `Hello,\n\nThank you. This confirms that the ${s.agreementTitle}, Version ${s.agreementVersion}, was signed electronically on ${when}.\n\nYour reference is ${ref}. You can read or print the agreement at any time at ${AGR_PAGES[s.kind]}\n\n${next}\n\nMISMO`;
+  const ver = AGR_VERSION.test(s.agreementVersion) ? `, Version ${s.agreementVersion},` : '';
+  const copy = `Hello,\n\nThank you. This confirms that the ${s.agreementTitle}${ver} was signed electronically on ${when}.\n\nYour reference is ${ref}. You can read or print the agreement at any time at ${AGR_PAGES[s.kind]}\n\n${next}\n\nMISMO`;
   await sendMail({ kind: 'agreement-copy', to: s.signerEmail, subject: `Your signed ${s.agreementTitle} (${ref})`, text: copy, html: htmlOf(copy) }).catch(e => console.warn('agreement copy:', e && e.message));
   const team = await agreementNotifyList(proj).catch(() => []);
   const who = `${s.signerName}, ${s.signerTitle}\n${s.organization}\n${s.signerEmail}${s.signerPhone ? ' · ' + s.signerPhone : ''}`;

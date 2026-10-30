@@ -89,4 +89,18 @@ ghDown = true; r = await send(SUB, { ip: '192.0.2.61' }); ghDown = false;
 ok('if GitHub can’t save it, the signer is told to try again (and the page keeps a file)', r.statusCode === 502 && J(r).error === 'NOT_SAVED');
 r = await call('OPTIONS', '/mismo-link/agreements/submit', { ip: '192.0.2.70' });
 ok('the browser’s preflight is answered for the site', r.statusCode === 204 && JSON.stringify(r.headers || {}).includes(ORIGIN), r.headers);
+
+/* ---------- the version in the signer's copy (Perry, 30 Oct 2026) ---------- */
+ok('the signer’s copy names the version the pages send', copy && copy.text.includes('Subscriber Agreement, Version 1.0 (updated 07/01/2026), was signed'), copy && copy.text);
+mails.length = 0;
+r = await send({ ...SUB, agreementVersion: '1.0 call 555-0100 or see evil.example now' }, { ip: '192.0.2.80' }); d = J(r);
+const odd = mails.find(x => x.kind === 'agreement-copy');
+ok('a version that isn’t a plain version number: still accepted, never refused', r.statusCode === 200 && /^SIG-\d{4}$/.test(d.reference || ''), d);
+ok('...but left out of the copy, which can’t carry someone’s own words to the address they typed', odd && !/evil\.example|555-0100/.test(odd.subject + odd.text) && odd.text.includes('SaaS Subscriber Agreement was signed electronically'), odd && odd.text);
+ok('...and the record keeps the version as it was sent', sigFile().docs['signatures/' + d.reference].agreementVersion === '1.0 call 555-0100 or see evil.example now');
+mails.length = 0;
+r = await send({ ...SUB, agreementVersion: '2.1' }, { ip: '192.0.2.81' });
+const v21 = mails.find(x => x.kind === 'agreement-copy');
+ok('a later plain version (2.1) is named without a relay change', r.statusCode === 200 && v21 && v21.text.includes(', Version 2.1, was signed'), v21 && v21.text);
+
 console.log(failed ? `\n${failed} FAILED` : '\nall passed'); process.exit(failed ? 1 : 0);
