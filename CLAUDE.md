@@ -324,6 +324,10 @@ count, the Hub sidebar's Ideas Inbox link, and the inbox's Submit an Idea button
 **One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
 good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
 off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
+**Request 10 is LIVE (IT deployed it 2 Nov 2026; `/version` = `c718a5ae…`).** The next relay request is 11. After the
+deploy: the Scheduler's /poll/ready answers 404 (guest links off, as meant); Suggest a Term took two test suggestions
+(SUG-0001, SUG-0002, receipts to Perry, alerts to Kellie) for Perry or Kellie to decline in the console; the admin
+console's Security page now says eight hours.
 **Request 10 is frozen (2 Nov 2026, Perry asked for the IT document early):** `34040c6`, fingerprint `c718a5ae…`, 15 suites
 and 647 checks passing; IT changes the timeout from 60 s to 3 min; rollback is `fe9b747` (`c9a25ef1`). The document is
 built by `initiative-hub-data/_dev/it-docs/make10.js`. Anything more for the relay now waits for request 11, unless
