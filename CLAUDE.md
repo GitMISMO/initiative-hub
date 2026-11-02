@@ -498,7 +498,9 @@ Sponsorship, Service Orders and Agreements, or a new one), and make a note to ad
    check them with `_dev/home-checks/t-views-all.mjs`.
 5. **If it asks Claude** (Ask, receipts, agents: `"ask": true` in `_internal/projects.json`): **ask Perry what
    data it sends to Anthropic, and record the answer before switching it on** (Perry, 9 Oct 2026). For example,
-   Team HQ sends board data and receipts (Jonna agreed, Oct 6). One API key serves every tool; spending shows per
+   Team HQ sends board data and receipts (Jonna agreed, Oct 6). The six Service Order hours projects
+   (`so-*-hours`) send facilitators' receipt photos and PDFs, so the Service Orders app can read them: the merchant,
+   amounts and dates, and possibly a name or a card's last four digits (Jonna asked; Perry agreed, 2 Nov 2026). One API key serves every tool; spending shows per
    tool at `/hub/ask-usage` (relay request 9), against the relay workspace's monthly limit in the Claude Console.
 
 Don't consider a new tool finished until all five are done or Perry has said to skip one.
