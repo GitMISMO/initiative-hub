@@ -338,6 +338,10 @@ the shared 2,000. MMS sets 8,000 for its IM Pre-Review (12 rows an answer, 4 at 
 Perry chose MMS only, not every tool. **IT settings change with this request: the function's timeout goes from 60
 seconds to 3 minutes (180 s)**, so a long answer arrives rather than timing out; the relay gives Anthropic up to
 4 seconds less than whatever remains. Put this in the IT document's settings step, and check it after the deploy.
+**Also in Request 10 (Jonna via Perry, 2 Nov 2026): a sign-in lasts eight hours, not four** (`TOKEN_TTL_SECONDS`).
+Pages take the length from the relay's `expiresAt`, so nothing else needs changing for it to work. **After the deploy,
+update the words that say four hours:** the admin console's Security page (`admin.html`, "A sign-in lasts four
+hours"), and the comments in `assets/session.js` and `_internal/PLATFORM-BRIEF-for-AI-assistant.md`.
 **Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
 repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
 repositories it touches, so treat changes to that list like code changes.

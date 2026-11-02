@@ -96,8 +96,8 @@ const GITHUB_API = 'https://api.github.com';
 const FACILITATORS_PATH = '_internal/facilitators.json';
 const PBKDF2_ITERATIONS = 210000;        // OWASP's 2023 floor for PBKDF2-HMAC-SHA256
 const PBKDF2_KEYLEN = 32;
-const TOKEN_TTL_SECONDS = 4 * 60 * 60;
-const VIEW_AS_SECONDS = 30 * 60;           // View as lasts half an hour (relay request 9)   // four hours; typical sessions run one to two
+const TOKEN_TTL_SECONDS = 8 * 60 * 60;    // a sign-in lasts eight hours (relay request 10, Jonna via Perry, 2 Nov 2026; four before)
+const VIEW_AS_SECONDS = 30 * 60;           // View as lasts half an hour (relay request 9)
 const ACCESS_PATH_DEFAULT = '_internal/access.json';
 /* The sections of People & Access in the admin panel. Kept with each person, set by admins. */
 const PEOPLE_GROUPS = new Set(['staff', 'facilitator', 'contractor', 'process']);   /* facilitator: relay request 9 (Perry, 6 Oct 2026) */

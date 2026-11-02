@@ -114,5 +114,10 @@ const secrets = mails.map(m => (String(m.text).match(/[#&]t=([A-Za-z0-9_-]+)/) |
 const state = JSON.stringify(repo['Org/Accounts:auth-state.json']);
 ok(`the links' secrets are never stored or in a commit message (${secrets.length} links checked)`, secrets.length >= 4 && secrets.every(s => !state.includes(s)), secrets.length);
 
+/* a sign-in lasts eight hours (Jonna via Perry, 2 Nov 2026; four before) */
+{ reset(); const b = J(await call('POST', 'hub', '/auth/login', null, { email: 'jonna@example.org', password: PW }));   /* Ken was sent a set-password link above */
+  const exp = b.token && JSON.parse(Buffer.from(b.token.split('.')[1], 'base64url').toString()).exp;
+  ok('a sign-in lasts eight hours: in the token, and in the expiresAt the account menu shows', !!b.token && Math.abs(exp * 1000 - Date.now() - 8 * 3600e3) < 60e3 && Math.abs(Date.parse(b.expiresAt) - Date.now() - 8 * 3600e3) < 60e3, { expiresAt: b.expiresAt, exp }); }
+
 await new Promise(done => setTimeout(done, 50));
 console.log(failed ? `${failed} FAILED` : 'ALL PASS'); process.exitCode = failed ? 1 : 0;
