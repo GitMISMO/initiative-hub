@@ -56,7 +56,7 @@ const rec = mails.find(x => x.kind === 'suggestion-receipt');
 ok('the receipt has the agreed words and the reference', rec && rec.to === SUG.email && /The glossary team reviews every suggestion/.test(rec.text) && /Your reference is SUG-0001\. Mention it if you write to MISMO about this suggestion\./.test(rec.text), rec && rec.text);
 ok('...and repeats nothing the sender typed', rec && ![SUG.term, SUG.name, SUG.organization, 'Escrow', 'Northbridge', 'RESPA', 'Dana'].some(t => (rec.subject + rec.text).includes(t)), rec);
 const al = mails.filter(x => x.kind === 'suggestion-alert');
-ok('the alert goes to the glossary console\u2019s administrators and the platform administrators only', JSON.stringify(al.map(x => x.to).sort()) === JSON.stringify(['gina@example.org', 'perry@example.org']), al.map(x => x.to));
+ok('with no list set: the alert goes to the glossary team (Edit or Admin on the console), not the platform administrators (Perry, 2 Nov 2026)', JSON.stringify(al.map(x => x.to).sort()) === JSON.stringify(['eddie@example.org', 'gina@example.org']), al.map(x => x.to));
 ok('...with the term, new or better, name, organization, email, the start of the definition, and the link', al.every(x => x.subject.includes('SUG-0001') && x.subject.includes(SUG.term) && /a new term/.test(x.text)
   && x.text.includes('Dana Whitfield, Northbridge Mortgage (dana@northbridge.example)') && x.text.includes('The amount a servicer may hold') && x.text.includes('https://resources.mismo.org/glossary/console/#open=suggestions')));
 r = await send({ kind: 'better', termId: UUID, term: 'Escrow\nAccount   Analysis' }, { ip: '198.51.100.2' }); const s2 = file().docs['SUG-0002'];
@@ -94,6 +94,17 @@ r = await send({ why: 'x'.repeat(17_000) }, { ip: '192.0.2.15' }); ok('over 16 k
 r = await call('POST', '/glossary/suggestions/submit', { body: { ...SUG, startedAt: Date.now() - 20_000 }, ip: '192.0.2.16' }); ok('only through glossary-data', r.statusCode === 404);
 mailDown = true; r = await send({}, { ip: '192.0.2.40' }); mailDown = false; ok('if the emails fail, it\u2019s still kept', r.statusCode === 200 && file().docs[J(r).reference]);
 ghDown = true; r = await send({}, { ip: '192.0.2.41' }); ghDown = false; ok('if GitHub can\u2019t save it: 502, try again', r.statusCode === 502 && J(r).error === 'NOT_SAVED' && /try again/.test(J(r).message));
+/* who hears about a suggestion (Perry, 2 Nov 2026): the glossary-data settings list (Kellie today), else the glossary team, else the platform administrators */
+put('Org/GlossData:data/settings.json', { notify: [{ name: 'Kellie Stoll', email: 'Kellie@Example.org' }, { name: 'No address', email: 'not-an-email' }] });
+mails.length = 0; await send({}, { ip: '198.51.100.60' });
+let al2 = mails.filter(x => x.kind === 'suggestion-alert');
+ok('with a list in data/settings.json: only the people on it (Kellie), by name; an entry without a real address skipped', JSON.stringify(al2.map(x => x.to)) === '["kellie@example.org"]' && /^Hello Kellie Stoll,/.test(al2[0].text), al2.map(x => x.to));
+put('Org/GlossData:data/settings.json', { notify: [] });
+put('Org/Accounts:access.json', { people: { 'perry@example.org': people['perry@example.org'], 'vic@example.org': people['vic@example.org'] } }); reset();
+mails.length = 0; await send({}, { ip: '198.51.100.61' });
+al2 = mails.filter(x => x.kind === 'suggestion-alert');
+ok('an empty list and no glossary team: the platform administrators, so a suggestion is never announced to nobody', JSON.stringify(al2.map(x => x.to)) === '["perry@example.org"]', al2.map(x => x.to));
+put('Org/Accounts:access.json', { people }); reset();
 for (let i = 0; i < 3; i++) await send({}, { ip: '192.0.2.99' });
 r = await send({}, { ip: '192.0.2.99' }); ok('a fourth in an hour from one address: TOO_MANY', r.statusCode === 429 && J(r).error === 'TOO_MANY');
 r = await call('POST', '/hub-requests/ideas/submit', { body: { title: 'An idea from the same place', idea: 'An idea from the same address, with enough detail to pass the rules.', name: 'Someone', company: 'Example Co', email: 's@example.org', startedAt: Date.now() - 20_000 }, ip: '192.0.2.99' });

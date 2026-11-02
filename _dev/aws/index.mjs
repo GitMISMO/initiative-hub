@@ -2045,6 +2045,25 @@ function cleanSuggestion(b) {
   if (kind === 'better' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) s.termId = id;   /* kept only when it's a real glossary ID */
   return { s, problems };
 }
+/* Who hears about a new suggestion (Perry, 2 Nov 2026: "routed to the group's facilitator, Kellie Stoll", not to him).
+ * 1. The "notify" list in data/settings.json of the glossary-data repository ({"notify":[{"name","email"}]}), as MISMO
+ *    Link does, so who is told changes without a deploy. Kellie Stoll today.
+ * 2. If that is empty or missing: the glossary team, everyone with Edit or Admin on the glossary console who is not a
+ *    platform administrator.
+ * 3. If there is no one: the platform administrators, so a suggestion is never announced to nobody. */
+const SUG_SETTINGS = 'data/settings.json';
+async function suggestionNotifyList(proj) {
+  const set = await readFile(proj.repo, proj.branch || 'main', SUG_SETTINGS);
+  const listed = set.status === 200 && set.data && Array.isArray(set.data.notify)
+    ? set.data.notify.filter(p => p && /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(String(p.email || ''))).map(p => [String(p.email).toLowerCase(), { name: String(p.name || '') }])
+    : [];
+  if (listed.length) return listed;
+  const dir = await loadAccess();
+  if (dir.error) return [];
+  const live = Object.entries(dir.people).filter(([, x]) => !isExpired(x));
+  const team = live.filter(([, x]) => x.platformAdmin !== true && ['admin', 'staff'].includes(normaliseRole((x.access || {}).glossary)));
+  return team.length ? team : live.filter(([, x]) => x.platformAdmin === true);
+}
 async function suggestionSubmit(event, proj, headers) {
   if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
   if (String(event.body || '').length > SUG_MAX_BYTES) return respond(413, { error: 'TOO_LARGE', message: 'That is more than the form takes. Shorten the longer answers and try again.' });
@@ -2066,8 +2085,7 @@ async function suggestionSubmit(event, proj, headers) {
   if (w.error) return respond(502, { error: 'NOT_SAVED', message: 'Your suggestion couldn\u2019t be saved just now. Please try again in a minute.' });
   const receipt = `Hello,\n\nThank you for suggesting a term for MISMO\u2019s Business Glossary. The glossary team reviews every suggestion.\n\nYour reference is ${ref}. Mention it if you write to MISMO about this suggestion.\n\nMISMO`;
   await sendMail({ kind: 'suggestion-receipt', to: s.email, subject: `Your suggestion for MISMO\u2019s Business Glossary (${ref})`, text: receipt, html: htmlOf(receipt) }).catch(e => console.warn('suggestion receipt:', e && e.message));
-  const dir = await loadAccess();
-  const admins = dir.error ? [] : Object.entries(dir.people).filter(([, x]) => !isExpired(x) && (x.platformAdmin === true || normaliseRole((x.access || {}).glossary) === 'admin'));
+  const admins = await suggestionNotifyList(proj);   /* the glossary's facilitator, not the administrators (Perry, 2 Nov 2026) */
   const start = s.definition.length > 240 ? s.definition.slice(0, 240).replace(/\s+\S*$/, '') + '\u2026' : s.definition;
   for (const [email, x] of admins) {
     const t = `Hello ${x.name || email},\n\nA suggestion came in through the public glossary: ${s.term} (${s.kind === 'new' ? 'a new term' : 'a better definition for an existing term'})\n\nFrom ${s.name}, ${s.organization} (${s.email})\n\n${start}\n\nIt's in the glossary console's Suggestions:\nhttps://resources.mismo.org/glossary/console/#open=suggestions`;
