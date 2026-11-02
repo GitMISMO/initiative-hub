@@ -2036,7 +2036,7 @@ function cleanSuggestion(b) {
   const problems = [], text = (v, max, one) => { let t = String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').replace(/\r\n?/g, '\n'); if (one) t = t.replace(/\s+/g, ' '); t = t.trim(); return t.length > max ? null : t; };
   const f = (key, max, one, need, say) => { const t = text(b[key], max, one); if (t === null) { problems.push(`${say} is too long (${max} characters at most).`); return ''; } if (need && t.length < need) problems.push(t.length ? `${say} is too short (${need} characters at least).` : `${say} is needed.`); return t; };
   const kind = b.kind === 'new' || b.kind === 'better' ? b.kind : '';
-  if (!kind) problems.push('Choose whether this is a new term or a better definition for an existing one.');
+  if (!kind) problems.push('Choose whether this is a new term or an updated definition for an existing one.');
   const s = { kind, term: f('term', 150, true, 2, 'The term'), definition: f('definition', 4000, false, 10, 'The definition'), why: f('why', 2000, false, 0, 'Why'),
     sourceRef: f('sourceRef', 500, true, 0, 'The source or reference'), name: f('name', 120, true, 2, 'Your name'), email: f('email', 200, true, 0, 'Email'),
     organization: f('organization', 150, true, 2, 'Your organization') };
@@ -2088,7 +2088,7 @@ async function suggestionSubmit(event, proj, headers) {
   const admins = await suggestionNotifyList(proj);   /* the glossary's facilitator, not the administrators (Perry, 2 Nov 2026) */
   const start = s.definition.length > 240 ? s.definition.slice(0, 240).replace(/\s+\S*$/, '') + '\u2026' : s.definition;
   for (const [email, x] of admins) {
-    const t = `Hello ${x.name || email},\n\nA suggestion came in through the public glossary: ${s.term} (${s.kind === 'new' ? 'a new term' : 'a better definition for an existing term'})\n\nFrom ${s.name}, ${s.organization} (${s.email})\n\n${start}\n\nIt's in the glossary console's Suggestions:\nhttps://resources.mismo.org/glossary/console/#open=suggestions`;
+    const t = `Hello ${x.name || email},\n\nA suggestion came in through the public glossary: ${s.term} (${s.kind === 'new' ? 'a new term' : 'an updated definition for an existing term'})\n\nFrom ${s.name}, ${s.organization} (${s.email})\n\n${start}\n\nIt's in the glossary console's Suggestions:\nhttps://resources.mismo.org/glossary/console/#open=suggestions`;
     await sendMail({ kind: 'suggestion-alert', to: email, subject: `New glossary suggestion (${ref}): ${s.term}`, text: t, html: htmlOf(t) }).catch(e => console.warn('suggestion alert:', e && e.message));
   }
   return respond(200, { ok: true, reference: ref, at });

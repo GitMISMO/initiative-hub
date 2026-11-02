@@ -68,8 +68,8 @@ ok('a definition keeps its paragraphs', file().docs[J(long).reference].definitio
 
 /* ---------- each field rule ---------- */
 const bad = async (extra, re, label) => { const r2 = await send(extra, { ip: 'f-' + label }); const p = r2.statusCode === 400 && J(r2).error === 'INVALID' ? J(r2).problems : null; ok(`${label}: refused, saying so`, p && p.some(x => re.test(x)), r2.body.slice(0, 200)); };
-await bad({ kind: '' }, /new term or a better definition/, 'no kind');
-await bad({ kind: 'other' }, /new term or a better definition/, 'an unknown kind');
+await bad({ kind: '' }, /new term or an updated definition/, 'no kind');   /* "updated", not "better" (Perry, 2 Nov 2026) */
+await bad({ kind: 'other' }, /new term or an updated definition/, 'an unknown kind');
 await bad({ term: 'X' }, /term is too short/, 'a one-letter term');
 await bad({ term: 'x'.repeat(151) }, /term is too long/, 'a term over 150');
 await bad({ definition: 'Too short' }, /definition is too short/, 'a definition under 10');
