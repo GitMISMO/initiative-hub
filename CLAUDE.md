@@ -342,6 +342,12 @@ seconds to 3 minutes (180 s)**, so a long answer arrives rather than timing out;
 Pages take the length from the relay's `expiresAt`, so nothing else needs changing for it to work. **After the deploy,
 update the words that say four hours:** the admin console's Security page (`admin.html`, "A sign-in lasts four
 hours"), and the comments in `assets/session.js` and `_internal/PLATFORM-BRIEF-for-AI-assistant.md`.
+**Suggest a Term and the glossary console's Suggestions (Perry, 2 Nov 2026; glossary `a78a91d`).** The public card is on
+(`SUGGEST_LIVE=true`, the site isn't live yet); until request 10 is deployed, sending answers that it isn't switched on.
+Suggestions go to the console's Suggestions section (Add to Staging, or Open and Edit first; Decline, Reopen, Reply) and
+the alert goes to the `notify` list in `GitMISMO-glossary-data/data/settings.json` (Kellie Stoll), not the administrators.
+People read "Updated definition"; the stored kind stays `better`. **After the deploy:** send one test suggestion of each
+kind, check Kellie's alert and the receipt, then decline the tests in the console.
 **Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
 repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
 repositories it touches, so treat changes to that list like code changes.
