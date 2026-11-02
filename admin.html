@@ -2020,7 +2020,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         ['Wrong sign-in codes', 'Two wrong codes lock the account, email the person a link to set a new password, and email every other platform administrator. Typing the code from an earlier email isn\u2019t counted.', live ? ON : ST('wait', 'Arrives with relay request 10')],
         ['Wrong passwords', 'Five wrong passwords in a row lock the account and email the person a reset link. A complete sign-in resets the count.', lockSt],
         ['No account guessing', 'Sign-in answers the same way whether or not an account exists, so it can\u2019t be used to find out who has one.', ON],
-        ['Sessions', 'A sign-in lasts four hours. Changing a password ends every other session.', ON]]],
+        ['Sessions', 'A sign-in lasts eight hours. Changing a password ends every other session.', ON]]],
       ['Passwords', [
         ['Strong passwords', 'At least 13 characters, without your name, your email or \u201cMISMO\u201d, not one of your last five, and checked against passwords exposed in known data breaches.', ON],
         ['Never stored', 'Only a one-way fingerprint of each password is kept (PBKDF2, 210,000 rounds), which can\u2019t be turned back into the password. Reset links and sign-in codes are kept the same way.', ON],
