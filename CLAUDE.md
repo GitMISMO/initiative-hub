@@ -324,6 +324,10 @@ count, the Hub sidebar's Ideas Inbox link, and the inbox's Submit an Idea button
 **One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
 good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
 off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
+**Request 10 is frozen (2 Nov 2026, Perry asked for the IT document early):** `34040c6`, fingerprint `c718a5ae…`, 15 suites
+and 647 checks passing; IT changes the timeout from 60 s to 3 min; rollback is `fe9b747` (`c9a25ef1`). The document is
+built by `initiative-hub-data/_dev/it-docs/make10.js`. Anything more for the relay now waits for request 11, unless
+Perry wants the document rebuilt before he sends it.
 **Request 10, as of 30 Oct 2026 (never sent to IT before; Perry).** Besides pins, Activity, two-step (off), Submit an
 Idea and Suggest a Term, it now carries Jonna's MISMO Link AI beta agreements (her "request 11" package from
 `mismo-link/_dev/relay-request-11/`, merged as-is; the signer's copy names the version only when it is a plain version
