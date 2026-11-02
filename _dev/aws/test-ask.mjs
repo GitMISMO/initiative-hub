@@ -3,9 +3,13 @@ import { pbkdf2Sync } from 'node:crypto';
 const ORIGIN = 'https://resources.example';
 Object.assign(process.env, { GITHUB_TOKEN: 'ghp_test', AUTH_SECRET: 'test-signing-secret', PROJECTS_REPO: 'Org/Config', ASK_PER_HOUR: '3' });
 const pb = pw => { const s = 'cc'.repeat(16); return `pbkdf2$1000$${s}$${pbkdf2Sync(pw, Buffer.from(s, 'hex'), 1000, 32, 'sha256').toString('hex')}`; };
-const people = { 'kellie@example.org': { name: 'Kellie Stoll', hash: pb('kellie-pass-123456'), access: { hub: 'staff', 'team-hq': 'staff' } },
+const people = { 'kellie@example.org': { name: 'Kellie Stoll', hash: pb('kellie-pass-123456'), access: { hub: 'staff', 'team-hq': 'staff', mms: 'staff', big: 'staff', tiny: 'staff', word: 'staff', frac: 'staff', off: 'staff' } },
                  'viewer@example.org': { name: 'Vi Ewer', hash: pb('viewer-pass-123456'), access: { 'team-hq': 'view' } } };
-const files = { 'Org/Config:projects.json': { sha: 'p'.repeat(40), data: { hub: { repo: 'Org/Hub', origin: ORIGIN, writable: ['data/'] }, 'team-hq': { repo: 'Org/TeamHQ', origin: ORIGIN, writable: ['data/'], ask: true } } },
+const files = { 'Org/Config:projects.json': { sha: 'p'.repeat(40), data: { hub: { repo: 'Org/Hub', origin: ORIGIN, writable: ['data/'] }, 'team-hq': { repo: 'Org/TeamHQ', origin: ORIGIN, writable: ['data/'], ask: true },
+    /* a project's own answer length (Perry, 2 Nov 2026) */ mms: { repo: 'Org/MMS', origin: ORIGIN, writable: ['data/'], ask: true, askMaxTokens: 8000 },
+    big: { repo: 'Org/B', origin: ORIGIN, writable: ['data/'], ask: true, askMaxTokens: 99999 }, tiny: { repo: 'Org/T', origin: ORIGIN, writable: ['data/'], ask: true, askMaxTokens: 10 },
+    word: { repo: 'Org/W', origin: ORIGIN, writable: ['data/'], ask: true, askMaxTokens: 'lots' }, frac: { repo: 'Org/F', origin: ORIGIN, writable: ['data/'], ask: true, askMaxTokens: 2500.5 },
+    off: { repo: 'Org/O', origin: ORIGIN, writable: ['data/'], askMaxTokens: 8000 } } },
                 'Org/Config:_internal/access.json': { sha: 'a'.repeat(40), data: { people } } };
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64');
 let anth = { status: 200, body: { model: 'claude-sonnet-5-5-x', content: [{ type: 'text', text: 'Three tasks are late.' }], usage: { input_tokens: 1200, output_tokens: 40 } } }, sent = null, hang = false;
@@ -39,7 +43,14 @@ r = await ask('team-hq', kt, { prompt: 'x', files: [1, 2, 3, 4].map(() => ({ med
 r = await ask('team-hq', kt, { prompt: 'x', files: [{ mediaType: 'image/png', data: 'A'.repeat(6_300_000) }] }); ok('over 4.5 MB of files: 413 FILE_TOO_BIG', r.statusCode === 413 && J(r).error === 'FILE_TOO_BIG');
 for (const [st, code, label] of [[429, 'RATE_LIMITED', 'Anthropic 429'], [529, 'RATE_LIMITED', 'Anthropic 529 (overloaded)'], [401, 'ASK_KEY', 'key refused (401)'], [500, 'ASK_FAILED', 'Anthropic 500']]) {
   anth.status = st; r = await ask('team-hq', kt, { prompt: 'x' }); ok(`${label}: ${code}`, J(r).error === code && r.statusCode === (st === 429 || st === 529 ? 429 : 502)); }
-anth.status = 200; hang = true;
+anth.status = 200;
+/* a project's own answer length (Perry, 2 Nov 2026): MMS's IM Pre-Review needs about 8,000; every other tool keeps 2,000 */
+r = await ask('mms', kt, { prompt: 'Pre-review these twelve rows' }); ok('a project with "askMaxTokens": 8000 gets 8000', r.statusCode === 200 && sent.body.max_tokens === 8000);
+r = await ask('mms', kt, { prompt: 'x', tier: 'complex' }); ok('...for the complex tier too', r.statusCode === 200 && sent.body.max_tokens === 8000);
+r = await ask('team-hq', kt, { prompt: 'x' }); ok('...while a project without it keeps 2000', r.statusCode === 200 && sent.body.max_tokens === 2000);
+for (const [k, v] of [['big', 99999], ['tiny', 10], ['word', 'lots'], ['frac', 2500.5]]) { r = await ask(k, kt, { prompt: 'x' }); ok(`askMaxTokens ${JSON.stringify(v)}: ignored, so 2000`, r.statusCode === 200 && sent.body.max_tokens === 2000); }
+sent = null; r = await ask('off', kt, { prompt: 'x' }); ok('askMaxTokens without ask: still 403 ASK_OFF, nothing sent', r.statusCode === 403 && J(r).error === 'ASK_OFF' && sent === null);
+hang = true;
 r = await ask('team-hq', kt, { prompt: 'slow' }, { getRemainingTimeInMillis: () => 5_200 }); ok('no answer before the function times out: 504 ASK_TIMEOUT', r.statusCode === 504 && J(r).error === 'ASK_TIMEOUT');
 hang = false; process.env.ASK_PER_HOUR = '1';
 const v2 = vt; r = await ask('team-hq', v2, { prompt: 'again' }); ok('over the hourly limit per person: 429 RATE_LIMITED', r.statusCode === 429 && J(r).error === 'RATE_LIMITED');

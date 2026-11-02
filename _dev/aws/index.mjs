@@ -371,14 +371,17 @@ async function projectConfig(key) {
    * the emails that may see every item (see MEMBERS-ONLY FILES).
    * Relay request 10 (Perry, 30 Oct 2026). 'guestLinks': true switches on the Scheduler's outside-guest routes (see THE
    * SCHEDULER'S OUTSIDE GUESTS). Off unless exactly true, so they ship switched off and are turned on by a reviewed commit
-   * to projects.json, with no deploy. */
+   * to projects.json, with no deploy.
+   * Relay request 10 (Perry, 2 Nov 2026). 'askMaxTokens' lets one tool's Ask answers run longer than the shared cap
+   * (ASK_MAX_TOKENS): a whole number from 1,000 to 16,000, anything else ignored. MMS sets 8,000 for its IM Pre-Review
+   * (12 rows an answer, 4 at a time), whose answers were being cut short. Only that tool's answers change. */
   const membersOnly = {};
   if (p.membersOnly && typeof p.membersOnly === 'object' && !Array.isArray(p.membersOnly)) {
     for (const [file, all] of Object.entries(p.membersOnly)) {
       if (DASHBOARD_ID.test(file) && Array.isArray(all)) membersOnly[file] = all.filter(e => typeof e === 'string' && e.includes('@')).map(e => e.trim().toLowerCase());
     }
   }
-  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, guestLinks: p.guestLinks === true, membersOnly };
+  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, askMaxTokens: askTokensOf(p.askMaxTokens), guestLinks: p.guestLinks === true, membersOnly };
 }
 
 /* ---------- what /commit may write ----------
@@ -937,7 +940,8 @@ function parseBody(event, max = MAX_BODY_BYTES) {
  * question answers 400 NO_PROMPT with what the route can read: that is how a page learns the route is ready, at no
  * cost. View accounts may ask: asking writes nothing. Nothing is stored; logs hold counts only, never the question,
  * the answer or a file. ANTHROPIC_MODEL (default claude-sonnet-5-5), ANTHROPIC_MODEL_COMPLEX (default: the same),
- * ASK_PER_HOUR (default 40 a person, per container; the real ceiling is the console's monthly spend limit). */
+ * ASK_PER_HOUR (default 40 a person, per container; the real ceiling is the console's monthly spend limit).
+ * Answers are capped at ASK_MAX_TOKENS, or at the project's own 'askMaxTokens' (see the projects.json notes). */
 const ASK_MAX_BODY = 6_500_000;                       // above the ~6 MB a Lambda function URL delivers, so the file-size check answers first
 const ASK_MAX_PROMPT = 300_000;                       // characters; Team HQ's whole board is about 46,000
 const ASK_MAX_FILES = 3, ASK_MAX_FILE_BYTES = 4.5 * 1024 * 1024;
@@ -946,6 +950,7 @@ const askRecent = new Map();                          // email -> recent questio
 let currentContext = null;                            // the Lambda context, for the time left
 const askPerHour = () => Math.max(1, Number(process.env.ASK_PER_HOUR) || 40);
 const ASK_MAX_TOKENS = 2000;   /* relay request 10 (Perry, 16 Oct 2026): room for fuller answers, the same for every tier (was 1,000; 1,500 complex) */
+function askTokensOf(v) { return Number.isInteger(v) && v >= 1000 && v <= 16000 ? v : null; }   /* a project's own cap, or none (Perry, 2 Nov 2026) */
 const askTimeoutMs = () => {
   const left = currentContext && typeof currentContext.getRemainingTimeInMillis === 'function' ? currentContext.getRemainingTimeInMillis() : 30_000;
   return Math.max(1_000, left - 4_000);               // answer ASK_TIMEOUT a few seconds before the function's own timeout
@@ -981,7 +986,7 @@ async function askRoute(proj, who, event) {
   try {
     res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctl.signal,
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: ASK_MAX_TOKENS, messages: [{ role: 'user', content: [...blocks, { type: 'text', text: prompt }] }] }) });
+      body: JSON.stringify({ model, max_tokens: proj.askMaxTokens || ASK_MAX_TOKENS, messages: [{ role: 'user', content: [...blocks, { type: 'text', text: prompt }] }] }) });
   } catch (e) {
     clearTimeout(timer);
     return e && e.name === 'AbortError' ? respond(504, { error: 'ASK_TIMEOUT' }) : respond(502, { error: 'ASK_FAILED' });

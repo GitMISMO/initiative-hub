@@ -332,6 +332,12 @@ number) and the Scheduler's outside-guest routes (from Vanessa's `MISMO-Schedule
 entry in `_internal/projects.json` says `"guestLinks": true` (anything else is off). Don't turn them on until the
 Scheduler page stops saving over guest answers it hasn't seen: it saves a whole request at a time and, after a 409,
 re-applies its own copy. Turning them on is a projects.json change (no IT), with Perry's OK.
+**Also in Request 10 (Perry, 2 Nov 2026): a per-tool answer length, and a longer time limit.** A project may set
+`"askMaxTokens"` (a whole number, 1,000 to 16,000; anything else is ignored) to let its Ask answers run longer than
+the shared 2,000. MMS sets 8,000 for its IM Pre-Review (12 rows an answer, 4 at a time), which was being cut short.
+Perry chose MMS only, not every tool. **IT settings change with this request: the function's timeout goes from 60
+seconds to 3 minutes (180 s)**, so a long answer arrives rather than timing out; the relay gives Anthropic up to
+4 seconds less than whatever remains. Put this in the IT document's settings step, and check it after the deploy.
 **Since 8 Oct 2026 it covers all GitMISMO repositories** (Perry, while adding IIF Planning HQ), so a new `-data`
 repository needs no token change: the relay's project list (`_internal/projects.json`) is now what limits which
 repositories it touches, so treat changes to that list like code changes.
