@@ -1231,7 +1231,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   $('accSave').addEventListener('click', saveAccessNow);
 
   /* ================= Stakeholder Types ================= */
-  const DASH = { 'avm-testing':'AVM Testing', ccs:'CCS', lbds:'LBDS', mcd:'MCD', 'title-order':'Title Order', tpa:'TPA' };
+  const DASH = { 'avm-testing':'AVM Testing', ccs:'CCS', lbds:'LBDS', mcd:'MCD', 'title-order':'Title Order', 'title-closing':'Title and Closing', tpa:'TPA' };
   const dashName = d => DASH[d] || d;
   async function loadTypes(){
     const r = await S.config.get('stakeholder-types');
