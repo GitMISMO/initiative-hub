@@ -637,6 +637,31 @@ Updates and Stakeholders"). Checks: `initiative-hub-data/_dev/home-checks/t-pote
 - **Edit Details:** giving an organization a type that isn't ticked ticks it and says why. Unticking a type on purpose
   still hides its organizations, as before.
 
+## Potential initiatives: the new format (agreed 5 Nov 2026, NOT BUILT YET)
+
+Perry's choices, from the design canvas pages "Potential Initiatives in the Active Format" (frames CdO, CdS, CdT) and
+"Potential Initiatives: Stages and Launch" (StA to StG):
+- **Layout (option C, two tabs):** the active initiatives' dark header, tabs and cards. **Overview** tab: summary, date
+  logged, domain, Why It Was Raised, What It Could Produce (numbered), Engagement at a Glance (ring + a bar per type) and
+  Files on the right, then Status Updates on the same page. **Stakeholders** tab: the Engagement Roster as on active
+  initiatives (types At a Glance; companies open into Point of Contact, Barrier, dated Notes, stakeholder type), WITH the
+  plan for each type (Goals, Roadblocks, Tasks), then Potential Leadership as cards with a role.
+- **Header:** Brought By and the MISMO Facilitator where active pages show leadership; no deliverables timeline.
+- **No Edit Details:** everything is edited in place; the facilitator is chosen from the header; Save stays.
+- **Stage track is clickable:** hover lifts and brightens a stage ("Move here →"); a click asks to confirm in a pop-up.
+  In Approvals asks for the approval date, Kick Off Set for the kick-off date; both show beside the facilitator and can be
+  changed there. Moving back asks too and keeps the dates.
+- **Launched opens a wizard:** create a new initiative or add to an existing one (search the 14), with a list of what
+  carries over and where it lands. Engagement (Committed, Interested...) carries over as a note, since active rosters
+  track implementation. Launching asks who actually became leaders: nobody is carried over until confirmed. The potential
+  page leaves the list but stays, linked, as history.
+- **Needs the relay (Request 11):** `validatePotential` keeps only today's fields, so a save would drop the approval and
+  kick-off dates, the plan for each type, a contact's separate name/title/email, dated notes per company, and the launch
+  link. Today a company keeps one contact line (160), a barrier (400) and one notes box (2000).
+- **For later (Perry):** active initiative pages have no home yet for the kick-off date, files, or status updates. Each
+  needs a space there before launching can carry it across.
+- Built and tested but not pushed (5 Nov): the Stakeholder engagement search and + moved onto the heading's line.
+
 ## The QR Code Manager in the admin panel (30 Sept 2026)
 
 Jonna's tool at `/qr/` (the repo is now `GitMISMO/qr`, lower case, so Pages serves `/qr/`; it was `QR` until early Oct 2026, and `/QR/` now 404s. Links use `/qr/`, which works either way. Codes in the private `GitMISMO/qr-data`).
