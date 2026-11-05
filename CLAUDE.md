@@ -620,6 +620,23 @@ are Erin Bittenbender, Kathryn Williams, Kellie Stoll, Leeann Walker and Meghan 
 - **Status updates are recorded by the person signed in:** "Recorded by" is filled with their name,
   also when they sign in after the page has drawn; an empty box uses their name on Add.
 
+## Potential initiatives: dated updates and adding stakeholder types (5 Nov 2026)
+
+Erin's feedback, options A and E chosen by Perry (mock-ups on the design canvas, page "Potential Initiatives: Status
+Updates and Stakeholders"). Checks: `initiative-hub-data/_dev/home-checks/t-potential-feedback.mjs` (40); preview builder
+`initiative-hub-data/_dev/potential-checks/make-potential-preview.py`.
+- **Status box:** a three-line text area that grows as you type. Enter starts a new line; Ctrl/Cmd+Enter adds. What's
+  being typed survives a redraw (files arriving, a sign-in), because `render()` keeps and restores it around `renderPage()`.
+- **Date:** a calendar built into the page (not the browser's picker, which won't open in a cross-origin frame), starting
+  on today; later days greyed out. Today saves the usual full timestamp. An earlier day saves the date alone
+  (`"at": "2026-10-21"`), which the live relay accepts as it is (it keeps only text, by, at and sorts by `Date.parse`);
+  the page shows it without a time, tagged "Added for an earlier date", in date order. No relay change was needed.
+- **Stakeholder engagement:** no heading above the panel (the selected row shows the type). The + panel's Stakeholder
+  type list has "This initiative's types" then "Add another type" (every other type from `S.typeKeys()`); picking one of
+  those shows a note and adds the type with the organization.
+- **Edit Details:** giving an organization a type that isn't ticked ticks it and says why. Unticking a type on purpose
+  still hides its organizations, as before.
+
 ## The QR Code Manager in the admin panel (30 Sept 2026)
 
 Jonna's tool at `/qr/` (the repo is now `GitMISMO/qr`, lower case, so Pages serves `/qr/`; it was `QR` until early Oct 2026, and `/QR/` now 404s. Links use `/qr/`, which works either way. Codes in the private `GitMISMO/qr-data`).

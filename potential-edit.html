@@ -372,6 +372,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <h2>Relevant stakeholder types</h2>
       <p class="hint">From the global list. Organizations of a type that isn't selected stay in the record but are hidden on the initiative's page.</p>
       <div class="chips" id="typeChips"></div>
+      <p class="hint" id="typeAuto" role="status" hidden></p>
     </section>
 
     <section class="card" id="sec-leaders">
@@ -519,6 +520,16 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <td><input type="text" data-f="text" value="${esc(u.text)}"></td><td><input type="text" data-f="by" value="${esc(u.by||'')}"></td><td><input type="text" data-f="at" value="${esc(u.at||'')}" placeholder="ISO date"></td>
       <td><button class="btn danger small" data-rm-upd="${i}">×</button></td></tr>`).join('');
   }
+  /* Giving an organization a type that isn't ticked ticks it, so the organization shows on the initiative's page
+     (Erin's report, 4 Nov 2026: Arive, an LOS Provider, was hidden because LOS Provider wasn't ticked). */
+  $('orgTable').addEventListener('change', e => {
+    const sel = e.target.closest('select[data-f="type"]'); if (!sel || !sel.value) return;
+    const box = [...document.querySelectorAll('#typeChips input')].find(i => i.value === sel.value);
+    if (!box || box.checked) return;
+    box.checked = true; box.closest('.chip').classList.add('on');
+    const org = sel.closest('tr').querySelector('[data-f="org"]').value.trim();
+    $('typeAuto').hidden = false; $('typeAuto').textContent = `${S.typeName(sel.value)} is now ticked, because ${org || 'an organization'} is listed under it.`;
+  });
   $('orgTable').addEventListener('click', e => { const b = e.target.closest('[data-rm-org]'); if (!b) return; read(); rec.organizations.splice(+b.dataset.rmOrg, 1); renderOrgs(); });
   $('updTable').addEventListener('click', e => { const b = e.target.closest('[data-rm-upd]'); if (!b) return; read(); rec.updates.splice(+b.dataset.rmUpd, 1); renderUpds(); });
   $('leadTable').addEventListener('click', e => { const b = e.target.closest('[data-rm-lead]'); if (!b) return; read(); rec.leadership.splice(+b.dataset.rmLead, 1); renderLeads(); });

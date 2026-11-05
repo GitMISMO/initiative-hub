@@ -198,6 +198,42 @@
   .modal label{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:12px 0 4px}
   .modal input,.modal select{width:100%}
   .modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+/* Status updates: a three-line box that grows, and a date that starts as today (Erin, chosen by Perry 4 Nov 2026) */
+.upd .urow{display:grid;grid-template-columns:1fr 170px;gap:8px;margin-bottom:8px}
+.upd label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px}
+.upd input{width:100%}
+.upd textarea{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:13.5px;line-height:1.5;min-height:calc(3 * 1.5em + 18px);resize:vertical;overflow:hidden;
+  border:1px solid var(--line-3);border-radius:4px;padding:8px 10px;color:var(--ink);background:var(--surface)}
+.upd .ufoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 16px}
+.upd .ufoot .muted{font-size:12.5px}
+.upd .uerr{color:#b3372c;font-size:12.5px;font-weight:600}
+.tl-d .earlier{display:inline-block;font-size:10.5px;font-weight:700;color:#7a5413;background:#fbf1de;border-radius:999px;padding:1px 7px;margin-left:6px}
+.modal .typehint{font-size:12.5px;color:#7a5413;background:#fbf1de;border:1px solid #ecd3a3;border-radius:6px;padding:8px 10px;margin-top:8px;line-height:1.45}
+/* The date: a calendar that opens from the field (Perry, 5 Nov 2026). Built into the page rather than the browser's
+   own picker, so it looks and works the same everywhere, including inside a preview frame. */
+.cal{position:relative}
+.cal-btn{width:100%;display:flex;align-items:center;gap:8px;font:inherit;font-size:13px;text-align:left;cursor:pointer;
+  border:1px solid var(--line-3);border-radius:4px;padding:7px 10px;background:var(--surface);color:var(--ink);min-height:34px}
+.cal-btn:hover{border-color:var(--accent)}
+.cal-btn svg{flex:0 0 auto;color:var(--accent)}
+.cal-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;width:266px;background:var(--surface);border:1px solid var(--line-2);
+  border-radius:8px;box-shadow:var(--shadow);padding:10px}
+.cal-pop[hidden]{display:none}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-head b{font-size:13.5px}
+.cal-nav{font:inherit;width:30px;height:30px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface);color:var(--ink);cursor:pointer;font-size:15px;line-height:1}
+.cal-nav:disabled{opacity:.35;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-wd{font-size:10.5px;font-weight:700;color:var(--ink-3);text-align:center;padding:4px 0}
+.cal-d{font:inherit;font-size:12.5px;height:32px;border:0;border-radius:6px;background:none;color:var(--ink);cursor:pointer}
+.cal-d:hover:not(:disabled){background:var(--sunk)}
+.cal-d.today{box-shadow:inset 0 0 0 1px var(--accent);font-weight:700}
+.cal-d.sel{background:var(--navy);color:#fff;font-weight:700}
+.cal-d:disabled{color:var(--line-3);cursor:default}
+.cal-d:focus-visible,.cal-nav:focus-visible,.cal-btn:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+.cal-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.cal-foot button{font:inherit;font-size:12.5px;font-weight:600;color:var(--accent);background:none;border:0;cursor:pointer;padding:4px 6px}
+@media (max-width:600px){ .upd .urow{grid-template-columns:1fr} .cal-pop{left:0;right:auto} }
   @media (max-width:760px){ .onp{display:none} }
 
   /* ───────── the potential initiative's page ───────── */
@@ -397,6 +433,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     <h3>Add an organization</h3>
     <label for="aoName">Organization</label><input type="text" id="aoName">
     <label for="aoType">Stakeholder type</label><select id="aoType"></select>
+    <div class="typehint" id="aoTypeHint" role="status" hidden></div>
     <label for="aoEng">Engagement</label><select id="aoEng"></select>
     <label for="aoContact">Contact (optional)</label><input type="text" id="aoContact">
     <div class="acts"><button class="btn secondary" id="aoCancel">Cancel</button><button class="btn" id="aoOk">Add</button></div>
@@ -453,7 +490,13 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   let filesErr = '';
   let leadAddOpen = false;   // whether the "Add a potential leader" fields are expanded
 
-  function fmtWhen(iso){ const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }
+  /* An update added for an earlier date is saved as the date alone (YYYY-MM-DD), which the relay accepts as it is,
+     and shows without a time (Perry, 4 Nov 2026). Newest first, the same order the relay saves them in. */
+  function dateOnly(at){ return /^\d{4}-\d{2}-\d{2}$/.test(at || ''); }
+  function todayLocal(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function byWhen(list){ return list.slice().sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0)); }
+  function fmtWhen(iso){ if (dateOnly(iso)) { const p = iso.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
+    const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }
   function fmtDate(s){ if (!s) return ''; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}); }
   function engColor(k){ const e = P.ENGAGEMENTS.find(x => x.key === k); return e ? e.color : '#8B94A7'; }
   function setDirty(v){ dirty = v; $('saveBtn').disabled = !v; $('saveBtn').classList.toggle('dirty', v); $('status').textContent = v ? 'Unsaved changes' : ''; }
@@ -501,6 +544,77 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   }
 
   function render(){
+    const keep = $('updText') ? { by: $('updBy').value, date: $('updDate').value, text: $('updText').value } : null;
+    renderPage();
+    if (keep && $('updText')) { $('updBy').value = keep.by; $('updDate').value = keep.date; $('updText').value = keep.text; growUpd(); }
+    dateLabel();
+  }
+  /* ---- the date's calendar ---- */
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const fromYmd = v => { const p = String(v || '').split('-').map(Number); return p.length === 3 && p[0] ? new Date(p[0], p[1] - 1, p[2]) : new Date(); };
+  let calMonth = null;   // the month the calendar shows (its first day)
+  function dateLabel(){
+    const l = $('updDateLabel'); if (!l) return;
+    const v = $('updDate').value || todayLocal(), d = fromYmd(v);
+    const txt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    l.textContent = v === todayLocal() ? 'Today, ' + txt : txt;
+    $('updDateBtn').setAttribute('aria-label', 'Date: ' + l.textContent + '. Choose another date');
+  }
+  function calDraw(focusDay){
+    const pop = $('updCal'), today = todayLocal(), sel = $('updDate').value || today, m = calMonth;
+    const first = new Date(m.getFullYear(), m.getMonth(), 1), days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+    const atLatest = ymd(new Date(m.getFullYear(), m.getMonth() + 1, 1)) > today;
+    let cells = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(w => `<div class="cal-wd" aria-hidden="true">${w}</div>`).join('');
+    for (let i = 0; i < first.getDay(); i++) cells += '<div></div>';
+    for (let d = 1; d <= days; d++) {
+      const day = new Date(m.getFullYear(), m.getMonth(), d), v = ymd(day), future = v > today;
+      cells += `<button type="button" class="cal-d${v === today ? ' today' : ''}${v === sel ? ' sel' : ''}" data-day="${v}" ${future ? 'disabled' : ''}
+        tabindex="${v === (focusDay || sel) ? 0 : -1}" aria-label="${day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${future ? ', not yet' : ''}"
+        ${v === sel ? 'aria-pressed="true"' : ''}${v === today ? ' aria-current="date"' : ''}>${d}</button>`;
+    }
+    pop.innerHTML = `<div class="cal-head"><button type="button" class="cal-nav" data-step="-1" aria-label="Previous month">‹</button><b aria-live="polite">${MONTHS[m.getMonth()]} ${m.getFullYear()}</b>
+      <button type="button" class="cal-nav" data-step="1" aria-label="Next month" ${atLatest ? 'disabled' : ''}>›</button></div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-foot"><button type="button" data-cal="today">Today</button><button type="button" data-cal="close">Close</button></div>`;
+    if (!pop.querySelector('.cal-d[tabindex="0"]:not(:disabled)')) { const any = [...pop.querySelectorAll('.cal-d:not(:disabled)')].pop(); if (any) any.tabIndex = 0; }
+  }
+  function calOpen(){
+    const pop = $('updCal'); calMonth = fromYmd($('updDate').value || todayLocal()); calMonth.setDate(1);
+    calDraw(); pop.hidden = false; $('updDateBtn').setAttribute('aria-expanded', 'true');
+    const f = pop.querySelector('.cal-d[tabindex="0"]'); if (f) f.focus();
+  }
+  function calClose(back){ const pop = $('updCal'); if (!pop || pop.hidden) return; pop.hidden = true; $('updDateBtn').setAttribute('aria-expanded', 'false'); if (back) $('updDateBtn').focus(); }
+  function calPick(v){ $('updDate').value = v; dateLabel(); $('updNote').className = 'muted'; $('updNote').textContent = 'An earlier date shows without a time.'; calClose(true); }
+  function calWire(){
+    const btn = $('updDateBtn'), pop = $('updCal'); if (!btn) return;
+    dateLabel();
+    btn.addEventListener('click', () => pop.hidden ? calOpen() : calClose(true));
+    pop.addEventListener('click', e => {
+      const nav = e.target.closest('[data-step]'), day = e.target.closest('[data-day]'), act = e.target.closest('[data-cal]');
+      if (nav && !nav.disabled) { const st = nav.dataset.step; calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(st), 1); calDraw();
+        const again = pop.querySelector(`[data-step="${st}"]:not(:disabled)`) || pop.querySelector('.cal-d[tabindex="0"]'); if (again) again.focus(); }
+      else if (day && !day.disabled) calPick(day.dataset.day);
+      else if (act) act.dataset.cal === 'today' ? calPick(todayLocal()) : calClose(true);
+    });
+    pop.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); calClose(true); return; }
+      const cur = e.target.closest('[data-day]'); if (!cur) return;
+      const move = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+      if (move === undefined && e.key !== 'PageUp' && e.key !== 'PageDown') return;
+      e.preventDefault();
+      const d = fromYmd(cur.dataset.day);
+      if (move !== undefined) d.setDate(d.getDate() + move); else d.setMonth(d.getMonth() + (e.key === 'PageUp' ? -1 : 1));
+      let v = ymd(d); if (v > todayLocal()) v = todayLocal();
+      calMonth = fromYmd(v); calMonth.setDate(1); calDraw(v);
+      const f = pop.querySelector(`[data-day="${v}"]`); if (f) f.focus();
+    });
+  }
+  /* the path is taken when the click happens, so a click that redraws the calendar (a month arrow) still counts as inside */
+  document.addEventListener('click', e => { if (!e.composedPath().some(n => n.classList && n.classList.contains('cal'))) calClose(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('updCal') && !$('updCal').hidden) { e.preventDefault(); calClose(true); } });
+  function growUpd(){ const t = $('updText'); if (!t) return; t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; }
+  function renderPage(){
     const types = rec.stakeholderTypes || [];
     if (!activeType || !types.includes(activeType)) activeType = types[0] || null;
     const visible = (rec.organizations || []).filter(o => types.includes(o.type));
@@ -539,12 +653,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       </div></div>
 
       <div class="card" id="sec-updates"><h2 class="sec">Status updates</h2><div class="body">
-        <div class="addrow">
-          <input type="text" class="by" id="updBy" placeholder="Recorded by…" value="${esc(S.keyName())}">
-          <input type="text" id="updText" placeholder="What changed?">
-          <button class="btn" id="updAdd">Add</button>
+        <div class="upd">
+          <div class="urow"><div><label for="updBy">Recorded By</label><input type="text" class="by" id="updBy" placeholder="Recorded by…" value="${esc(S.keyName())}"></div>
+            <div class="cal"><label for="updDateBtn">Date</label><input type="hidden" id="updDate" value="${todayLocal()}">
+              <button type="button" class="cal-btn" id="updDateBtn" aria-haspopup="dialog" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span id="updDateLabel"></span></button>
+              <div class="cal-pop" id="updCal" role="dialog" aria-label="Choose the date of this update" hidden></div></div></div>
+          <label for="updText">What Changed?</label><textarea id="updText" rows="3" placeholder="What happened, who was there, what’s next…"></textarea>
+          <div class="ufoot"><span class="muted" id="updNote">An earlier date shows without a time.</span><button class="btn" id="updAdd">Add</button></div>
         </div>
-        ${updates.length ? `<div class="tl">${updates.map((u, i) => `<div class="tl-i ${u._pending ? 'pending' : ''}"><div class="tl-d">${esc(fmtWhen(u.at))}</div><div class="tl-t">${esc(u.text)}</div><div class="tl-w">${u.by ? esc(u.by) : ''}${u._pending ? ' · not saved yet' : ''}</div></div>`).join('')}</div>` : `<div class="muted">No updates logged yet.</div>`}
+        ${updates.length ? `<div class="tl">${byWhen(updates).map((u, i) => `<div class="tl-i ${u._pending ? 'pending' : ''}"><div class="tl-d">${esc(fmtWhen(u.at))}${dateOnly(u.at) ? '<span class="earlier">Added for an earlier date</span>' : ''}</div><div class="tl-t">${esc(u.text)}</div><div class="tl-w">${u.by ? esc(u.by) : ''}${u._pending ? ' · not saved yet' : ''}</div></div>`).join('')}</div>` : `<div class="muted">No updates logged yet.</div>`}
         ${filesBlock()}
       </div></div>
 
@@ -564,7 +681,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
       <div class="card" id="sec-engagement"><h2 class="sec">Stakeholder engagement</h2><div class="body">
         ${types.length ? `
-        <div class="engtop"><h3>${esc(activeType ? S.typeName(activeType) : '')}</h3><div style="display:flex;gap:8px"><input type="text" id="search" placeholder="Search org or contact…" value="${esc(search)}"><button class="btn" id="orgAdd" title="Add an organization">+</button></div></div>
+        <div class="engtop" style="justify-content:flex-end"><div style="display:flex;gap:8px"><input type="text" id="search" placeholder="Search org or contact…" value="${esc(search)}"><button class="btn" id="orgAdd" title="Add an organization">+</button></div></div>
         <div class="eng">
           <div class="side"><div class="lbl">At a glance — every type</div>
             ${types.map(t => { const os = byType(t); const n = os.length; return `<div class="trow ${t === activeType ? 'on' : ''}" data-type="${esc(t)}"><div class="n"><span>${esc(S.typeName(t))}</span><span>${n}</span></div><div class="bar">${n ? P.ENGAGEMENTS.map(e => { const c = os.filter(o => o.engagement === e.key).length; return c ? `<div style="width:${(c/n*100).toFixed(1)}%;background:${e.color}"></div>` : ''; }).join('') : ''}</div></div>`; }).join('')}
@@ -644,25 +761,44 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     }));
 
     $('updAdd').addEventListener('click', () => {
-      const text = $('updText').value.trim(), by = $('updBy').value.trim() || S.keyName();
-      if (!text) return;
-      rec.updates = [{ text, by, at: new Date().toISOString(), _pending: true }, ...(rec.updates || [])];
+      const text = $('updText').value.trim(), by = $('updBy').value.trim() || S.keyName(), day = $('updDate').value || todayLocal(), today = todayLocal();
+      if (!text) { $('updText').focus(); return; }
+      if (day > today) { $('updNote').className = 'uerr'; $('updNote').textContent = 'Pick today or an earlier date.'; $('updDateBtn').focus(); return; }
+      rec.updates = [{ text, by, at: day === today ? new Date().toISOString() : day, _pending: true }, ...(rec.updates || [])];
+      $('updText').value = ''; $('updDate').value = today; dateLabel();
       setDirty(true); render();
     });
-    $('updText') && $('updText').addEventListener('keydown', e => { if (e.key === 'Enter') $('updAdd').click(); });
+    $('updText') && $('updText').addEventListener('input', growUpd);
+    calWire();
+    /* Enter starts a new line in the bigger box; Ctrl+Enter (or Cmd+Enter) adds the update */
+    $('updText') && $('updText').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('updAdd').click(); } });
     const add = $('orgAdd'); if (add) add.addEventListener('click', openAddOrg);
   }
 
   function openAddOrg(){
-    $('aoType').innerHTML = (rec.stakeholderTypes || []).map(t => `<option value="${esc(t)}" ${t === activeType ? 'selected' : ''}>${esc(S.typeName(t))}</option>`).join('');
+    /* This initiative's types first, then every other type; picking one of those adds it to the initiative
+       along with the organization (option E, Perry, 4 Nov 2026) */
+    const mine = rec.stakeholderTypes || [], opt = t => `<option value="${esc(t)}" ${t === activeType ? 'selected' : ''}>${esc(S.typeName(t))}</option>`;
+    const others = [...S.typeKeys()].filter(t => !mine.includes(t)).sort((a, b) => S.typeName(a).localeCompare(S.typeName(b)));
+    $('aoType').innerHTML = `<optgroup label="This initiative’s types">${mine.map(opt).join('')}</optgroup>` + (others.length ? `<optgroup label="Add another type">${others.map(opt).join('')}</optgroup>` : '');
+    typeHint();
     $('aoEng').innerHTML = P.ENGAGEMENTS.map(e => `<option value="${e.key}">${esc(e.label)}</option>`).join('');
     $('aoName').value = ''; $('aoContact').value = '';
     $('addOrg').classList.add('open'); $('aoName').focus();
   }
+  function typeHint(){
+    const t = $('aoType').value, h = $('aoTypeHint'), name = $('aoName').value.trim();
+    const isNew = !!t && !(rec.stakeholderTypes || []).includes(t);
+    h.hidden = !isNew;
+    if (isNew) h.textContent = `${S.typeName(t)} isn’t one of this initiative’s types yet. Adding ${name || 'this organization'} adds it.`;
+  }
+  $('aoType').addEventListener('change', typeHint); $('aoName').addEventListener('input', typeHint);
   $('aoCancel').addEventListener('click', () => $('addOrg').classList.remove('open'));
   $('aoOk').addEventListener('click', () => {
     const org = $('aoName').value.trim(); if (!org) return;
-    rec.organizations = [...(rec.organizations || []), { org, type: $('aoType').value, engagement: $('aoEng').value, contact: $('aoContact').value.trim(), barrier: '', notes: '' }];
+    const type = $('aoType').value;
+    if (type && !(rec.stakeholderTypes || []).includes(type)) rec.stakeholderTypes = [...(rec.stakeholderTypes || []), type];
+    rec.organizations = [...(rec.organizations || []), { org, type, engagement: $('aoEng').value, contact: $('aoContact').value.trim(), barrier: '', notes: '' }];
     activeType = $('aoType').value;
     $('addOrg').classList.remove('open'); setDirty(true); render();
   });
