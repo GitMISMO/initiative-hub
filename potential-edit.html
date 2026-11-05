@@ -597,6 +597,14 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   /* ----- boot ----- */
   (async () => {
    try {
+    /* View access reads only (Perry, 5 Nov 2026): this page is all editing, so a viewer gets a note and a way back. */
+    if (window.ResourcesSession && S.role() === 'view' && !S.getKey()) {
+      $('title').textContent = 'View only';
+      $('subtitle').textContent = 'Your account can read potential initiatives but not change them. Ask a Hub admin if you need to edit.';
+      document.querySelectorAll('main section.view > :not(header)').forEach(el => { el.style.display = 'none'; });
+      if (editId) { $('back').href = `potential.html?id=${encodeURIComponent(editId)}`; $('back').textContent = '← Back to the initiative'; }
+      return;
+    }
     await S.types.load();
     typeKeys = S.typeKeys();
     allTypes = [...typeKeys].map(k => ({ key:k, name:S.typeName(k) })).sort((a, b) => a.name.localeCompare(b.name));

@@ -208,6 +208,8 @@
 .upd .ufoot .muted{font-size:12.5px}
 .upd .uerr{color:#b3372c;font-size:12.5px;font-weight:600}
 .tl-d .earlier{display:inline-block;font-size:10.5px;font-weight:700;color:#7a5413;background:#fbf1de;border-radius:999px;padding:1px 7px;margin-left:6px}
+.viewonly{cursor:default;opacity:.85}
+.engpill{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--sunk);color:var(--ink-2);white-space:nowrap}
 .modal .typehint{font-size:12.5px;color:#7a5413;background:#fbf1de;border:1px solid #ecd3a3;border-radius:6px;padding:8px 10px;margin-top:8px;line-height:1.45}
 /* The date: a calendar that opens from the field (Perry, 5 Nov 2026). Built into the page rather than the browser's
    own picker, so it looks and works the same everywhere, including inside a preview frame. */
@@ -291,6 +293,11 @@
   .tl-w{font-size:12px;color:var(--ink-3);font-weight:600}
   .tl-i.pending .tl-w{color:var(--warn-ink);font-weight:700}
   .engtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+/* Stakeholder engagement: the search and + sit on the heading's line, so there's no empty row above the panel (Perry, 5 Nov 2026) */
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 20px 0}
+.sec-head .sec{padding:6px 0 0}
+.sec-head .tools{display:flex;gap:8px}
+.sec-head .tools input{width:220px}
   .engtop h3{margin:0;font-size:14px;font-weight:700}
   .engtop input{width:220px}
   .eng{display:grid;grid-template-columns:250px minmax(0,1fr);gap:20px}
@@ -419,6 +426,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <h1 id="pName">Potential initiative</h1>
     </div><div class="mast-acts">
       <span class="st" id="status"></span>
+      <span class="btn secondary viewonly" id="viewOnly" title="Your account can read this initiative but not change it" style="display:none">View only</span>
       <a class="btn secondary" id="editLink" href="#">Edit details</a>
       <button class="btn" id="saveBtn" disabled>Save</button>
     </div></header>
@@ -615,6 +623,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('updCal') && !$('updCal').hidden) { e.preventDefault(); calClose(true); } });
   function growUpd(){ const t = $('updText'); if (!t) return; t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; }
   function renderPage(){
+    /* View access reads only: no form, no +, no dropdowns, no Save or Edit Details (Perry, 5 Nov 2026).
+       The relay refuses a viewer's save anyway; this decides what's offered. */
+    const may = S.canEdit();
+    $('editLink').style.display = may ? '' : 'none'; $('saveBtn').style.display = may ? '' : 'none';
+    $('viewOnly').style.display = may ? 'none' : '';
     const types = rec.stakeholderTypes || [];
     if (!activeType || !types.includes(activeType)) activeType = types[0] || null;
     const visible = (rec.organizations || []).filter(o => types.includes(o.type));
@@ -653,14 +666,14 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       </div></div>
 
       <div class="card" id="sec-updates"><h2 class="sec">Status updates</h2><div class="body">
-        <div class="upd">
+        ${may ? `<div class="upd">
           <div class="urow"><div><label for="updBy">Recorded By</label><input type="text" class="by" id="updBy" placeholder="Recorded by…" value="${esc(S.keyName())}"></div>
             <div class="cal"><label for="updDateBtn">Date</label><input type="hidden" id="updDate" value="${todayLocal()}">
               <button type="button" class="cal-btn" id="updDateBtn" aria-haspopup="dialog" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span id="updDateLabel"></span></button>
               <div class="cal-pop" id="updCal" role="dialog" aria-label="Choose the date of this update" hidden></div></div></div>
           <label for="updText">What Changed?</label><textarea id="updText" rows="3" placeholder="What happened, who was there, what’s next…"></textarea>
           <div class="ufoot"><span class="muted" id="updNote">An earlier date shows without a time.</span><button class="btn" id="updAdd">Add</button></div>
-        </div>
+        </div>` : ''}
         ${updates.length ? `<div class="tl">${byWhen(updates).map((u, i) => `<div class="tl-i ${u._pending ? 'pending' : ''}"><div class="tl-d">${esc(fmtWhen(u.at))}${dateOnly(u.at) ? '<span class="earlier">Added for an earlier date</span>' : ''}</div><div class="tl-t">${esc(u.text)}</div><div class="tl-w">${u.by ? esc(u.by) : ''}${u._pending ? ' · not saved yet' : ''}</div></div>`).join('')}</div>` : `<div class="muted">No updates logged yet.</div>`}
         ${filesBlock()}
       </div></div>
@@ -668,9 +681,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       <div class="card" id="sec-leaders"><h2 class="sec">Potential leadership</h2><div class="body">
         ${(rec.leadership || []).length ? `<div class="lead-rows">${rec.leadership.map((l, i) => {
           const initials = ((n) => n.split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join(''))(l.name || '?');
-          return `<div class="lrow"><div class="av">${esc(initials)}</div><div class="linfo"><div class="lname">${esc(l.name)}</div><div class="lmeta">${[l.title, l.company].filter(Boolean).map(esc).join(' · ') || '<span class="muted">No title or company recorded</span>'}</div></div><select class="rtag" data-role="${i}">${P.LEADERSHIP_ROLES.map(r => `<option ${r === l.role ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select><button class="btn secondary small" data-rm-lead="${i}" title="Remove">×</button></div>`;
+          return `<div class="lrow"><div class="av">${esc(initials)}</div><div class="linfo"><div class="lname">${esc(l.name)}</div><div class="lmeta">${[l.title, l.company].filter(Boolean).map(esc).join(' · ') || '<span class="muted">No title or company recorded</span>'}</div></div>${may ? `<select class="rtag" data-role="${i}">${P.LEADERSHIP_ROLES.map(r => `<option ${r === l.role ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select><button class="btn secondary small" data-rm-lead="${i}" title="Remove">×</button>` : `<span class="engpill">${esc(l.role)}</span>`}</div>`;
         }).join('')}</div>` : `<div class="muted" style="margin-bottom:10px">No potential leaders identified yet.</div>`}
-        ${leadAddOpen ? `
+        ${!may ? '' : leadAddOpen ? `
         <div class="addrow lead-add">
           <input type="text" id="ldName" placeholder="Name"><input type="text" id="ldTitle" placeholder="Title"><input type="text" id="ldCompany" placeholder="Company">
           <select id="ldRole">${P.LEADERSHIP_ROLES.map(r => `<option>${esc(r)}</option>`).join('')}</select>
@@ -679,16 +692,15 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         </div>` : `<div class="add" id="ldAddToggle">+ Add a potential leader</div>`}
       </div></div>
 
-      <div class="card" id="sec-engagement"><h2 class="sec">Stakeholder engagement</h2><div class="body">
+      <div class="card" id="sec-engagement"><div class="sec-head"><h2 class="sec">Stakeholder engagement</h2>${types.length ? `<div class="tools"><input type="text" id="search" placeholder="Search org or contact…" value="${esc(search)}" aria-label="Search organizations or contacts">${may ? '<button class="btn" id="orgAdd" title="Add an organization" aria-label="Add an organization">+</button>' : ''}</div>` : ''}</div><div class="body">
         ${types.length ? `
-        <div class="engtop" style="justify-content:flex-end"><div style="display:flex;gap:8px"><input type="text" id="search" placeholder="Search org or contact…" value="${esc(search)}"><button class="btn" id="orgAdd" title="Add an organization">+</button></div></div>
         <div class="eng">
           <div class="side"><div class="lbl">At a glance — every type</div>
             ${types.map(t => { const os = byType(t); const n = os.length; return `<div class="trow ${t === activeType ? 'on' : ''}" data-type="${esc(t)}"><div class="n"><span>${esc(S.typeName(t))}</span><span>${n}</span></div><div class="bar">${n ? P.ENGAGEMENTS.map(e => { const c = os.filter(o => o.engagement === e.key).length; return c ? `<div style="width:${(c/n*100).toFixed(1)}%;background:${e.color}"></div>` : ''; }).join('') : ''}</div></div>`; }).join('')}
             <div class="legend">${P.ENGAGEMENTS.map(e => `<div><i style="background:${e.color}"></i>${esc(e.label)}</div>`).join('')}</div>
           </div>
           <div>
-            ${rows.length ? rows.map(o => { const idx = rec.organizations.indexOf(o); return `<div class="orow"><span class="on">${esc(o.org)}${o.barrier ? `<small title="${esc(o.barrier)}">Barrier</small>` : ''}</span>${o.contact ? `<span class="ct">${esc(o.contact)}</span>` : ''}<select data-eng="${idx}">${P.ENGAGEMENTS.map(e => `<option value="${e.key}" ${e.key === o.engagement ? 'selected' : ''}>${esc(e.label)}</option>`).join('')}</select></div>`; }).join('') : `<div class="muted">${q ? 'No organizations match.' : 'No organizations of this type yet.'}</div>`}
+            ${rows.length ? rows.map(o => { const idx = rec.organizations.indexOf(o); return `<div class="orow"><span class="on">${esc(o.org)}${o.barrier ? `<small title="${esc(o.barrier)}">Barrier</small>` : ''}</span>${o.contact ? `<span class="ct">${esc(o.contact)}</span>` : ''}${may ? `<select data-eng="${idx}">${P.ENGAGEMENTS.map(e => `<option value="${e.key}" ${e.key === o.engagement ? 'selected' : ''}>${esc(e.label)}</option>`).join('')}</select>` : `<span class="engpill">${esc(P.engagementLabel(o.engagement))}</span>`}</div>`; }).join('') : `<div class="muted">${q ? 'No organizations match.' : 'No organizations of this type yet.'}</div>`}
           </div>
         </div>
         <div class="sum"><strong>${committed.length} of ${visible.length} organization${visible.length === 1 ? '' : 's'} committed, across ${typesWithCommit.size} of ${types.length} relevant stakeholder type${types.length === 1 ? '' : 's'}.</strong> ${noCommit.length ? `No commitment yet from: ${noCommit.map(t => esc(S.typeName(t))).join(', ')}. ` : ''}Chartering generally needs more than one type represented.</div>
@@ -760,7 +772,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       render();
     }));
 
-    $('updAdd').addEventListener('click', () => {
+    if ($('updAdd')) $('updAdd').addEventListener('click', () => {
       const text = $('updText').value.trim(), by = $('updBy').value.trim() || S.keyName(), day = $('updDate').value || todayLocal(), today = todayLocal();
       if (!text) { $('updText').focus(); return; }
       if (day > today) { $('updNote').className = 'uerr'; $('updNote').textContent = 'Pick today or an earlier date.'; $('updDateBtn').focus(); return; }

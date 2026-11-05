@@ -648,6 +648,9 @@ Perry's choices, from the design canvas pages "Potential Initiatives in the Acti
   plan for each type (Goals, Roadblocks, Tasks), then Potential Leadership as cards with a role.
 - **Header:** Brought By and the MISMO Facilitator where active pages show leadership; no deliverables timeline.
 - **No Edit Details:** everything is edited in place; the facilitator is chosen from the header; Save stays.
+- **View access reads only (Perry):** the Admin Console's view permission means no editing anywhere: no clickable
+  stages, no editing in place, no +, no forms, no Save; the launch wizard never opens. Staff and admin edit. The current
+  page already follows this (5 Nov): `S.canEdit()` in `renderPage()`, and Edit Details shows a "View only" note.
 - **Stage track is clickable:** hover lifts and brightens a stage ("Move here →"); a click asks to confirm in a pop-up.
   In Approvals asks for the approval date, Kick Off Set for the kick-off date; both show beside the facilitator and can be
   changed there. Moving back asks too and keeps the dates.
@@ -660,7 +663,8 @@ Perry's choices, from the design canvas pages "Potential Initiatives in the Acti
   link. Today a company keeps one contact line (160), a barrier (400) and one notes box (2000).
 - **For later (Perry):** active initiative pages have no home yet for the kick-off date, files, or status updates. Each
   needs a space there before launching can carry it across.
-- Built and tested but not pushed (5 Nov): the Stakeholder engagement search and + moved onto the heading's line.
+- Built and tested but not pushed (5 Nov): the Stakeholder engagement search and + moved onto the heading's line, and
+  view access reading only (it had been offered the forms and Save, which the relay then refused).
 
 ## The QR Code Manager in the admin panel (30 Sept 2026)
 
