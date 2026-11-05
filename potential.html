@@ -834,7 +834,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   const pen = (field, what) => `<button type="button" class="pen" data-edit="${field}" aria-label="Edit ${esc(what)}">✎ Edit</button>`;
   const edBox = (inner, hint) => `<div class="edbox">${inner}<div class="eact"><span class="muted">${hint || 'Ctrl+Enter when you’re done, Escape to cancel'}</span><button type="button" class="btn secondary" data-ed-cancel>Cancel</button><button type="button" class="btn" data-ed-done>Done</button></div></div>`;
   const segs = os => { const n = os.length; return n ? P.ENGAGEMENTS.map(e => { const c = os.filter(o => o.engagement === e.key).length; return c ? `<i style="width:${(c / n * 100).toFixed(1)}%;background:${e.color}"></i>` : ''; }).join('') : ''; };
-  const typeOpts = (sel) => { const mine = rec.stakeholderTypes || [], others = [...S.typeKeys()].filter(t => !mine.includes(t)).sort((a, b) => S.typeName(a).localeCompare(S.typeName(b)));
+  /* Companies and types show A to Z, as on an active initiative's roster (Perry, 5 Nov 2026); the record keeps its own order. */
+  const AZ = (a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base', numeric: true });
+  const typesAZ = () => (rec.stakeholderTypes || []).slice().sort((a, b) => AZ(S.typeName(a), S.typeName(b)));
+  const typeOpts = (sel) => { const mine = typesAZ(), others = [...S.typeKeys()].filter(t => !mine.includes(t)).sort((a, b) => S.typeName(a).localeCompare(S.typeName(b)));
     const o = t => `<option value="${esc(t)}" ${t === sel ? 'selected' : ''}>${esc(S.typeName(t))}</option>`;
     return `<optgroup label="This initiative’s types">${mine.map(o).join('')}</optgroup>` + (others.length ? `<optgroup label="Add another type">${others.map(o).join('')}</optgroup>` : ''); };
   const ro = (v, none) => v ? `<div class="ro">${esc(v)}</div>` : `<div class="ro none">${none}</div>`;
@@ -843,13 +846,13 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const may = S.canEdit();
     if (!may) editing = null;
     $('saveBtn').style.display = may ? '' : 'none'; $('viewOnly').style.display = may ? 'none' : '';
-    const types = rec.stakeholderTypes || [];
+    const types = typesAZ();
     if (!activeType || !types.includes(activeType)) activeType = types[0] || null;
     const visible = (rec.organizations || []).filter(o => types.includes(o.type));
     const hidden = (rec.organizations || []).filter(o => !types.includes(o.type));
     const byType = t => visible.filter(o => o.type === t);
     const q = search.toLowerCase();
-    const rows = (activeType ? byType(activeType) : []).filter(o => !q || [o.org, o.contact, o.contactTitle, o.contactEmail, o.notes, ...(o.log || []).map(n => n.text)].join(' ').toLowerCase().includes(q));
+    const rows = (activeType ? byType(activeType) : []).slice().sort((a, b) => AZ(a.org, b.org)).filter(o => !q || [o.org, o.contact, o.contactTitle, o.contactEmail, o.notes, ...(o.log || []).map(n => n.text)].join(' ').toLowerCase().includes(q));
     const committed = visible.filter(o => o.engagement === 'committed');
     const typesWithCommit = new Set(committed.map(o => o.type));
     const noCommit = types.filter(t => !typesWithCommit.has(t));
@@ -1226,7 +1229,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   function openAddOrg(){
     /* This initiative's types first, then every other type; picking one of those adds it to the initiative
        along with the organization (option E, Perry, 4 Nov 2026) */
-    const mine = rec.stakeholderTypes || [], opt = t => `<option value="${esc(t)}" ${t === activeType ? 'selected' : ''}>${esc(S.typeName(t))}</option>`;
+    const mine = typesAZ(), opt = t => `<option value="${esc(t)}" ${t === activeType ? 'selected' : ''}>${esc(S.typeName(t))}</option>`;
     const others = [...S.typeKeys()].filter(t => !mine.includes(t)).sort((a, b) => S.typeName(a).localeCompare(S.typeName(b)));
     $('aoType').innerHTML = `<optgroup label="This initiative’s types">${mine.map(opt).join('')}</optgroup>` + (others.length ? `<optgroup label="Add another type">${others.map(opt).join('')}</optgroup>` : '');
     typeHint();
