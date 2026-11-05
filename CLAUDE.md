@@ -643,7 +643,7 @@ Perry's choices, from the design canvas pages "Potential Initiatives in the Acti
 "Potential Initiatives: Stages and Launch" (StA to StG):
 - **Layout (option C, two tabs):** the active initiatives' dark header, tabs and cards. **Overview** tab: summary, date
   logged, domain, Why It Was Raised, What It Could Produce (numbered), Engagement at a Glance (ring + a bar per type) and
-  Files on the right, then Status Updates on the same page. **Stakeholders** tab: the Engagement Roster as on active
+  Files on the right, then Status Updates on the same page. **Stakeholders & Leadership** tab (Perry's name for it): the Engagement Roster as on active
   initiatives (types At a Glance; companies open into Point of Contact, Barrier, dated Notes, stakeholder type), WITH the
   plan for each type (Goals, Roadblocks, Tasks), then Potential Leadership as cards with a role.
 - **Header:** Brought By and the MISMO Facilitator where active pages show leadership; no deliverables timeline.
