@@ -26,10 +26,10 @@
 </script>
 <script src="/assets/session.js"></script>
 <script src="hub-gate.js"></script>
-<script src="dashboard-data.js?v=35980aa980"></script>
+<script src="dashboard-data.js?v=8ba7ae77e9"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Libre+Franklin:wght@400;500;600;700;800&display=swap">
 <style>
   /* Summit HQ's own tokens, as the admin panel wears them. Every colour on the page comes
      from here, so dark mode is a second block rather than a hunt through the rules. */
@@ -236,6 +236,162 @@
 .cal-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .cal-foot button{font:inherit;font-size:12.5px;font-weight:600;color:var(--accent);background:none;border:0;cursor:pointer;padding:4px 6px}
 @media (max-width:600px){ .upd .urow{grid-template-columns:1fr} .cal-pop{left:0;right:auto} }
+.cal.left .cal-pop{left:0;right:auto}
+/* ===== The new format (Perry, 5 Nov 2026): the active initiatives' header, two tabs, editing in place ===== */
+.pband{position:relative;overflow:hidden;border-radius:16px;background:linear-gradient(120deg,#0F314C 0%,#14486E 58%,#0F7A86 135%);color:#fff;padding:22px 26px 0}
+.pband .waves{position:absolute;inset:0;pointer-events:none;opacity:.16}
+.pb-row{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.pb-eyebrow{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94C8E9}
+.pband .dom{color:#fff;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);text-transform:none;letter-spacing:0}
+.pband h1{font-family:Archivo,'Libre Franklin',sans-serif;font-size:32px;font-weight:800;letter-spacing:-.02em;margin:8px 0 0;line-height:1.15;color:#fff}
+.pband .mast-acts{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.pband .st{color:#cfe3f1;font-size:12.5px}
+.pband .btn.secondary{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)}
+.pband #saveBtn{background:#fff;color:#0F314C;border-color:#fff}
+.pband #saveBtn:disabled{opacity:.55}
+.pb-chips{position:relative;display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+.pchip{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 13px;min-width:0;max-width:520px;text-align:left;color:#fff;font:inherit}
+.pchip .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;background:#1f6a5a;border:2px solid rgba(255,255,255,.35);flex:0 0 auto;color:#fff}
+#sec-files .files{margin-top:0;border-top:0;padding-top:0}
+/* the stage dates beside the facilitator, the plan for each type, a contact's details and dated notes (Perry, 5 Nov 2026) */
+.dchip{display:flex;align-items:center;gap:10px;background:rgba(116,191,235,.14);border:1px solid rgba(116,191,235,.45);border-radius:10px;padding:9px 13px;color:#fff;font:inherit;text-align:left}
+button.dchip{cursor:pointer} button.dchip:hover{background:rgba(116,191,235,.24)} button.dchip:focus-visible,button.pchip:focus-visible{outline:2px solid #74BFEB;outline-offset:2px}
+.dchip .ic2{width:34px;height:34px;border-radius:9px;background:#fff;color:#0F314C;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;font-weight:800}
+.dchip .ic2 small{font-size:9px;letter-spacing:.06em;color:#B3372C;font-weight:800} .dchip .ic2 b{font-size:15px}
+.dchip .k{font-size:10.5px;font-weight:700;color:#74BFEB} .dchip .v{font-size:13.5px;font-weight:700} .dchip .s{font-size:12px;color:#c9dcea}
+.pb-chips .vr{width:1px;align-self:stretch;background:rgba(255,255,255,.2);margin:0 2px}
+.smodal [hidden]{display:none !important}
+.smodal .mrow{margin-top:14px} .smodal .mrow label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-3);margin-bottom:4px}
+.smodal select{width:100%;font:inherit;font-size:14px;border:1px solid var(--line-3);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink)}
+.smodal .cal-btn{max-width:280px} .smodal .acts2 .left{margin-right:auto}
+.plan{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--surface);margin-bottom:12px;display:grid;grid-template-columns:84px minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.plan .plan-h{grid-column:1/-1;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:-4px}
+.plan .ring0{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.plan .ring0 div{width:58px;height:58px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:Archivo,sans-serif;font-weight:800;font-size:15px;line-height:1.1}
+.plan .ring0 small{font-family:'Libre Franklin',sans-serif;font-size:9.5px;font-weight:600;color:var(--ink-3)}
+.plan .h{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px} .plan .h.g{color:#0F8A7E} .plan .h.r{color:#B3372C} .plan .h.t{color:var(--ink-2)}
+.plan em{color:var(--ink-3);font-size:13px} .plan ul{margin:0;padding:0;list-style:none}
+.plan li,.plan .task{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:3px 0}
+.plan li::before{content:"•";color:var(--ink-3)} .plan .task input{width:16px;height:16px;margin-top:2px;flex:0 0 auto}
+.plan .task.done span{text-decoration:line-through;color:var(--ink-3)}
+.plan .tasks{grid-column:1/-1;border-top:1px solid var(--line);padding-top:8px}
+.plan .linkbtn{display:block;margin-top:6px} .plan em{display:block}
+.padd{display:flex;gap:6px;margin-top:6px} .padd input{flex:1;min-width:0;font:inherit;font-size:13px;border:1px solid var(--line-3);border-radius:6px;padding:6px 8px;background:var(--surface);color:var(--ink)}
+.x2{all:unset;cursor:pointer;margin-left:auto;color:var(--ink-3);font-size:15px;line-height:1;padding:0 4px;border-radius:4px} .x2:hover{color:#B3372C;background:var(--sunk)} .x2:focus-visible{outline:2px solid var(--sky,#74BFEB)}
+.poc{display:flex;gap:10px;align-items:flex-start} .poc .av3{width:34px;height:34px;border-radius:50%;background:#B3426A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:0 0 auto}
+.poc b{font-size:15px;display:block} .poc .m{font-size:12.5px;color:var(--ink-2)} .poc .m i{color:var(--ink-3)} .poc a{color:var(--accent)}
+.pocf{display:grid;gap:6px} .pocf .r2{display:flex;justify-content:flex-end}
+.note2{display:flex;gap:8px;align-items:flex-start;border-left:3px solid var(--sky-soft,#94C8E9);padding:4px 0 4px 10px;margin-bottom:8px;font-size:13px;white-space:pre-wrap}
+.note2 .t3{flex:1;min-width:0} .note2 small{display:block;color:var(--ink-3);font-size:11.5px;margin-top:2px;white-space:normal} .note2.old{border-left-color:var(--line-3)}
+.post{display:flex;gap:8px;margin-top:8px;align-items:flex-end} .post textarea{flex:1;min-height:40px !important}
+@media (max-width:640px){ .plan{grid-template-columns:1fr} .plan .ring0{display:none} }
+
+.pchip .k{font-size:10.5px;font-weight:700;color:#74BFEB} .pchip .v{font-size:13.5px;font-weight:700} .pchip .s{font-size:12px;color:#c9dcea}
+.pchip.dash{border-style:dashed;background:transparent} .pchip.dash .av{background:transparent;border-style:dashed}
+button.pchip{cursor:pointer} button.pchip:hover{background:rgba(255,255,255,.12)}
+.pchip input{font:inherit;font-size:13px;width:340px;max-width:100%;border:1px solid rgba(255,255,255,.4);border-radius:6px;padding:6px 8px;background:#fff;color:#0F314C}
+/* the stage track: every stage a button; the one you point at lifts and brightens */
+.pb-stage{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:18px;max-width:820px}
+.sbtn{all:unset;box-sizing:border-box;display:block;padding:6px 0 4px;border-radius:8px;transition:transform .18s ease}
+.sbtn .seg{height:6px;border-radius:99px;background:rgba(255,255,255,.18);transition:height .18s ease,background .18s ease,box-shadow .18s ease}
+.sbtn .lab{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:7px;font-size:12px;color:#a9c7dc;transition:color .18s ease}
+.sbtn .go{opacity:0;transform:translateX(-4px);transition:opacity .18s ease,transform .18s ease;font-size:11px;font-weight:700;color:#fff;white-space:nowrap}
+.sbtn.done .seg{background:#74BFEB} .sbtn.cur .seg{background:#fff;box-shadow:0 0 0 3px rgba(116,191,235,.35)} .sbtn.cur .lab{color:#fff;font-weight:700}
+button.sbtn{cursor:pointer}
+button.sbtn:not(.cur):hover{transform:translateY(-2px)}
+button.sbtn:not(.cur):hover .seg{height:9px;background:rgba(116,191,235,.75);box-shadow:0 0 14px rgba(116,191,235,.55)}
+button.sbtn:not(.cur):hover .lab{color:#fff} button.sbtn:not(.cur):hover .go,button.sbtn:focus-visible .go{opacity:1;transform:none}
+button.sbtn:focus-visible{outline:2px solid #74BFEB;outline-offset:3px}
+.pb-tabs{position:relative;display:flex;gap:10px;margin:18px -26px 0;padding:8px 26px 0;background:rgba(5,22,36,.28);border-top:1px solid rgba(255,255,255,.08);overflow-x:auto}
+.ptab{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 11px;border-radius:11px 11px 0 0;font-size:13.5px;font-weight:600;color:#cfe3f1;white-space:nowrap}
+.ptab:hover{color:#fff} .ptab[aria-selected="true"]{background:var(--paper);color:var(--ink);font-weight:700}
+.ptab .n{font-size:11px;background:rgba(255,255,255,.16);border-radius:999px;padding:0 7px} .ptab[aria-selected="true"] .n{background:var(--sunk)}
+.ptab:focus-visible{outline:2px solid #74BFEB;outline-offset:-2px}
+@media (prefers-reduced-motion: reduce){ .sbtn,.sbtn .seg,.sbtn .go{transition:none} }
+/* the Overview tab */
+.pcols{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:22px;align-items:start}
+.pcols > div{min-width:0}
+.plead{font-size:15px;line-height:1.65;margin:0}
+.pfacts{margin-top:16px;border-top:1px solid var(--line-2)}
+.pfact{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+.pfact .ic{width:28px;height:28px;border-radius:8px;background:var(--sunk);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.pfact b{display:block;font-size:13.5px} .pfact .fv2{color:var(--ink-2)}
+.ph3{font-family:Archivo,'Libre Franklin',sans-serif;font-size:16px;font-weight:700;margin:22px 0 8px;display:flex;align-items:center;gap:8px}
+.pnums{border-top:1px solid var(--line-2);margin:0;padding:0;list-style:none;counter-reset:n}
+.pnums li{counter-increment:n;display:grid;grid-template-columns:28px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-2);font-weight:600}
+.pnums li::before{content:counter(n);font-family:Archivo,sans-serif;font-size:17px;color:var(--teal,#0F8A7E);line-height:1.3}
+.pcard{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 1px 2px rgba(15,49,76,.06),0 10px 26px -18px rgba(15,49,76,.45);padding:16px 18px;margin-bottom:14px}
+.pcard .ct{font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.linkbtn{all:unset;cursor:pointer;color:var(--accent);font-weight:700;font-size:12.5px} .linkbtn:hover{text-decoration:underline} .linkbtn:focus-visible{outline:2px solid var(--sky,#74BFEB);border-radius:3px}
+.pring-row{display:flex;align-items:center;gap:14px}
+.pring{width:88px;height:88px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.pring div{width:60px;height:60px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-size:20px;font-weight:800;line-height:1}
+.pring div small{font-family:'Libre Franklin',sans-serif;font-size:10.5px;font-weight:600;color:var(--ink-3);margin-top:3px}
+.ptr{display:grid;grid-template-columns:minmax(0,140px) 1fr 24px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+.ptr .bar{height:7px} .ptr .n2{text-align:right;color:var(--ink-2)}
+/* editing in place */
+.ed{position:relative}
+.pen{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--accent);opacity:.0;transition:opacity .15s ease;padding:2px 6px;border-radius:5px}
+.ed:hover .pen,.ed:focus-within .pen,.pen:focus-visible{opacity:1} .pen:hover{background:var(--sunk)} .pen:focus-visible{outline:2px solid var(--sky,#74BFEB)}
+@media (hover:none){ .pen{opacity:.8} }
+.pband .pen{color:#cfe3f1} .pband .pen:hover{background:rgba(255,255,255,.12)}
+.edbox textarea,.edbox input,.edbox select{width:100%;box-sizing:border-box;font:inherit;font-size:14px;line-height:1.55;border:1px solid var(--accent);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink);box-shadow:0 0 0 3px rgba(116,191,235,.3)}
+.edbox textarea{min-height:96px;resize:vertical}
+.edbox .eact{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:8px} .edbox .eact .muted{margin-right:auto;font-size:12px}
+.pband .edbox input{font-family:Archivo,'Libre Franklin',sans-serif;font-size:24px;font-weight:800}
+/* the Stakeholders & Leadership tab */
+.rost-h{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.rost-h h2{font-family:Archivo,sans-serif;font-size:17px;margin:0} .rost-h p{margin:3px 0 0;color:var(--ink-2);font-size:13px}
+.rost-h .tools{display:flex;gap:8px} .rost-h .tools input{width:220px}
+.rlist{border:1px solid var(--line-2);border-radius:12px;overflow:hidden;background:var(--surface)}
+.lr{border-bottom:1px solid var(--line)} .lr:last-child{border-bottom:0}
+.lrs{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.lrs .chev{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:10px;flex:1;min-width:0;font-weight:700;font-size:14px;color:var(--ink);border-radius:6px}
+.lrs .chev svg{flex:0 0 auto;color:var(--ink-2);transition:transform .2s ease} .lr.open .lrs .chev svg{transform:rotate(90deg)}
+.lrs .chev:focus-visible{outline:2px solid var(--sky,#74BFEB);outline-offset:2px}
+.lrs .ct2{font-weight:500;color:var(--ink-3);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrs .flag{font-size:11px;font-weight:700;color:#B3372C;background:#FBE9E7;border-radius:999px;padding:1px 8px;flex:0 0 auto}
+.lrs select.eng{font:inherit;font-size:12px;font-weight:700;border-radius:999px;border:0;padding:5px 10px;min-width:140px;cursor:pointer}
+.eng.committed{background:#E3F3EC;color:#0b5c44} .eng.interested{background:#FBF4D9;color:#7a5f0a} .eng.contacted{background:#FBE8D7;color:#8a4a0a}
+.eng.not-contacted{background:#EEF1F5;color:#4c5868} .eng.declined{background:#FBE4EC;color:#8a1d45}
+span.eng{font-size:12px;font-weight:700;border-radius:999px;padding:4px 12px;white-space:nowrap}
+.lr.open{background:var(--paper)} .lrb{padding:2px 14px 16px 38px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.subc{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;min-width:0}
+.subc .h{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.subc .h.g{color:#0F8A7E} .subc .h.r{color:#B3372C} .subc .h.b{color:var(--accent)}
+.subc input[type=text],.subc textarea,.subc select{width:100%;box-sizing:border-box;font:inherit;font-size:13.5px;border:1px solid var(--line-3);border-radius:6px;padding:7px 9px;background:var(--surface);color:var(--ink)}
+.subc textarea{min-height:72px;resize:vertical} .subc .tick{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px}
+.subc .ro{font-size:13.5px;color:var(--ink);white-space:pre-wrap} .subc .ro.none{color:var(--ink-3);font-style:italic}
+.subc .cnt{font-size:11.5px;color:var(--ink-3);text-align:right;margin-top:3px}
+.lrb .full{grid-column:1/-1}
+.lrb .foot2{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.lrb .foot2 select{width:auto;min-width:220px}
+.lrb .foot2 .rm{margin-left:auto}
+.gl-rm{all:unset;cursor:pointer;font-size:11px;font-weight:700;color:#B3372C;margin-left:6px;opacity:0}
+.trow:hover .gl-rm,.gl-rm:focus-visible{opacity:1}
+.lgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.lcard{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--surface);position:relative;min-width:0}
+.lcard b{display:block;font-size:14.5px;padding-right:22px} .lcard span{display:block;font-size:12.5px;color:var(--ink-2)}
+.lcard select{margin-top:8px;font:inherit;font-size:12px;font-weight:700;border:1px solid var(--line-3);border-radius:999px;padding:3px 10px;background:var(--sunk);color:var(--ink)}
+.lcard .role{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--sunk)}
+.lcard .x{position:absolute;top:8px;right:8px}
+.lcard.add{border-style:dashed;display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700;min-height:84px;cursor:pointer;font:inherit;font-weight:700}
+.lform{display:grid;grid-template-columns:1fr 1fr 1fr 180px auto auto;gap:8px;margin-top:12px}
+/* the confirm pop-up for moving a stage */
+.scrim{position:fixed;inset:0;z-index:60;background:rgba(6,32,47,.45);display:flex;align-items:flex-start;justify-content:center;padding:120px 16px 16px}
+.scrim[hidden]{display:none}
+.smodal{width:min(520px,100%);background:var(--surface);color:var(--ink);border-radius:16px;box-shadow:0 24px 60px -20px rgba(6,32,47,.6);padding:22px 24px}
+.smodal h3{font-family:Archivo,sans-serif;font-size:19px;margin:0 0 10px}
+.fromto{display:flex;align-items:center;gap:10px;background:var(--paper);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:700}
+.fromto .a{color:var(--ink-3)} .fromto svg{color:#0F8A7E}
+.smodal p{margin:12px 0 0;color:var(--ink-2);font-size:13.5px}
+.smodal .acts2{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+@media (max-width:980px){ .pcols{grid-template-columns:1fr} .lgrid{grid-template-columns:1fr 1fr} .lform{grid-template-columns:1fr 1fr} }
+@media (max-width:640px){ .pband{padding:18px 16px 0;border-radius:12px} .pb-tabs{margin:16px -16px 0;padding:8px 16px 0} .pband h1{font-size:25px}
+  .pb-row{flex-direction:column} .pb-stage{grid-template-columns:repeat(5,minmax(0,1fr))} .sbtn .lab{font-size:10.5px} .sbtn .go{display:none}
+  .lrb{grid-template-columns:1fr;padding-left:14px} .lgrid{grid-template-columns:1fr} .rost-h .tools input{width:160px} .lrs select.eng{min-width:0} }
+
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   @media (max-width:760px){ .onp{display:none} }
 
   /* ───────── the potential initiative's page ───────── */
@@ -410,8 +566,8 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     <nav aria-label="On this page">
       <a href="#sec-overview" id="onpOverview"><span>Overview</span></a>
       <a href="#sec-updates" id="onpUpdates"><span>Status Updates</span><b class="count" id="nUpd"></b></a>
+      <a href="#sec-engagement" id="onpEngagement"><span>Engagement Roster</span><b class="count" id="nOrg"></b></a>
       <a href="#sec-leaders" id="onpLeaders"><span>Potential Leadership</span><b class="count" id="nLead"></b></a>
-      <a href="#sec-engagement" id="onpEngagement"><span>Stakeholder Engagement</span><b class="count" id="nOrg"></b></a>
     </nav>
   </div>
   <div class="foot">
@@ -421,20 +577,36 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 
 <main>
   <section class="view">
-    <header class="mast"><div>
-      <div class="mast-eyebrow"><span class="eyebrow">Potential Initiative</span><span id="pDomain"></span></div>
-      <h1 id="pName">Potential initiative</h1>
-    </div><div class="mast-acts">
-      <span class="st" id="status"></span>
-      <span class="btn secondary viewonly" id="viewOnly" title="Your account can read this initiative but not change it" style="display:none">View only</span>
-      <a class="btn secondary" id="editLink" href="#">Edit details</a>
-      <button class="btn" id="saveBtn" disabled>Save</button>
-    </div></header>
-    <ol class="steps" id="pSteps" aria-label="Stage"></ol>
+    <header class="pband" id="pBand">
+      <svg class="waves" viewBox="0 0 1200 260" preserveAspectRatio="none" aria-hidden="true"><path d="M0 200 C 300 120, 600 260, 1200 150" stroke="#94C8E9" stroke-width="1.5" fill="none"/><path d="M0 230 C 350 160, 700 280, 1200 190" stroke="#94C8E9" stroke-width="1.5" fill="none"/></svg>
+      <div class="pb-row"><div style="min-width:0;flex:1">
+        <div class="pb-eyebrow"><span>Potential Initiative</span><span id="pDomain"></span></div>
+        <div id="pNameBox"><h1 id="pName">Potential initiative</h1></div>
+      </div><div class="mast-acts">
+        <span class="st" id="status"></span>
+        <span class="btn secondary viewonly" id="viewOnly" title="Your account can read this initiative but not change it" style="display:none">View only</span>
+        <button class="btn" id="saveBtn" disabled>Save</button>
+      </div></div>
+      <div class="pb-chips" id="pChips"></div>
+      <div class="pb-stage" id="pStage" role="group" aria-label="Stage"></div>
+      <div class="pb-tabs" role="tablist" aria-label="Sections of this initiative">
+        <button class="ptab" role="tab" id="tabOv" aria-controls="app" data-tab="ov"></button>
+        <button class="ptab" role="tab" id="tabSt" aria-controls="app" data-tab="st"></button>
+      </div>
+    </header>
     <div id="app"><div class="card"><div class="body muted">Loading…</div></div></div>
     <div class="note err hidden" id="err"></div>
   </section>
 </main>
+<div class="scrim" id="stageScrim" hidden><div class="smodal" role="dialog" aria-modal="true" aria-labelledby="stageTitle">
+  <h3 id="stageTitle"></h3><div class="fromto" id="stageFromTo"></div>
+  <div class="mrow" id="stageDate" hidden><label id="stageDateLbl" for="stDateBtn"></label><div class="cal left"><input type="hidden" id="stDate">
+    <button type="button" class="cal-btn" id="stDateBtn" aria-haspopup="dialog" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span id="stDateLabel"></span></button>
+    <div class="cal-pop" id="stCal" role="dialog" aria-label="Choose the date" hidden></div></div></div>
+  <div class="mrow" id="stageSel" hidden><label id="stageSelLbl" for="stageSelect"></label><select id="stageSelect"></select></div>
+  <p id="stageNote"></p>
+  <div class="acts2"><button class="btn secondary left" id="stageClear" type="button" hidden>Clear the Date</button><button class="btn secondary" id="stageNo" type="button">Cancel</button><button class="btn" id="stageYes" type="button"></button></div>
+</div></div>
 
 <div class="overlay" id="addOrg">
   <div class="modal">
@@ -552,182 +724,446 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   }
 
   function render(){
-    const keep = $('updText') ? { by: $('updBy').value, date: $('updDate').value, text: $('updText').value } : null;
+    if ($('updText')) updDraft = { by: $('updBy').value, date: $('updDate').value, text: $('updText').value };
+    if (editing && $('edVal')) editDraft = { f: editing, v: $('edVal').value };
     renderPage();
-    if (keep && $('updText')) { $('updBy').value = keep.by; $('updDate').value = keep.date; $('updText').value = keep.text; growUpd(); }
-    dateLabel();
+    if (updDraft && $('updText')) { $('updBy').value = updDraft.by; $('updDate').value = updDraft.date; $('updText').value = updDraft.text; growUpd(); }
+    if (editDraft && editing === editDraft.f && $('edVal')) $('edVal').value = editDraft.v;
+    updCal.label();
   }
-  /* ---- the date's calendar ---- */
+  /* ---- calendars: the status update's date, and the date logged (Perry, 5 Nov 2026). One builder, so they work alike:
+     today outlined, later days greyed out, arrows by month, keyboard, Escape or a click elsewhere closes. ---- */
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const fromYmd = v => { const p = String(v || '').split('-').map(Number); return p.length === 3 && p[0] ? new Date(p[0], p[1] - 1, p[2]) : new Date(); };
-  let calMonth = null;   // the month the calendar shows (its first day)
-  function dateLabel(){
-    const l = $('updDateLabel'); if (!l) return;
-    const v = $('updDate').value || todayLocal(), d = fromYmd(v);
-    const txt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    l.textContent = v === todayLocal() ? 'Today, ' + txt : txt;
-    $('updDateBtn').setAttribute('aria-label', 'Date: ' + l.textContent + '. Choose another date');
-  }
-  function calDraw(focusDay){
-    const pop = $('updCal'), today = todayLocal(), sel = $('updDate').value || today, m = calMonth;
-    const first = new Date(m.getFullYear(), m.getMonth(), 1), days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
-    const atLatest = ymd(new Date(m.getFullYear(), m.getMonth() + 1, 1)) > today;
-    let cells = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(w => `<div class="cal-wd" aria-hidden="true">${w}</div>`).join('');
-    for (let i = 0; i < first.getDay(); i++) cells += '<div></div>';
-    for (let d = 1; d <= days; d++) {
-      const day = new Date(m.getFullYear(), m.getMonth(), d), v = ymd(day), future = v > today;
-      cells += `<button type="button" class="cal-d${v === today ? ' today' : ''}${v === sel ? ' sel' : ''}" data-day="${v}" ${future ? 'disabled' : ''}
-        tabindex="${v === (focusDay || sel) ? 0 : -1}" aria-label="${day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${future ? ', not yet' : ''}"
-        ${v === sel ? 'aria-pressed="true"' : ''}${v === today ? ' aria-current="date"' : ''}>${d}</button>`;
+  function makeCal(o){
+    let month = null;
+    const el = k => $(o[k]);
+    function label(){
+      const l = el('label'); if (!l) return;
+      const v = el('val').value || todayLocal(), d = fromYmd(v);
+      const txt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      l.textContent = o.todayWord && v === todayLocal() ? 'Today, ' + txt : txt;
+      el('btn').setAttribute('aria-label', o.name + ': ' + l.textContent + '. Choose another date');
     }
-    pop.innerHTML = `<div class="cal-head"><button type="button" class="cal-nav" data-step="-1" aria-label="Previous month">‹</button><b aria-live="polite">${MONTHS[m.getMonth()]} ${m.getFullYear()}</b>
-      <button type="button" class="cal-nav" data-step="1" aria-label="Next month" ${atLatest ? 'disabled' : ''}>›</button></div>
-      <div class="cal-grid">${cells}</div>
-      <div class="cal-foot"><button type="button" data-cal="today">Today</button><button type="button" data-cal="close">Close</button></div>`;
-    if (!pop.querySelector('.cal-d[tabindex="0"]:not(:disabled)')) { const any = [...pop.querySelectorAll('.cal-d:not(:disabled)')].pop(); if (any) any.tabIndex = 0; }
+    function draw(focusDay){
+      const pop = el('pop'), today = todayLocal(), sel = el('val').value || today, m = month;
+      const first = new Date(m.getFullYear(), m.getMonth(), 1), days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+      const atLatest = !o.future && ymd(new Date(m.getFullYear(), m.getMonth() + 1, 1)) > today;   // o.future: dates ahead allowed (a kick-off)
+      let cells = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(w => `<div class="cal-wd" aria-hidden="true">${w}</div>`).join('');
+      for (let i = 0; i < first.getDay(); i++) cells += '<div></div>';
+      for (let d = 1; d <= days; d++) {
+        const day = new Date(m.getFullYear(), m.getMonth(), d), v = ymd(day), future = !o.future && v > today;
+        cells += `<button type="button" class="cal-d${v === today ? ' today' : ''}${v === sel ? ' sel' : ''}" data-day="${v}" ${future ? 'disabled' : ''}
+          tabindex="${v === (focusDay || sel) ? 0 : -1}" aria-label="${day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${future ? ', not yet' : ''}"
+          ${v === sel ? 'aria-pressed="true"' : ''}${v === today ? ' aria-current="date"' : ''}>${d}</button>`;
+      }
+      pop.innerHTML = `<div class="cal-head"><button type="button" class="cal-nav" data-step="-1" aria-label="Previous month">‹</button><b aria-live="polite">${MONTHS[m.getMonth()]} ${m.getFullYear()}</b>
+        <button type="button" class="cal-nav" data-step="1" aria-label="Next month" ${atLatest ? 'disabled' : ''}>›</button></div>
+        <div class="cal-grid">${cells}</div>
+        <div class="cal-foot"><button type="button" data-cal="today">Today</button><button type="button" data-cal="close">Close</button></div>`;
+      if (!pop.querySelector('.cal-d[tabindex="0"]:not(:disabled)')) { const any = [...pop.querySelectorAll('.cal-d:not(:disabled)')].pop(); if (any) any.tabIndex = 0; }
+    }
+    function open(){
+      const pop = el('pop'); if (!pop) return;
+      month = fromYmd(el('val').value || todayLocal()); month.setDate(1);
+      draw(); pop.hidden = false; el('btn').setAttribute('aria-expanded', 'true');
+      const f = pop.querySelector('.cal-d[tabindex="0"]'); if (f) f.focus();
+    }
+    function close(back){ const pop = el('pop'); if (!pop || pop.hidden) return; pop.hidden = true; el('btn').setAttribute('aria-expanded', 'false'); if (back) el('btn').focus(); if (o.onClose) o.onClose(); }
+    function pick(v){ el('val').value = v; label(); const pop = el('pop'); pop.hidden = true; el('btn').setAttribute('aria-expanded', 'false'); if (o.onPick) o.onPick(v); else el('btn').focus(); }
+    function wire(){
+      const btn = el('btn'), pop = el('pop'); if (!btn) return;
+      label();
+      btn.addEventListener('click', () => pop.hidden ? open() : close(true));
+      pop.addEventListener('click', e => {
+        const nav = e.target.closest('[data-step]'), day = e.target.closest('[data-day]'), act = e.target.closest('[data-cal]');
+        if (nav && !nav.disabled) { const st = nav.dataset.step; month = new Date(month.getFullYear(), month.getMonth() + Number(st), 1); draw();
+          const again = pop.querySelector(`[data-step="${st}"]:not(:disabled)`) || pop.querySelector('.cal-d[tabindex="0"]'); if (again) again.focus(); }
+        else if (day && !day.disabled) pick(day.dataset.day);
+        else if (act) act.dataset.cal === 'today' ? pick(todayLocal()) : close(true);
+      });
+      pop.addEventListener('keydown', e => {
+        const cur = e.target.closest('[data-day]'); if (!cur) return;
+        const move = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+        if (move === undefined && e.key !== 'PageUp' && e.key !== 'PageDown') return;
+        e.preventDefault();
+        const d = fromYmd(cur.dataset.day);
+        if (move !== undefined) d.setDate(d.getDate() + move); else d.setMonth(d.getMonth() + (e.key === 'PageUp' ? -1 : 1));
+        let v = ymd(d); if (!o.future && v > todayLocal()) v = todayLocal();
+        month = fromYmd(v); month.setDate(1); draw(v);
+        const f = pop.querySelector(`[data-day="${v}"]`); if (f) f.focus();
+      });
+    }
+    return { label, open, close, wire, isOpen: () => !!el('pop') && !el('pop').hidden };
   }
-  function calOpen(){
-    const pop = $('updCal'); calMonth = fromYmd($('updDate').value || todayLocal()); calMonth.setDate(1);
-    calDraw(); pop.hidden = false; $('updDateBtn').setAttribute('aria-expanded', 'true');
-    const f = pop.querySelector('.cal-d[tabindex="0"]'); if (f) f.focus();
-  }
-  function calClose(back){ const pop = $('updCal'); if (!pop || pop.hidden) return; pop.hidden = true; $('updDateBtn').setAttribute('aria-expanded', 'false'); if (back) $('updDateBtn').focus(); }
-  function calPick(v){ $('updDate').value = v; dateLabel(); $('updNote').className = 'muted'; $('updNote').textContent = 'An earlier date shows without a time.'; calClose(true); }
-  function calWire(){
-    const btn = $('updDateBtn'), pop = $('updCal'); if (!btn) return;
-    dateLabel();
-    btn.addEventListener('click', () => pop.hidden ? calOpen() : calClose(true));
-    pop.addEventListener('click', e => {
-      const nav = e.target.closest('[data-step]'), day = e.target.closest('[data-day]'), act = e.target.closest('[data-cal]');
-      if (nav && !nav.disabled) { const st = nav.dataset.step; calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(st), 1); calDraw();
-        const again = pop.querySelector(`[data-step="${st}"]:not(:disabled)`) || pop.querySelector('.cal-d[tabindex="0"]'); if (again) again.focus(); }
-      else if (day && !day.disabled) calPick(day.dataset.day);
-      else if (act) act.dataset.cal === 'today' ? calPick(todayLocal()) : calClose(true);
-    });
-    pop.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { e.preventDefault(); calClose(true); return; }
-      const cur = e.target.closest('[data-day]'); if (!cur) return;
-      const move = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
-      if (move === undefined && e.key !== 'PageUp' && e.key !== 'PageDown') return;
-      e.preventDefault();
-      const d = fromYmd(cur.dataset.day);
-      if (move !== undefined) d.setDate(d.getDate() + move); else d.setMonth(d.getMonth() + (e.key === 'PageUp' ? -1 : 1));
-      let v = ymd(d); if (v > todayLocal()) v = todayLocal();
-      calMonth = fromYmd(v); calMonth.setDate(1); calDraw(v);
-      const f = pop.querySelector(`[data-day="${v}"]`); if (f) f.focus();
-    });
-  }
-  /* the path is taken when the click happens, so a click that redraws the calendar (a month arrow) still counts as inside */
-  document.addEventListener('click', e => { if (!e.composedPath().some(n => n.classList && n.classList.contains('cal'))) calClose(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('updCal') && !$('updCal').hidden) { e.preventDefault(); calClose(true); } });
+  const updCal = makeCal({ val: 'updDate', btn: 'updDateBtn', pop: 'updCal', label: 'updDateLabel', todayWord: true, name: 'Date',
+    onPick(){ $('updNote').className = 'muted'; $('updNote').textContent = 'An earlier date shows without a time.'; $('updDateBtn').focus(); } });
+  const dlCal = makeCal({ val: 'dlDate', btn: 'dlDateBtn', pop: 'dlCal', label: 'dlDateLabel', name: 'Date logged',
+    onPick(v){ rec.dateLogged = v; editing = null; setDirty(true); render(); const b = document.querySelector('[data-edit="dateLogged"]'); if (b) b.focus(); },
+    onClose(){ if (editing === 'dateLogged') { editing = null; render(); } } });
+  /* the pop-up's date (approval, kick-off): later dates allowed, since a kick-off is usually scheduled ahead */
+  const stCal = makeCal({ val: 'stDate', btn: 'stDateBtn', pop: 'stCal', label: 'stDateLabel', name: 'Date', future: true, onPick(){ $('stDateBtn').focus(); } });
+  stCal.wire();
+  /* the path is taken when the click happens, so a click that redraws a calendar (a month arrow) still counts as inside */
+  document.addEventListener('click', e => { if (!e.composedPath().some(n => n.classList && n.classList.contains('cal'))) { updCal.close(false); dlCal.close(false); stCal.close(false); } });
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; const c = [stCal, updCal, dlCal].find(x => x.isOpen()); if (c) { e.preventDefault(); e.stopPropagation(); c.close(true); } }, true);
   function growUpd(){ const t = $('updText'); if (!t) return; t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; }
+  /* ===== The new format (Perry, 5 Nov 2026): the active initiatives' header, two tabs (Overview; Stakeholders &
+     Leadership), the stage track as buttons with a confirm, and editing in place instead of Edit Details. View access
+     reads only: no pens, no stage buttons, no forms, no +, no Save. ===== */
+  const IC = {
+    grid: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+    users: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    cal: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    bulb: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>',
+    flag: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>',
+    doc: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+    chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
+    arrow: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'
+  };
+  let tab = 'ov', editing = null, editDraft = null, updDraft = null, modal = null, planAdd = null, pocEdit = null, rosterNames = null;
+  const noteDrafts = {};
+  const openOrgs = new Set(), barOpen = new Set();
+  function tabFromHash(){ const h = location.hash.slice(1); return ['stakeholders', 'sec-engagement', 'sec-leaders'].includes(h) ? 'st' : 'ov'; }
+  tab = tabFromHash();
+  addEventListener('hashchange', () => { const t = tabFromHash(); if (t !== tab) { tab = t; editing = null; render(); }
+    const h = location.hash.slice(1); if (h.startsWith('sec-')) { const el = $(h); if (el) el.scrollIntoView({ block: 'start' }); } });
+  function setTab(t, focus){ if (t === tab) return; tab = t; editing = null; try { location.hash = t === 'st' ? 'stakeholders' : 'overview'; } catch (e) {} render(); if (focus) $(t === 'st' ? 'tabSt' : 'tabOv').focus(); }
+  const pen = (field, what) => `<button type="button" class="pen" data-edit="${field}" aria-label="Edit ${esc(what)}">✎ Edit</button>`;
+  const edBox = (inner, hint) => `<div class="edbox">${inner}<div class="eact"><span class="muted">${hint || 'Ctrl+Enter when you’re done, Escape to cancel'}</span><button type="button" class="btn secondary" data-ed-cancel>Cancel</button><button type="button" class="btn" data-ed-done>Done</button></div></div>`;
+  const segs = os => { const n = os.length; return n ? P.ENGAGEMENTS.map(e => { const c = os.filter(o => o.engagement === e.key).length; return c ? `<i style="width:${(c / n * 100).toFixed(1)}%;background:${e.color}"></i>` : ''; }).join('') : ''; };
+  const typeOpts = (sel) => { const mine = rec.stakeholderTypes || [], others = [...S.typeKeys()].filter(t => !mine.includes(t)).sort((a, b) => S.typeName(a).localeCompare(S.typeName(b)));
+    const o = t => `<option value="${esc(t)}" ${t === sel ? 'selected' : ''}>${esc(S.typeName(t))}</option>`;
+    return `<optgroup label="This initiative’s types">${mine.map(o).join('')}</optgroup>` + (others.length ? `<optgroup label="Add another type">${others.map(o).join('')}</optgroup>` : ''); };
+  const ro = (v, none) => v ? `<div class="ro">${esc(v)}</div>` : `<div class="ro none">${none}</div>`;
+
   function renderPage(){
-    /* View access reads only: no form, no +, no dropdowns, no Save or Edit Details (Perry, 5 Nov 2026).
-       The relay refuses a viewer's save anyway; this decides what's offered. */
     const may = S.canEdit();
-    $('editLink').style.display = may ? '' : 'none'; $('saveBtn').style.display = may ? '' : 'none';
-    $('viewOnly').style.display = may ? 'none' : '';
+    if (!may) editing = null;
+    $('saveBtn').style.display = may ? '' : 'none'; $('viewOnly').style.display = may ? 'none' : '';
     const types = rec.stakeholderTypes || [];
     if (!activeType || !types.includes(activeType)) activeType = types[0] || null;
     const visible = (rec.organizations || []).filter(o => types.includes(o.type));
-    const hiddenCount = (rec.organizations || []).length - visible.length;
+    const hidden = (rec.organizations || []).filter(o => !types.includes(o.type));
     const byType = t => visible.filter(o => o.type === t);
     const q = search.toLowerCase();
-    const rows = (activeType ? byType(activeType) : []).filter(o => !q || (o.org + ' ' + (o.contact||'')).toLowerCase().includes(q));
+    const rows = (activeType ? byType(activeType) : []).filter(o => !q || [o.org, o.contact, o.contactTitle, o.contactEmail, o.notes, ...(o.log || []).map(n => n.text)].join(' ').toLowerCase().includes(q));
     const committed = visible.filter(o => o.engagement === 'committed');
     const typesWithCommit = new Set(committed.map(o => o.type));
     const noCommit = types.filter(t => !typesWithCommit.has(t));
     const updates = rec.updates || [];
+    const ci = Math.max(0, P.STAGES.findIndex(s => s.key === rec.stage));
 
-    $('pName').textContent = rec.name;
-    $('pDomain').innerHTML = rec.domain
-      ? `<span class="dom" style="--dom-color:${DOMAIN_COLOR[rec.domain] || 'var(--line-3)'}">${esc(rec.domain)}</span>`
-      : `<span class="dom tbd">Domain: TBD</span>`;
-    $('pSteps').innerHTML = P.STAGES.map(s => `<li class="step ${s.key === rec.stage ? 'on s-' + s.key : ''}">${esc(s.label)}</li>`).join('');
+    /* ---- the header ---- */
+    $('pNameBox').innerHTML = editing === 'name'
+      ? edBox(`<input type="text" id="edVal" maxlength="160" value="${esc(rec.name)}" aria-label="Name">`, 'Enter when you’re done, Escape to cancel')
+      : `<div class="ed" style="display:flex;align-items:baseline;gap:6px"><h1 id="pName">${esc(rec.name)}</h1>${may ? pen('name', 'the name') : ''}</div>`;
+    $('pDomain').innerHTML = rec.domain ? `<span class="dom" style="--dom-color:${DOMAIN_COLOR[rec.domain] || 'var(--line-3)'}">${esc(rec.domain)}</span>` : `<span class="dom tbd">Domain: TBD</span>`;
+    const by = rec.broughtBy || '';
+    const byName = by.split(/[,—–-]/)[0].trim();
+    const byChip = editing === 'broughtBy'
+      ? `<div class="pchip" style="flex-direction:column;align-items:stretch">${edBox(`<input type="text" id="edVal" maxlength="200" value="${esc(by)}" aria-label="Brought to MISMO by">`, 'Name, role, organization and when')}</div>`
+      : (may ? `<button type="button" class="pchip ed" data-edit="broughtBy" aria-label="Edit who brought it to MISMO">` : '<div class="pchip">') +
+        `<div class="av">${esc(byName ? MismoStore.initials(byName) : '?')}</div><div><div class="k">Brought By</div><div class="v">${esc(byName || 'Not recorded')}</div><div class="s">${esc(by.slice(byName.length).replace(/^[\s,—–-]+/, '') || (may ? 'Click to add' : ''))}</div></div>` + (may ? '</button>' : '</div>');
+    const facOpen = may ? '<button type="button" class="pchip' : '<div class="pchip', facClose = may ? '</button>' : '</div>';
+    const facChip = rec.facilitator
+      ? `${facOpen}" ${may ? 'data-fac aria-label="Change the MISMO facilitator"' : ''}><div class="av" style="background:#2b6aa8">${esc(MismoStore.initials(rec.facilitator))}</div><div><div class="k">MISMO Facilitator</div><div class="v">${esc(rec.facilitator)}</div><div class="s">MISMO</div></div>${facClose}`
+      : `${facOpen} dash" ${may ? 'data-fac aria-label="Choose the MISMO facilitator"' : ''}><div class="av">${IC.plus}</div><div><div class="k">MISMO Facilitator</div><div class="v">Not Assigned</div><div class="s">${may ? 'Click to choose' : ''}</div></div>${facClose}`;
+    const MON = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const dchip = (key, label) => { const v = rec[key]; if (!v) return ''; const d = fromYmd(v);
+      return (may ? `<button type="button" class="dchip" data-date="${key}" aria-label="Change the ${label.toLowerCase()} date, ${esc(fmtDate(v))}">` : '<div class="dchip">') +
+        `<div class="ic2"><small>${MON[d.getMonth()]}</small><b>${d.getDate()}</b></div><div><div class="k">${label}</div><div class="v">${esc(fmtDate(v))}</div><div class="s">${v > todayLocal() ? 'Coming up' : ''}</div></div>` + (may ? '</button>' : '</div>'); };
+    const dates = dchip('approvalDate', 'Approval') + dchip('kickoffDate', 'Kick-Off');
+    $('pChips').innerHTML = byChip + facChip + (dates ? '<div class="vr" aria-hidden="true"></div>' + dates : '');
+    $('pStage').innerHTML = P.STAGES.map((s, i) => {
+      const cur = i === ci, cls = i < ci ? 'done' : cur ? 'cur' : '', go = i > ci ? 'Move here →' : i < ci ? 'Move back →' : '';
+      const inner = `<div class="seg"></div><div class="lab"><span>${esc(s.label)}</span><span class="go">${go}</span></div>`;
+      return may && !cur ? `<button type="button" class="sbtn ${cls}" data-stage="${s.key}" aria-label="${i > ci ? 'Move to' : 'Move back to'} ${esc(s.label)}">${inner}</button>`
+                         : `<div class="sbtn ${cls}" ${cur ? 'aria-current="step"' : ''}><span class="visually-hidden">${cur ? 'Current stage: ' : ''}</span>${inner}</div>`;
+    }).join('');
+    $('tabOv').innerHTML = `${IC.grid}Overview`; $('tabSt').innerHTML = `${IC.users}Stakeholders &amp; Leadership<span class="n">${visible.length}</span>`;
+    $('tabOv').setAttribute('aria-selected', tab === 'ov'); $('tabSt').setAttribute('aria-selected', tab === 'st');
+    $('tabOv').tabIndex = tab === 'ov' ? 0 : -1; $('tabSt').tabIndex = tab === 'st' ? 0 : -1;
 
-    $('app').innerHTML = `
-      <div class="card" id="sec-overview"><h2 class="sec">Overview</h2><div class="body ov">
-        <div>
-          <div class="lbl">Summary</div>${rec.summary ? `<p>${esc(rec.summary)}</p>` : `<p class="muted">Not recorded.</p>`}
-          <div class="lbl">Why it was raised</div>${rec.whyRaised ? `<p>${esc(rec.whyRaised)}</p>` : `<p class="muted">Not recorded.</p>`}
-          ${(rec.potentialSolutions || []).length ? `<div class="lbl">What it could produce</div><ul class="sol">${rec.potentialSolutions.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    /* ---- the Overview tab ---- */
+    const field = (f, label, html, kind) => editing === f ? `<div>${kind}</div>` : html;
+    const sum = editing === 'summary' ? edBox(`<textarea id="edVal" maxlength="4000" aria-label="Summary">${esc(rec.summary || '')}</textarea>`)
+      : `<div class="ed"><p class="plead">${rec.summary ? esc(rec.summary) : '<span class="muted">No summary yet.</span>'} ${may ? pen('summary', 'the summary') : ''}</p></div>`;
+    const why = editing === 'whyRaised' ? edBox(`<textarea id="edVal" maxlength="4000" aria-label="Why it was raised">${esc(rec.whyRaised || '')}</textarea>`)
+      : (rec.whyRaised ? `<p style="margin:0;line-height:1.65">${esc(rec.whyRaised)}</p>` : '<p class="muted" style="margin:0">Not recorded.</p>');
+    const sols = rec.potentialSolutions || [];
+    const what = editing === 'potentialSolutions' ? edBox(`<textarea id="edVal" aria-label="What it could produce, one per line" style="min-height:150px">${esc(sols.join('\n'))}</textarea>`, 'One per line. Ctrl+Enter when you’re done')
+      : (sols.length ? `<ol class="pnums">${sols.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '<p class="muted" style="margin:0">Nothing listed yet.</p>');
+    const domOpts = ['', ...Object.keys(DOMAIN_COLOR)].concat(rec.domain && !DOMAIN_COLOR[rec.domain] ? [rec.domain] : []);
+    const domain = editing === 'domain' ? edBox(`<select id="edVal" aria-label="Proposed domain">${domOpts.map(d => `<option value="${esc(d)}" ${d === (rec.domain || '') ? 'selected' : ''}>${d ? esc(d) : 'Not decided'}</option>`).join('')}</select>`, 'Enter when you’re done')
+      : `<span class="fv2">${rec.domain ? esc(rec.domain) : 'Not decided'}</span>`;
+    const logged = editing === 'dateLogged'
+      ? `<div class="cal left"><input type="hidden" id="dlDate" value="${esc(rec.dateLogged || todayLocal())}"><button type="button" class="cal-btn" id="dlDateBtn" aria-haspopup="dialog" aria-expanded="false" style="max-width:260px">${IC.cal}<span id="dlDateLabel"></span></button><div class="cal-pop" id="dlCal" role="dialog" aria-label="Choose the date logged" hidden></div></div>`
+      : `<span class="fv2">${rec.dateLogged ? esc(fmtDate(rec.dateLogged)) : 'Not recorded'}</span>`;
+    const deg = visible.length ? committed.length / visible.length * 360 : 0;
+    const engCard = types.length ? `<div class="pcard" id="sec-glance"><div class="ct">Engagement at a Glance<button type="button" class="linkbtn" data-go-tab="st">Stakeholders →</button></div>
+      <div class="pring-row"><div class="pring" style="background:conic-gradient(#059669 0 ${deg.toFixed(0)}deg, var(--sunk) ${deg.toFixed(0)}deg 360deg)" role="img" aria-label="${committed.length} of ${visible.length} organizations committed"><div>${committed.length}<small>of ${visible.length}</small></div></div>
+      <div><b style="font-size:14px">${committed.length} organization${committed.length === 1 ? '' : 's'} committed</b><div class="muted" style="font-size:12.5px;margin-top:3px">${typesWithCommit.size} of ${types.length} stakeholder type${types.length === 1 ? '' : 's'} ${typesWithCommit.size === 1 ? 'has' : 'have'} a commitment.${noCommit.length ? ' None yet from ' + noCommit.map(t => esc(S.typeName(t))).join(', ') + '.' : ''}</div></div></div>
+      <div style="margin-top:10px;border-top:1px solid var(--line)">${types.map(t => `<div class="ptr"><span>${esc(S.typeName(t))}</span><div class="bar">${segs(byType(t))}</div><span class="n2">${byType(t).length}</span></div>`).join('')}</div>
+      <div class="legend" style="margin-top:10px">${P.ENGAGEMENTS.map(e => `<div><i style="background:${e.color}"></i>${esc(e.label)}</div>`).join('')}</div></div>` : '';
+    const fb = filesBlock();
+    const overview = `
+      <div class="pcols">
+        <div id="sec-overview">
+          ${sum}
+          <div class="pfacts">
+            <div class="pfact"><div class="ic">${IC.cal}</div><div class="ed"><b>Date Logged ${may && editing !== 'dateLogged' ? pen('dateLogged', 'the date logged') : ''}</b>${logged}</div></div>
+            <div class="pfact"><div class="ic">${IC.bulb}</div><div class="ed"><b>Proposed Domain ${may && editing !== 'domain' ? pen('domain', 'the proposed domain') : ''}</b>${domain}</div></div>
+          </div>
+          <div class="ed"><h3 class="ph3">Why It Was Raised ${may && editing !== 'whyRaised' ? pen('whyRaised', 'why it was raised') : ''}</h3>${why}</div>
+          <div class="ed"><h3 class="ph3">What It Could Produce ${may && editing !== 'potentialSolutions' ? pen('potentialSolutions', 'what it could produce') : ''}</h3>${what}</div>
         </div>
-        <div class="factcard">
-          <div class="lbl">MISMO facilitator</div>
-          <div class="fv">${rec.facilitator
-            ? `<span class="fac-row"><span class="fac-av">${esc(MismoStore.initials(rec.facilitator))}</span>${esc(rec.facilitator)}</span>`
-            : '<span class="muted">Not assigned</span>'}</div>
-          <div class="lbl">Brought to MISMO by</div><div class="fv">${rec.broughtBy ? esc(rec.broughtBy) : '<span class="muted">Not recorded</span>'}</div>
-          <div class="lbl">Date logged</div><div class="fv">${rec.dateLogged ? esc(fmtDate(rec.dateLogged)) : '<span class="muted">Not recorded</span>'}</div>
-          <div class="lbl">Proposed domain</div><div class="fv">${rec.domain ? esc(rec.domain) : '<span class="muted">Not yet assigned</span>'}</div>
-          <div class="lbl">Status updates</div><div class="fv" style="margin-bottom:0">${updates.length} logged</div>
-        </div>
-      </div></div>
-
+        <div>${engCard}${fb ? `<div class="pcard" id="sec-files">${fb}</div>` : ''}</div>
+      </div>
       <div class="card" id="sec-updates"><h2 class="sec">Status updates</h2><div class="body">
         ${may ? `<div class="upd">
           <div class="urow"><div><label for="updBy">Recorded By</label><input type="text" class="by" id="updBy" placeholder="Recorded by…" value="${esc(S.keyName())}"></div>
             <div class="cal"><label for="updDateBtn">Date</label><input type="hidden" id="updDate" value="${todayLocal()}">
-              <button type="button" class="cal-btn" id="updDateBtn" aria-haspopup="dialog" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span id="updDateLabel"></span></button>
+              <button type="button" class="cal-btn" id="updDateBtn" aria-haspopup="dialog" aria-expanded="false">${IC.cal}<span id="updDateLabel"></span></button>
               <div class="cal-pop" id="updCal" role="dialog" aria-label="Choose the date of this update" hidden></div></div></div>
           <label for="updText">What Changed?</label><textarea id="updText" rows="3" placeholder="What happened, who was there, what’s next…"></textarea>
           <div class="ufoot"><span class="muted" id="updNote">An earlier date shows without a time.</span><button class="btn" id="updAdd">Add</button></div>
         </div>` : ''}
-        ${updates.length ? `<div class="tl">${byWhen(updates).map((u, i) => `<div class="tl-i ${u._pending ? 'pending' : ''}"><div class="tl-d">${esc(fmtWhen(u.at))}${dateOnly(u.at) ? '<span class="earlier">Added for an earlier date</span>' : ''}</div><div class="tl-t">${esc(u.text)}</div><div class="tl-w">${u.by ? esc(u.by) : ''}${u._pending ? ' · not saved yet' : ''}</div></div>`).join('')}</div>` : `<div class="muted">No updates logged yet.</div>`}
-        ${filesBlock()}
-      </div></div>
-
-      <div class="card" id="sec-leaders"><h2 class="sec">Potential leadership</h2><div class="body">
-        ${(rec.leadership || []).length ? `<div class="lead-rows">${rec.leadership.map((l, i) => {
-          const initials = ((n) => n.split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join(''))(l.name || '?');
-          return `<div class="lrow"><div class="av">${esc(initials)}</div><div class="linfo"><div class="lname">${esc(l.name)}</div><div class="lmeta">${[l.title, l.company].filter(Boolean).map(esc).join(' · ') || '<span class="muted">No title or company recorded</span>'}</div></div>${may ? `<select class="rtag" data-role="${i}">${P.LEADERSHIP_ROLES.map(r => `<option ${r === l.role ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select><button class="btn secondary small" data-rm-lead="${i}" title="Remove">×</button>` : `<span class="engpill">${esc(l.role)}</span>`}</div>`;
-        }).join('')}</div>` : `<div class="muted" style="margin-bottom:10px">No potential leaders identified yet.</div>`}
-        ${!may ? '' : leadAddOpen ? `
-        <div class="addrow lead-add">
-          <input type="text" id="ldName" placeholder="Name"><input type="text" id="ldTitle" placeholder="Title"><input type="text" id="ldCompany" placeholder="Company">
-          <select id="ldRole">${P.LEADERSHIP_ROLES.map(r => `<option>${esc(r)}</option>`).join('')}</select>
-          <button class="btn" id="ldAdd">Add</button>
-          <button class="btn secondary" id="ldCancel">Cancel</button>
-        </div>` : `<div class="add" id="ldAddToggle">+ Add a potential leader</div>`}
-      </div></div>
-
-      <div class="card" id="sec-engagement"><div class="sec-head"><h2 class="sec">Stakeholder engagement</h2>${types.length ? `<div class="tools"><input type="text" id="search" placeholder="Search org or contact…" value="${esc(search)}" aria-label="Search organizations or contacts">${may ? '<button class="btn" id="orgAdd" title="Add an organization" aria-label="Add an organization">+</button>' : ''}</div>` : ''}</div><div class="body">
-        ${types.length ? `
-        <div class="eng">
-          <div class="side"><div class="lbl">At a glance — every type</div>
-            ${types.map(t => { const os = byType(t); const n = os.length; return `<div class="trow ${t === activeType ? 'on' : ''}" data-type="${esc(t)}"><div class="n"><span>${esc(S.typeName(t))}</span><span>${n}</span></div><div class="bar">${n ? P.ENGAGEMENTS.map(e => { const c = os.filter(o => o.engagement === e.key).length; return c ? `<div style="width:${(c/n*100).toFixed(1)}%;background:${e.color}"></div>` : ''; }).join('') : ''}</div></div>`; }).join('')}
-            <div class="legend">${P.ENGAGEMENTS.map(e => `<div><i style="background:${e.color}"></i>${esc(e.label)}</div>`).join('')}</div>
-          </div>
-          <div>
-            ${rows.length ? rows.map(o => { const idx = rec.organizations.indexOf(o); return `<div class="orow"><span class="on">${esc(o.org)}${o.barrier ? `<small title="${esc(o.barrier)}">Barrier</small>` : ''}</span>${o.contact ? `<span class="ct">${esc(o.contact)}</span>` : ''}${may ? `<select data-eng="${idx}">${P.ENGAGEMENTS.map(e => `<option value="${e.key}" ${e.key === o.engagement ? 'selected' : ''}>${esc(e.label)}</option>`).join('')}</select>` : `<span class="engpill">${esc(P.engagementLabel(o.engagement))}</span>`}</div>`; }).join('') : `<div class="muted">${q ? 'No organizations match.' : 'No organizations of this type yet.'}</div>`}
-          </div>
-        </div>
-        <div class="sum"><strong>${committed.length} of ${visible.length} organization${visible.length === 1 ? '' : 's'} committed, across ${typesWithCommit.size} of ${types.length} relevant stakeholder type${types.length === 1 ? '' : 's'}.</strong> ${noCommit.length ? `No commitment yet from: ${noCommit.map(t => esc(S.typeName(t))).join(', ')}. ` : ''}Chartering generally needs more than one type represented.</div>
-        ${hiddenCount ? `<div class="note">${hiddenCount} organization${hiddenCount === 1 ? ' is' : 's are'} hidden because their stakeholder type isn't selected for this initiative. Use <em>Edit details</em> to change which types are relevant.</div>` : ''}
-        ` : `<div class="muted">No stakeholder types selected yet. Use <em>Edit details</em> to choose which types are relevant to this initiative.</div>`}
+        ${updates.length ? `<div class="tl">${byWhen(updates).map(u => `<div class="tl-i ${u._pending ? 'pending' : ''}"><div class="tl-d">${esc(fmtWhen(u.at))}${dateOnly(u.at) ? '<span class="earlier">Added for an earlier date</span>' : ''}</div><div class="tl-t">${esc(u.text)}</div>${u.by ? `<div class="tl-w">${esc(u.by)}</div>` : ''}</div>`).join('')}</div>` : '<div class="muted">No updates yet.</div>'}
       </div></div>`;
 
+    /* ---- the Stakeholders & Leadership tab ---- */
+    const orgRow = o => {
+      const i = rec.organizations.indexOf(o), open = openOrgs.has(i), label = P.engagementLabel(o.engagement), showBar = !!o.barrier || barOpen.has(i);
+      return `<div class="lr ${open ? 'open' : ''}"><div class="lrs">
+        <button type="button" class="chev" data-toggle="${i}" aria-expanded="${open}">${IC.chev}<span class="nm">${esc(o.org)}</span>${o.contact && !open ? `<span class="ct2">${esc(o.contact)}</span>` : ''}</button>
+        ${o.barrier ? `<span class="flag" title="${esc(o.barrier)}">Barrier</span>` : ''}
+        ${may ? `<select class="eng ${o.engagement}" data-eng="${i}" aria-label="Engagement of ${esc(o.org)}">${P.ENGAGEMENTS.map(e => `<option value="${e.key}" ${e.key === o.engagement ? 'selected' : ''}>${esc(e.label)}</option>`).join('')}</select>`
+              : `<span class="eng engpill ${o.engagement}">${esc(label)}</span>`}</div>
+        ${open ? `<div class="lrb">
+          <div class="subc"><div class="h g">${IC.users}Point of Contact</div>${may && pocEdit === i
+            ? `<div class="pocf"><input type="text" data-of="contact" data-i="${i}" maxlength="160" value="${esc(o.contact)}" placeholder="Name" aria-label="Contact’s name at ${esc(o.org)}">
+               <input type="text" data-of="contactTitle" data-i="${i}" maxlength="120" value="${esc(o.contactTitle)}" placeholder="Title" aria-label="Contact’s title">
+               <input type="text" data-of="contactEmail" data-i="${i}" maxlength="160" value="${esc(o.contactEmail)}" placeholder="Email" aria-label="Contact’s email" inputmode="email">
+               <div class="r2"><button type="button" class="btn small" data-poc-done="${i}">Done</button></div></div>`
+            : o.contact ? `<div class="poc"><span class="av3">${esc(MismoStore.initials(o.contact))}</span><div><b>${esc(o.contact)}</b>
+                <div class="m">${o.contactTitle ? esc(o.contactTitle) : (may ? '<i>Add title</i>' : '')}</div>
+                <div class="m">${o.contactEmail ? `<a href="mailto:${esc(o.contactEmail)}">${esc(o.contactEmail)}</a>` : (may ? '<i>Add email</i>' : '')}</div>
+                ${may ? `<button type="button" class="linkbtn" data-poc-edit="${i}">✎ Edit</button>` : ''}</div></div>`
+            : (may ? `<button type="button" class="linkbtn" data-poc-edit="${i}">+ Add a contact</button>` : '<div class="ro none">No contact recorded</div>')}</div>
+          <div class="subc"><div class="h r">${IC.flag}Barrier</div>${may ? `<label class="tick"><input type="checkbox" data-bar-tick="${i}" ${showBar ? 'checked' : ''}>Held up</label>${showBar ? `<textarea data-of="barrier" data-i="${i}" maxlength="400" placeholder="What’s holding them up?" aria-label="What’s holding ${esc(o.org)} up">${esc(o.barrier)}</textarea>` : ''}` : ro(o.barrier, 'No barrier')}</div>
+          <div class="subc full"><div class="h b">${IC.doc}Notes</div>
+            ${(o.log || []).slice().sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).map(n => { const k = o.log.indexOf(n); return `<div class="note2"><div class="t3">${esc(n.text)}<small>${esc([n.by, fmtWhen(n.at)].filter(Boolean).join(' · '))}</small></div>${may ? `<button type="button" class="x2" data-note-rm="${i}:${k}" aria-label="Remove this note">×</button>` : ''}</div>`; }).join('')}
+            ${o.notes ? `<div class="note2 old"><div class="t3">${esc(o.notes)}<small>Earlier notes</small></div>${may ? `<button type="button" class="x2" data-note-old="${i}" aria-label="Remove the earlier notes">×</button>` : ''}</div>` : ''}
+            ${!(o.log || []).length && !o.notes && !may ? '<div class="ro none">No notes yet</div>' : ''}
+            ${may ? `<div class="post"><textarea data-note-in="${i}" maxlength="1000" placeholder="Add a note about ${esc(o.org)}…" aria-label="A note about ${esc(o.org)}">${esc(noteDrafts[i] || '')}</textarea><button type="button" class="btn" data-note-post="${i}">Post</button></div>` : ''}</div>
+          <div class="foot2"><span>Stakeholder type:</span>${may ? `<select data-otype="${i}" aria-label="Stakeholder type of ${esc(o.org)}">${typeOpts(o.type)}</select><button type="button" class="btn secondary small rm" data-rm-org="${i}">Remove ${esc(o.org)}</button>` : `<b>${esc(S.typeName(o.type))}</b>`}</div>
+        </div>` : ''}</div>`;
+    };
+    const trow = t => { const os = byType(t), n = os.length;
+      return `<div class="trow ${t === activeType ? 'on' : ''}" data-type="${esc(t)}" role="button" tabindex="0" aria-pressed="${t === activeType}"><div class="n"><span>${esc(S.typeName(t))}${may && !n ? `<button type="button" class="gl-rm" data-rm-type="${esc(t)}" aria-label="Remove ${esc(S.typeName(t))} from this initiative">Remove</button>` : ''}</span><span>${n}</span></div><div class="bar">${segs(os)}</div></div>`; };
+    /* the plan for the chosen type: goals, roadblocks and tasks, as on an active initiative's roster */
+    const planPanel = () => {
+      if (!activeType) return '';
+      const pl = (rec.typePlans || {})[activeType] || { goals: [], roadblocks: [], tasks: [] };
+      const nt = pl.tasks.length, nd = pl.tasks.filter(t => t.done).length, deg = nt ? nd / nt * 360 : 0;
+      const adder = (kind, ph) => planAdd === kind
+        ? `<div class="padd"><input type="text" id="planIn" maxlength="300" placeholder="${ph}" aria-label="${ph}"><button type="button" class="btn small" id="planOk">Add</button><button type="button" class="btn secondary small" id="planNo">Cancel</button></div>`
+        : (may ? `<button type="button" class="linkbtn" data-plan-add="${kind}">+ Add a ${kind === 'goals' ? 'goal' : kind === 'roadblocks' ? 'roadblock' : 'task'}</button>` : '');
+      const list = (kind, none) => pl[kind].length ? `<ul>${pl[kind].map((x, k) => `<li><span>${esc(x.text)}</span>${may ? `<button type="button" class="x2" data-plan-rm="${kind}:${k}" aria-label="Remove">×</button>` : ''}</li>`).join('')}</ul>` : `<em>${none}</em>`;
+      return `<div class="plan" id="plan"><div class="plan-h">Plan for ${esc(S.typeName(activeType))}</div>
+        <div class="ring0" style="background:conic-gradient(#0F8A7E 0 ${deg.toFixed(0)}deg, var(--sunk) ${deg.toFixed(0)}deg 360deg)" role="img" aria-label="${nt ? `${nd} of ${nt} tasks done` : 'No tasks yet'}"><div>${nt ? `${nd}/${nt}<small>tasks done</small>` : '<small>No tasks yet</small>'}</div></div>
+        <div><div class="h g">Goals</div>${list('goals', 'No goals yet.')}${adder('goals', 'A goal for this group')}</div>
+        <div><div class="h r">Roadblocks</div>${list('roadblocks', 'No roadblocks.')}${adder('roadblocks', 'What’s in the way')}</div>
+        <div class="tasks"><div class="h t">Tasks ${nt}</div>${nt ? pl.tasks.map((t, k) => `<label class="task ${t.done ? 'done' : ''}"><input type="checkbox" data-plan-done="${k}" ${t.done ? 'checked' : ''} ${may ? '' : 'disabled'}><span>${esc(t.text)}</span>${may ? `<button type="button" class="x2" data-plan-rm="tasks:${k}" aria-label="Remove this task">×</button>` : ''}</label>`).join('') : '<em>No tasks yet for this group.</em>'}${adder('tasks', 'Something to do')}</div>
+      </div>`;
+    };
+    const leaders = rec.leadership || [];
+    const roles = sel => P.LEADERSHIP_ROLES.map(r => `<option ${r === sel ? 'selected' : ''}>${esc(r)}</option>`).join('');
+    const stake = `
+      <div class="card" id="sec-engagement"><div class="body">
+        <div class="rost-h"><div><h2>Engagement Roster</h2><p>Where each organization stands, by stakeholder type. Open a company to ${may ? 'add or change' : 'see'} its contact, barrier and notes.</p></div>
+          <div class="tools">${types.length ? `<input type="text" id="search" placeholder="Search org, contact or notes…" value="${esc(search)}" aria-label="Search organizations">` : ''}${may ? '<button class="btn" id="orgAdd" title="Add an organization" aria-label="Add an organization">+</button>' : ''}</div></div>
+        ${types.length ? `<div class="eng">
+          <div class="side"><div class="lbl">At a glance — every type</div>${types.map(trow).join('')}
+            <div class="legend">${P.ENGAGEMENTS.map(e => `<div><i style="background:${e.color}"></i>${esc(e.label)}</div>`).join('')}</div></div>
+          <div>${planPanel()}${rows.length ? `<div class="rlist">${rows.map(orgRow).join('')}</div>` : `<div class="muted">${q ? 'No organizations match.' : 'No organizations of this type yet.'}</div>`}</div>
+        </div>
+        <div class="sum"><strong>${committed.length} of ${visible.length} organization${visible.length === 1 ? '' : 's'} committed, across ${typesWithCommit.size} of ${types.length} relevant stakeholder type${types.length === 1 ? '' : 's'}.</strong> ${noCommit.length ? 'No commitment yet from: ' + noCommit.map(t => esc(S.typeName(t))).join(', ') + '. ' : ''}Chartering generally needs more than one type represented.</div>
+        ${hidden.length ? `<div class="note">${hidden.length} organization${hidden.length === 1 ? ' is' : 's are'} hidden because ${hidden.length === 1 ? 'its type isn’t' : 'their types aren’t'} one of this initiative’s: ${[...new Set(hidden.map(o => S.typeName(o.type)))].map(esc).join(', ')}. ${may ? '<button type="button" class="linkbtn" id="showHidden">Add their types</button>' : ''}</div>` : ''}
+        ` : `<div class="muted">No stakeholder types yet.${may ? ' Use + to add an organization; its type is added with it.' : ''}</div>`}
+      </div></div>
+      <div class="card" id="sec-leaders"><div class="body">
+        <div class="rost-h"><div><h2>Potential Leadership</h2><p>People who could lead the work once it’s chartered.</p></div></div>
+        ${leaders.length || may ? `<div class="lgrid">${leaders.map((l, i) => `<div class="lcard"><b>${esc(l.name)}</b><span>${[l.title, l.company].filter(Boolean).map(esc).join(' · ') || '<span class="muted">No title or company recorded</span>'}</span>${may
+            ? `<select data-role="${i}" aria-label="Role for ${esc(l.name)}">${roles(l.role)}</select><button type="button" class="btn secondary small x" data-rm-lead="${i}" aria-label="Remove ${esc(l.name)}">×</button>`
+            : `<span class="role">${esc(l.role)}</span>`}</div>`).join('')}${may && !leadAddOpen ? '<button type="button" class="lcard add" id="ldAddToggle">+ Add a Potential Leader</button>' : ''}</div>` : '<div class="muted">No potential leaders identified yet.</div>'}
+        ${may && leadAddOpen ? `<div class="lform"><input type="text" id="ldName" placeholder="Name" aria-label="Name"><input type="text" id="ldTitle" placeholder="Title" aria-label="Title"><input type="text" id="ldCompany" placeholder="Company" aria-label="Company"><select id="ldRole" aria-label="Role">${roles('')}</select><button class="btn" id="ldAdd">Add</button><button class="btn secondary" id="ldCancel">Cancel</button></div>` : ''}
+      </div></div>`;
+
+    $('app').innerHTML = tab === 'st' ? stake : overview;
+    ['onpOverview', 'onpUpdates'].forEach(k => { const a = $(k); if (a) a.style.display = tab === 'ov' ? '' : 'none'; });
+    ['onpEngagement', 'onpLeaders'].forEach(k => { const a = $(k); if (a) a.style.display = tab === 'st' ? '' : 'none'; });
     onp.show(true);
     onp.count('nUpd', updates.length);
-    onp.count('nLead', (rec.leadership || []).length);
+    onp.count('nLead', leaders.length);
     onp.count('nOrg', visible.length);
+    wire(may);
+  }
 
-    document.querySelectorAll('.trow').forEach(r => r.addEventListener('click', () => { activeType = r.dataset.type; render(); }));
+  function applyEdit(){
+    const v = $('edVal'); if (!v || !editing) return;
+    const val = v.value;
+    if (editing === 'name') { if (!val.trim()) { v.focus(); return; } rec.name = val.trim().slice(0, 160); document.title = rec.name + ' — MISMO Initiative Hub'; }
+    else if (editing === 'summary' || editing === 'whyRaised') rec[editing] = val.trim().slice(0, 4000);
+    else if (editing === 'broughtBy') rec.broughtBy = val.trim().slice(0, 200);
+    else if (editing === 'domain') rec.domain = val;
+    else if (editing === 'potentialSolutions') rec.potentialSolutions = val.split('\n').map(x => x.trim()).filter(Boolean).map(x => x.slice(0, 400));
+    const f = editing; editing = null; editDraft = null; setDirty(true); render();
+    const b = document.querySelector(`[data-edit="${f}"]`); if (b) b.focus();
+  }
+  function cancelEdit(){ const f = editing; editing = null; editDraft = null; render(); const b = document.querySelector(`[data-edit="${f}"]`); if (b) b.focus(); }
+  function openModal(cfg){
+    modal = cfg;
+    $('stageTitle').textContent = cfg.title;
+    $('stageFromTo').innerHTML = cfg.fromTo || ''; $('stageFromTo').hidden = !cfg.fromTo;
+    $('stageNote').textContent = cfg.note || ''; $('stageNote').hidden = !cfg.note;
+    $('stageDate').hidden = !cfg.date;
+    if (cfg.date) { $('stageDateLbl').textContent = cfg.date.label; $('stDate').value = cfg.date.value || todayLocal(); stCal.label(); }
+    $('stageSel').hidden = !cfg.select;
+    if (cfg.select) { $('stageSelLbl').textContent = cfg.select.label; $('stageSelect').innerHTML = cfg.select.options; }
+    $('stageClear').hidden = !cfg.onClear;
+    $('stageYes').textContent = cfg.yes;
+    $('stageScrim').hidden = false;
+    (cfg.select ? $('stageSelect') : cfg.date ? $('stDateBtn') : $('stageYes')).focus();
+  }
+  function closeModal(){
+    stCal.close(false); $('stageScrim').hidden = true;
+    const back = modal && modal.backSel; modal = null;
+    const el = back && document.querySelector(back); (el || $('tabOv')).focus();
+  }
+  function openStage(key, from){
+    const i = P.STAGES.findIndex(s => s.key === key), ci = Math.max(0, P.STAGES.findIndex(s => s.key === rec.stage)), back = i < ci;
+    const to = P.STAGES[i].label, cur = P.STAGES[ci].label;
+    const dateKey = key === 'in-approvals' ? 'approvalDate' : key === 'kickoff-set' ? 'kickoffDate' : null;
+    openModal({
+      title: (back ? 'Move back to ' : 'Move to ') + to + '?',
+      fromTo: `<span class="a">${esc(cur)}</span>${IC.arrow}<span>${esc(to)}</span>`,
+      note: back ? 'Moving back keeps everything else as it is, dates included.'
+        : key === 'launched' ? 'Launching will open a wizard, to create a new initiative or add this to an existing one, once that’s built. For now this marks it Launched.'
+        : dateKey ? `The ${dateKey === 'approvalDate' ? 'approval' : 'kick-off'} date shows in the header, beside the facilitator.` : 'This changes the stage.',
+      date: !back && dateKey ? { label: dateKey === 'approvalDate' ? 'Approval Date' : 'Kick-Off Date', value: rec[dateKey] || todayLocal() } : null,
+      yes: (back ? 'Move Back to ' : 'Move to ') + to,
+      backSel: '#pStage [aria-current="step"]',
+      onYes: v => { rec.stage = key; if (!back && dateKey) rec[dateKey] = v.date; setDirty(true); render(); }
+    });
+  }
+  function openDate(key){
+    const label = key === 'approvalDate' ? 'Approval' : 'Kick-Off';
+    openModal({ title: `The ${label} Date`, date: { label: label + ' Date', value: rec[key] }, yes: 'Save the Date', backSel: `[data-date="${key}"]`,
+      onYes: v => { rec[key] = v.date; setDirty(true); render(); },
+      onClear: () => { rec[key] = ''; setDirty(true); render(); } });
+  }
+  async function openFacilitator(){
+    if (!rosterNames) { try { rosterNames = await S.roster.load(); } catch (e) { rosterNames = []; } }
+    const names = [...new Set([...(rosterNames || []).map(n => typeof n === 'string' ? n : n && n.name).filter(Boolean), rec.facilitator].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    openModal({ title: 'MISMO Facilitator', select: { label: 'Facilitator', options: '<option value="">Not assigned</option>' + names.map(n => `<option ${n === rec.facilitator ? 'selected' : ''}>${esc(n)}</option>`).join('') },
+      note: 'From the facilitator list in the Admin Console.', yes: 'Save', backSel: '[data-fac]',
+      onYes: v => { rec.facilitator = v.sel; setDirty(true); render(); } });
+  }
+  $('stageNo').addEventListener('click', closeModal);
+  $('stageScrim').addEventListener('click', e => { if (e.target === $('stageScrim')) closeModal(); });
+  $('stageScrim').addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+    if (e.key !== 'Tab') return;      // keep the keyboard inside the pop-up
+    const f = [...$('stageScrim').querySelectorAll('button, select')].filter(x => !x.disabled && x.offsetParent !== null && x.tabIndex !== -1);
+    const i = f.indexOf(document.activeElement); e.preventDefault(); f[(i + (e.shiftKey ? f.length - 1 : 1) + f.length) % f.length].focus();
+  });
+  $('stageYes').addEventListener('click', () => { const m = modal; if (!m) return; const v = { date: $('stDate').value, sel: $('stageSelect').value };
+    stCal.close(false); $('stageScrim').hidden = true; modal = null; m.onYes(v); const el = m.backSel && document.querySelector(m.backSel); (el || $('tabOv')).focus(); });
+  $('stageClear').addEventListener('click', () => { const m = modal; if (!m || !m.onClear) return; stCal.close(false); $('stageScrim').hidden = true; modal = null; m.onClear(); $('tabOv').focus(); });
+  ['tabOv', 'tabSt'].forEach(id => { $(id).addEventListener('click', () => setTab($(id).dataset.tab));
+    $(id).addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); setTab(tab === 'ov' ? 'st' : 'ov', true); } }); });
+
+  function wire(may){
+    document.querySelectorAll('[data-go-tab]').forEach(b => b.addEventListener('click', () => setTab(b.dataset.goTab)));
+    document.querySelectorAll('#pStage [data-stage]').forEach(b => b.addEventListener('click', () => openStage(b.dataset.stage, b)));
+    /* editing in place */
+    document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); editing = b.dataset.edit; editDraft = null; render();
+      if (editing === 'dateLogged') dlCal.open(); else { const v = $('edVal'); if (v) { v.focus(); if (v.setSelectionRange && v.tagName !== 'SELECT') v.setSelectionRange(v.value.length, v.value.length); } } }));
+    document.querySelectorAll('[data-ed-done]').forEach(b => b.addEventListener('click', applyEdit));
+    document.querySelectorAll('[data-ed-cancel]').forEach(b => b.addEventListener('click', cancelEdit));
+    const ev = $('edVal');
+    if (ev) ev.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || ev.tagName !== 'TEXTAREA')) { e.preventDefault(); applyEdit(); }
+    });
+    dlCal.wire();
+    /* the roster */
+    document.querySelectorAll('.trow').forEach(r => { const pick = () => { activeType = r.dataset.type; planAdd = null; render(); };
+      r.addEventListener('click', e => { if (!e.target.closest('[data-rm-type]')) pick(); });
+      r.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === r) { e.preventDefault(); pick(); const n = document.querySelector(`.trow[data-type="${CSS.escape(r.dataset.type)}"]`); if (n) n.focus(); } }); });
+    document.querySelectorAll('[data-rm-type]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const t = b.dataset.rmType;
+      rec.stakeholderTypes = (rec.stakeholderTypes || []).filter(x => x !== t); if (rec.typePlans) delete rec.typePlans[t]; setDirty(true); render(); }));
     const s = $('search'); if (s) s.addEventListener('input', () => { search = s.value; render(); const n = $('search'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); });
+    document.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.toggle; openOrgs.has(i) ? openOrgs.delete(i) : openOrgs.add(i); render();
+      const n = document.querySelector(`[data-toggle="${i}"]`); if (n) n.focus(); }));
     document.querySelectorAll('[data-eng]').forEach(sel => sel.addEventListener('change', () => { rec.organizations[+sel.dataset.eng].engagement = sel.value; setDirty(true); render(); }));
+    document.querySelectorAll('[data-of]').forEach(inp => inp.addEventListener('input', () => { const o = rec.organizations[+inp.dataset.i]; if (!o) return; o[inp.dataset.of] = inp.value; setDirty(true);
+    }));
+    document.querySelectorAll('[data-bar-tick]').forEach(cb => cb.addEventListener('change', () => { const i = +cb.dataset.barTick;
+      if (cb.checked) barOpen.add(i); else { barOpen.delete(i); if (rec.organizations[i].barrier) { rec.organizations[i].barrier = ''; setDirty(true); } }
+      render(); const t = document.querySelector(`textarea[data-of="barrier"][data-i="${i}"]`); if (t) t.focus(); }));
+    document.querySelectorAll('[data-otype]').forEach(sel => sel.addEventListener('change', () => { const i = +sel.dataset.otype, t = sel.value;
+      if (t && !(rec.stakeholderTypes || []).includes(t)) rec.stakeholderTypes = [...(rec.stakeholderTypes || []), t];
+      rec.organizations[i].type = t; activeType = t; setDirty(true); render(); }));
+    document.querySelectorAll('[data-rm-org]').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.rmOrg, o = rec.organizations[i];
+      if (!confirm(`Remove ${o.org} from this initiative?`)) return;
+      rec.organizations.splice(i, 1); openOrgs.clear(); barOpen.clear(); pocEdit = null; Object.keys(noteDrafts).forEach(k => delete noteDrafts[k]); setDirty(true); render(); }));
+    /* the header's facilitator and dates */
+    document.querySelectorAll('[data-fac]').forEach(b => b.addEventListener('click', openFacilitator));
+    document.querySelectorAll('[data-date]').forEach(b => b.addEventListener('click', () => openDate(b.dataset.date)));
+    /* the plan for the chosen type */
+    const planOf = () => { rec.typePlans = rec.typePlans || {}; return rec.typePlans[activeType] = rec.typePlans[activeType] || { goals: [], roadblocks: [], tasks: [] }; };
+    document.querySelectorAll('[data-plan-add]').forEach(b => b.addEventListener('click', () => { planAdd = b.dataset.planAdd; render(); $('planIn').focus(); }));
+    const planIn = $('planIn');
+    const planAddNow = () => { const t = planIn.value.trim().slice(0, 300); if (!t) { planIn.focus(); return; }
+      const k = planAdd; planOf()[k].push(k === 'tasks' ? { text: t, done: false } : { text: t }); setDirty(true); render(); $('planIn').focus(); };
+    const planStop = () => { const k = planAdd; planAdd = null; render(); const b = document.querySelector(`[data-plan-add="${k}"]`); if (b) b.focus(); };
+    if (planIn) { $('planOk').addEventListener('click', planAddNow); $('planNo').addEventListener('click', planStop);
+      planIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); planAddNow(); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); planStop(); } }); }
+    document.querySelectorAll('[data-plan-rm]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); const [k, n] = b.dataset.planRm.split(':'); planOf()[k].splice(+n, 1); setDirty(true); render(); }));
+    document.querySelectorAll('[data-plan-done]').forEach(cb => cb.addEventListener('change', () => { planOf().tasks[+cb.dataset.planDone].done = cb.checked; setDirty(true); render();
+      const n = document.querySelector(`[data-plan-done="${cb.dataset.planDone}"]`); if (n) n.focus(); }));
+    /* a company's contact and notes */
+    document.querySelectorAll('[data-poc-edit]').forEach(b => b.addEventListener('click', () => { pocEdit = +b.dataset.pocEdit; render();
+      const f = document.querySelector(`[data-of="contact"][data-i="${pocEdit}"]`); if (f) f.focus(); }));
+    document.querySelectorAll('[data-poc-done]').forEach(b => b.addEventListener('click', () => { const i = pocEdit; pocEdit = null; render();
+      const e2 = document.querySelector(`[data-poc-edit="${i}"]`); if (e2) e2.focus(); }));
+    const postNote = i => { const ta = document.querySelector(`[data-note-in="${i}"]`), t = ta ? ta.value.trim().slice(0, 1000) : ''; if (!t) { if (ta) ta.focus(); return; }
+      const o = rec.organizations[i]; o.log = [{ text: t, by: S.keyName(), at: new Date().toISOString() }, ...(o.log || [])]; delete noteDrafts[i]; setDirty(true); render();
+      const n = document.querySelector(`[data-note-in="${i}"]`); if (n) n.focus(); };
+    document.querySelectorAll('[data-note-in]').forEach(ta => { ta.addEventListener('input', () => { noteDrafts[ta.dataset.noteIn] = ta.value; });
+      ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); postNote(+ta.dataset.noteIn); } }); });
+    document.querySelectorAll('[data-note-post]').forEach(b => b.addEventListener('click', () => postNote(+b.dataset.notePost)));
+    document.querySelectorAll('[data-note-rm]').forEach(b => b.addEventListener('click', () => { const [i, k] = b.dataset.noteRm.split(':').map(Number);
+      if (!confirm('Remove this note?')) return; rec.organizations[i].log.splice(k, 1); setDirty(true); render(); }));
+    document.querySelectorAll('[data-note-old]').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.noteOld;
+      if (!confirm('Remove the earlier notes?')) return; rec.organizations[i].notes = ''; setDirty(true); render(); }));
+    const sh = $('showHidden'); if (sh) sh.addEventListener('click', () => { const ts = new Set(rec.stakeholderTypes || []);
+      (rec.organizations || []).forEach(o => { if (o.type && !ts.has(o.type)) ts.add(o.type); }); rec.stakeholderTypes = [...ts]; setDirty(true); render(); });
+    /* leaders */
     document.querySelectorAll('[data-role]').forEach(sel => sel.addEventListener('change', () => { rec.leadership[+sel.dataset.role].role = sel.value; setDirty(true); }));
     document.querySelectorAll('[data-rm-lead]').forEach(b => b.addEventListener('click', () => { rec.leadership.splice(+b.dataset.rmLead, 1); setDirty(true); render(); }));
     const ldToggle = $('ldAddToggle'); if (ldToggle) ldToggle.addEventListener('click', () => { leadAddOpen = true; render(); $('ldName').focus(); });
-    const ldCancel = $('ldCancel'); if (ldCancel) ldCancel.addEventListener('click', () => { leadAddOpen = false; render(); });
+    const ldCancel = $('ldCancel'); if (ldCancel) ldCancel.addEventListener('click', () => { leadAddOpen = false; render(); const t = $('ldAddToggle'); if (t) t.focus(); });
     const ldAddBtn = $('ldAdd');
     if (ldAddBtn) ldAddBtn.addEventListener('click', () => {
-      const name = $('ldName').value.trim(); if (!name) return;
+      const name = $('ldName').value.trim(); if (!name) { $('ldName').focus(); return; }
       rec.leadership = [...(rec.leadership || []), { name, title: $('ldTitle').value.trim(), company: $('ldCompany').value.trim(), role: $('ldRole').value }];
-      setDirty(true); render();
-      // Stays open with fields cleared, so adding several people in a row doesn't
-      // require reopening the form each time.
-      $('ldName').focus();
+      setDirty(true); render(); $('ldName').focus();
     });
     /* ---- files ---- */
     const fAdd = $('fileAdd'), fIn = $('fileInput');
@@ -777,11 +1213,11 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       if (!text) { $('updText').focus(); return; }
       if (day > today) { $('updNote').className = 'uerr'; $('updNote').textContent = 'Pick today or an earlier date.'; $('updDateBtn').focus(); return; }
       rec.updates = [{ text, by, at: day === today ? new Date().toISOString() : day, _pending: true }, ...(rec.updates || [])];
-      $('updText').value = ''; $('updDate').value = today; dateLabel();
+      $('updText').value = ''; $('updDate').value = today; updDraft = null; updCal.label();
       setDirty(true); render();
     });
     $('updText') && $('updText').addEventListener('input', growUpd);
-    calWire();
+    updCal.wire();
     /* Enter starts a new line in the bigger box; Ctrl+Enter (or Cmd+Enter) adds the update */
     $('updText') && $('updText').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('updAdd').click(); } });
     const add = $('orgAdd'); if (add) add.addEventListener('click', openAddOrg);
@@ -818,10 +1254,14 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   $('saveBtn').addEventListener('click', async () => {
     if (!(await S.signInToSave())) { alert(S.explain('NO_KEY')); return; }   // shared sign-in, not prompt() boxes
     $('status').textContent = 'Saving…'; $('saveBtn').disabled = true;
-    const content = { ...rec }; delete content.savedBy; delete content.savedAt;
-    content.updates = (content.updates || []).map(({ _pending, ...u }) => u);
-    const r = await P.put(id, content, sha);
-    if (r.ok) { sha = r.sha; rec.updates = content.updates; setDirty(false); $('status').textContent = 'Saved'; render(); return; }
+    const raw = { ...rec }; delete raw.savedBy; delete raw.savedAt;
+    raw.updates = (raw.updates || []).map(({ _pending, ...u }) => u);
+    /* Saved through the general route, like Work Requests, so the newer fields are kept; the same field checks the
+       relay's own route ran happen here first (Perry, 5 Nov 2026). */
+    const v = P.validate(raw, S.typeKeys());
+    if (v.problems.length) { setDirty(true); $('status').textContent = ''; $('err').textContent = 'Not saved: ' + v.problems.join(' '); $('err').classList.remove('hidden'); return; }
+    const r = await P.save(id, v.content, sha);
+    if (r.ok) { sha = r.sha; Object.assign(rec, v.content); $('err').classList.add('hidden'); setDirty(false); $('status').textContent = 'Saved'; render(); return; }
     setDirty(true);
     const msg = r.reason === 'REJECTED' && r.detail ? `Not saved: ${r.detail.error}${r.detail.type ? ' (' + r.detail.type + ')' : ''}${r.detail.org ? ' — ' + r.detail.org : ''}.` : S.explain(r.reason);
     $('err').textContent = msg; $('err').classList.remove('hidden');
@@ -830,7 +1270,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   (async () => {
    try {
     if (!id) { $('app').innerHTML = '<div class="card"><div class="body">No initiative specified.</div></div>'; return; }
-    $('editLink').href = 'potential-edit.html?id=' + encodeURIComponent(id);
     await S.types.load();
     const r = await P.get(id);
     if (!r.ok) { $('app').innerHTML = `<div class="card"><div class="body">Could not load this initiative (${esc(r.reason)}).</div></div>`; return; }

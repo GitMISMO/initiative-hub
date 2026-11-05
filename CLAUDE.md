@@ -637,7 +637,19 @@ Updates and Stakeholders"). Checks: `initiative-hub-data/_dev/home-checks/t-pote
 - **Edit Details:** giving an organization a type that isn't ticked ticks it and says why. Unticking a type on purpose
   still hides its organizations, as before.
 
-## Potential initiatives: the new format (agreed 5 Nov 2026, NOT BUILT YET)
+## Potential initiatives: saving through the general route (5 Nov 2026)
+
+An EXISTING potential initiative now saves through the relay's general `/commit` route (`S.potential.save()` in
+dashboard-data.js), the way Work Requests and most apps save, so new fields need no relay change and no IT. The relay's
+`/potential/` route checks every field and keeps only its own list (it never kept `facilitator`), so it is used only to
+CREATE one (`S.potential.put()`, from Edit Details and from Work Requests), because it also adds the id to
+`data/potential/index.json`. `S.potential.validate()` runs the same checks in the page first and now also keeps
+`facilitator`, `approvalDate`, `kickoffDate`, `typePlans` ({type: {goals, roadblocks, tasks[{text, done}]}}), and on each
+organization `contactTitle`, `contactEmail` and `log` (dated notes [{text, by, at}]). `save()` re-reads the file just
+before writing and refuses with CONFLICT if it moved; `/commit` never forces. Edit Details with `?id=` now opens the
+initiative's own page, since saving from there would drop those fields. Checks: `t-potential-format.mjs` (60).
+
+## Potential initiatives: the new format (agreed and built 5 Nov 2026; launch wizard still to come)
 
 Perry's choices, from the design canvas pages "Potential Initiatives in the Active Format" (frames CdO, CdS, CdT) and
 "Potential Initiatives: Stages and Launch" (StA to StG):
@@ -658,9 +670,9 @@ Perry's choices, from the design canvas pages "Potential Initiatives in the Acti
   carries over and where it lands. Engagement (Committed, Interested...) carries over as a note, since active rosters
   track implementation. Launching asks who actually became leaders: nobody is carried over until confirmed. The potential
   page leaves the list but stays, linked, as history.
-- **Needs the relay (Request 11):** `validatePotential` keeps only today's fields, so a save would drop the approval and
-  kick-off dates, the plan for each type, a contact's separate name/title/email, dated notes per company, and the launch
-  link. Today a company keeps one contact line (160), a barrier (400) and one notes box (2000).
+- **No relay change needed after all (Perry, 5 Nov):** the dates, facilitator, plans, contact details and dated notes
+  are kept by saving through the general route (above). Only the launch wizard's "create a new initiative" is a separate
+  piece of work, since active initiatives live in the site's own code, not in the data the relay writes.
 - **For later (Perry):** active initiative pages have no home yet for the kick-off date, files, or status updates. Each
   needs a space there before launching can carry it across.
 - Built and tested but not pushed (5 Nov): the Stakeholder engagement search and + moved onto the heading's line, and

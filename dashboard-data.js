@@ -449,6 +449,39 @@
     } catch (e) { return { ok: false, reason: 'NETWORK' }; }
   }
 
+  /* Saves an EXISTING potential initiative through the relay's general /commit route, the way Work Requests save, so
+   * its newer fields (facilitator, stage dates, the plan for each type, contact title and email, dated notes) are kept.
+   * The /potential/ route keeps only its own list of fields; put() still goes that way to CREATE one, because that route
+   * also adds it to data/potential/index.json (Perry, 5 Nov 2026). Content should come from potentialValidate().
+   * Two people saving at once: the file's version is checked just before writing (CONFLICT if it moved), and /commit
+   * never forces, so GitHub refuses a commit that would discard another. Returns {ok, sha} like put(). */
+  async function potentialSave(id, content, sha) {
+    if (!hasKey()) return { ok: false, reason: 'NO_KEY' };
+    if (!RELAY_URL) return { ok: false, reason: 'NO_RELAY' };
+    try {
+      var cur = await potentialGet(id);
+      if (!cur.ok) return cur;
+      if (!cur.data) return { ok: false, reason: 'REJECTED', detail: { error: 'NOT_FOUND' } };
+      if ((cur.sha || null) !== (sha || null)) return { ok: false, reason: 'CONFLICT' };
+      var who = (window.ResourcesSession && window.ResourcesSession.current && window.ResourcesSession.current()) || {};
+      var savedBy = who.name || keyName() || 'Hub';
+      var payload = Object.assign({ id: id }, content, { savedBy: savedBy, savedAt: new Date().toISOString() });
+      var res = await relay('/commit', { method: 'POST', body: {
+        message: 'Update potential initiative "' + payload.name + '" (saved by ' + savedBy + ')',
+        files: [{ path: 'data/potential/' + id + '.json', content: JSON.stringify(payload, null, 2) + '\n' }]
+      }});
+      var body = null; try { body = await res.json(); } catch (e) {}
+      if (res.status === 401) return { ok: false, reason: (body && body.error === 'KEY_EXPIRED') ? 'KEY_EXPIRED' : 'KEY_BAD' };
+      if (res.status === 403) return { ok: false, reason: 'ORIGIN' };
+      if (res.status === 409 || res.status === 422) return { ok: false, reason: 'CONFLICT' };
+      if (res.status === 400) return { ok: false, reason: 'REJECTED', detail: body };
+      if (res.status === 502) return { ok: false, reason: (body && body.error === 'TOKEN') ? 'RELAY_TOKEN' : 'RELAY' };
+      if (!res.ok) return { ok: false, reason: 'HTTP_' + res.status };
+      var after = await potentialGet(id);          // /commit answers with the commit; the page needs the file's version
+      return after.ok ? { ok: true, sha: after.sha } : { ok: true, sha: null };
+    } catch (e) { return { ok: false, reason: 'NETWORK' }; }
+  }
+
   /* Mirrors the relay's rules. Returns { problems: [string], content: normalised }. Problems
    * are shown in the wizard; an empty list means the relay will accept it. */
   function potentialValidate(raw, typeKeys) {
@@ -472,7 +505,14 @@
       if (!org) problems.push('Organization #' + (i + 1) + ' has no name.');
       if (!typeKeys.has(type)) problems.push('Organization "' + (org || '#' + (i + 1)) + '" has unknown type "' + type + '".');
       if (!POT.ENGAGEMENTS.some(function (x) { return x.key === eng; })) problems.push('Organization "' + org + '" has unknown engagement "' + eng + '".');
-      orgs.push({ org: org, type: type, engagement: eng, contact: str(o && o.contact, 160), barrier: str(o && o.barrier, 400), notes: str(o && o.notes, 2000) });
+      var log = [];
+      (Array.isArray(o && o.log) ? o.log : []).slice(0, 200).forEach(function (n) {
+        var t = str(n && n.text, 1000), at = str(n && n.at, 40);
+        if (t) log.push({ text: t, by: str(n && n.by, 120), at: at && isFinite(Date.parse(at)) ? at : new Date().toISOString() });
+      });
+      log.sort(function (a, b) { return Date.parse(b.at) - Date.parse(a.at); });
+      orgs.push({ org: org, type: type, engagement: eng, contact: str(o && o.contact, 160), contactTitle: str(o && o.contactTitle, 120), contactEmail: str(o && o.contactEmail, 160),
+                  barrier: str(o && o.barrier, 400), notes: str(o && o.notes, 2000), log: log });
     });
     var leadership = [];
     (Array.isArray(r.leadership) ? r.leadership : []).forEach(function (l, i) {
@@ -491,9 +531,22 @@
       updates.push({ text: text, by: by, at: at || new Date().toISOString() });
     });
     updates.sort(function (a, b) { return Date.parse(b.at) - Date.parse(a.at); });
+    /* The stage dates (Perry: shown beside the facilitator) and the plan for each type (goals, roadblocks, tasks,
+       as on an active initiative's roster). Saved through the general route (save()), which keeps them. */
+    var dateOf = function (v, label) { var d = str(v, 10); if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) { problems.push(label + ' must be YYYY-MM-DD.'); return ''; } return d; };
+    var approvalDate = dateOf(r.approvalDate, 'approvalDate'), kickoffDate = dateOf(r.kickoffDate, 'kickoffDate');
+    var typePlans = {};
+    if (r.typePlans && typeof r.typePlans === 'object') Object.keys(r.typePlans).forEach(function (k) {
+      if (!typeKeys.has(k)) return;
+      var pl = r.typePlans[k] || {}, list = function (a, withDone) { var out = [];
+        (Array.isArray(a) ? a : []).slice(0, 40).forEach(function (x) { var t = str(x && x.text, 300); if (t) out.push(withDone ? { text: t, done: !!(x && x.done) } : { text: t }); }); return out; };
+      var plan = { goals: list(pl.goals), roadblocks: list(pl.roadblocks), tasks: list(pl.tasks, true) };
+      if (plan.goals.length || plan.roadblocks.length || plan.tasks.length) typePlans[k] = plan;
+    });
     return { problems: problems, content: {
       name: name, domain: str(r.domain, 80), stage: stage, summary: str(r.summary, 4000), whyRaised: str(r.whyRaised, 4000),
-      broughtBy: str(r.broughtBy, 200), facilitator: str(r.facilitator, 120), dateLogged: dateLogged, potentialSolutions: solutions, leadership: leadership, stakeholderTypes: types, organizations: orgs, updates: updates
+      broughtBy: str(r.broughtBy, 200), facilitator: str(r.facilitator, 120), dateLogged: dateLogged, approvalDate: approvalDate, kickoffDate: kickoffDate,
+      potentialSolutions: solutions, leadership: leadership, stakeholderTypes: types, typePlans: typePlans, organizations: orgs, updates: updates
     } };
   }
   /* Initials for the facilitator chip. Takes the first letter of the first and last
@@ -860,7 +913,7 @@
       if (window.ResourcesSession) window.ResourcesSession.onChange(apply);
       apply();
     },
-    potential: { list: potentialList, get: potentialGet, put: potentialPut, validate: potentialValidate, slug: potentialSlug,
+    potential: { list: potentialList, get: potentialGet, put: potentialPut, save: potentialSave, validate: potentialValidate, slug: potentialSlug,
                  STAGES: POT.STAGES, ENGAGEMENTS: POT.ENGAGEMENTS, LEADERSHIP_ROLES: POT.LEADERSHIP_ROLES,
                  stageLabel: function (k) { return potLabel(POT.STAGES, k); }, engagementLabel: function (k) { return potLabel(POT.ENGAGEMENTS, k); } },
     typeKeys: typeKeySet,

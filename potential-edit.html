@@ -25,7 +25,7 @@
 </script>
 <script src="/assets/session.js"></script>
 <script src="hub-gate.js"></script>
-<script src="dashboard-data.js?v=35980aa980"></script>
+<script src="dashboard-data.js?v=8ba7ae77e9"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
@@ -597,6 +597,10 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   /* ----- boot ----- */
   (async () => {
    try {
+    /* An existing initiative is edited in place on its own page now (Perry, 5 Nov 2026). Saving it from here would go
+       through the relay's /potential/ route, which keeps only its own fields and would drop the newer ones (facilitator,
+       stage dates, plans, contact details, dated notes), so this page only creates new ones. */
+    if (editId) { location.replace('potential.html?id=' + encodeURIComponent(editId)); return; }
     /* View access reads only (Perry, 5 Nov 2026): this page is all editing, so a viewer gets a note and a way back. */
     if (window.ResourcesSession && S.role() === 'view' && !S.getKey()) {
       $('title').textContent = 'View only';
