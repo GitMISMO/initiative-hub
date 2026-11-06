@@ -1684,7 +1684,7 @@ async function downloadAll(kind){
 /* the theme button, as the Hub's */
 const MOON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>';
 const SUN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
-function isDark(){ const t = document.documentElement.getAttribute('data-theme'); return t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches); }
+function isDark(){ return document.documentElement.getAttribute('data-theme') === 'dark'; }   /* light unless chosen (Perry, 6 Nov 2026) */
 function paintTheme(){ const dk = isDark(); $('#themeBtn').innerHTML = (dk ? SUN : MOON) + `<span>${dk ? 'Light Mode' : 'Dark Mode'}</span>`; }
 new MutationObserver(paintTheme).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
 paintTheme();

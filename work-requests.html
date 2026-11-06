@@ -33,18 +33,7 @@
     --hq-h:64px; --rail-w:240px;
     color-scheme:light;
   }
-  /* Deep Circuit dark mode, as on every Hub page */
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --dc:#EEF3F8; --sg:#B9C8D6; --sg-50:#8C9FB1; --backdrop:#07121D; --page:#112336;
-      --paper:#0B1826; --surface:#112336; --sunk:#172D44; --ink:#EEF3F8; --ink-2:#B9C8D6; --ink-3:#8C9FB1;
-      --line:#1A3048; --line-2:#243E5A; --line-3:#3A5A7C; --accent:#50A4DB; --accent-soft:#173A57; --link:#7AB9E1;
-      --good:#72C08E; --good-soft:#1F3328; --warn-ink:#E0A83C; --warn-soft:#3A3020; --bad:#F08579; --bad-soft:#3D2220;
-      --btn:#50A4DB; --btn-ink:#0F314C; --input-bg:#0E1C2C; --scrim:rgba(0,0,0,.65);
-      --shadow-s:0 1px 2px rgba(0,0,0,.45); --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 26px -18px rgba(0,0,0,.9);
-      color-scheme:dark;
-    }
-  }
+  /* Deep Circuit dark mode, as on every Hub page: only when chosen (Perry, 6 Nov 2026), never from the computer's setting */
   :root[data-theme="dark"]{
       --dc:#EEF3F8; --sg:#B9C8D6; --sg-50:#8C9FB1; --backdrop:#07121D; --page:#112336;
     --paper:#0B1826; --surface:#112336; --sunk:#172D44; --ink:#EEF3F8; --ink-2:#B9C8D6; --ink-3:#8C9FB1;
@@ -696,7 +685,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   </section>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="work-requests.js?v=3f704583ce"></script>
+<script src="work-requests.js?v=982f511d3c"></script>
 <script>
   // --- Narrowing the sections to icons: the button, or the backslash key (shared with the home page) ---
   const railHide = document.getElementById('railHide');
