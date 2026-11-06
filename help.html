@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en" data-rs-gate>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Help — MISMO Initiative Hub</title>
+<script>
+  // Before any CSS paints: the saved theme, and whether the sections were narrowed, so
+  // neither flashes. Deliberately tiny and synchronous.
+  (function(){
+    try {
+      if (localStorage.getItem('resources:hub:theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      if (localStorage.getItem('resources:hub:rail') === 'mini') document.documentElement.classList.add('railmini');
+    } catch (e) {}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Libre+Franklin:wght@400;500;600;700&display=swap">
+<style>
+  /* Summit HQ's own tokens, as the admin panel wears them. Every colour on the page comes
+     from here, so dark mode is a second block rather than a hunt through the rules. */
+  :root{
+    --navy:#0f314c; --navy-deep:#06202f; --navy-mid:#14486e; --sky:#50a4db; --sky-soft:#94c8e9;
+    --paper:#F1F6FA; --surface:#FFFFFF; --sunk:#E9F1F8;
+    --ink:#0f314c; --ink-2:#456179; --ink-3:#546F88;
+    --line:#E5EEF5; --line-2:#D5E2ED; --line-3:#ADC4D6;
+    --accent:#14486E; --accent-soft:#dcedf8;
+    --good:#0F7B5C; --good-soft:#E1F2EC;
+    --warn-ink:#8A5F16; --warn-soft:#F7EFE0;
+    --btn:#0f314c; --btn-ink:#FFFFFF;
+    --shadow-s:0 1px 2px rgba(15,49,76,.06);
+    --shadow:0 1px 2px rgba(15,49,76,.06), 0 10px 26px -18px rgba(15,49,76,.45);
+    /* Libre Franklin, as this page has always used (Perry, 29 Sept), rather than Summit HQ's IBM Plex.
+       The shared account button asks for it too, so the two now match. */
+    --font:"Libre Franklin",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --hq-h:64px; --rail-w:240px; --rail-mini:62px;
+    /* The domains keep their own colours (the color tour depends on them). */
+    --brand:#2A4DFF; --teal:#0E9488; --gold:#D97706; --rose:#C2255C; --violet:#7C3AED; --fuchsia:#C026D3;
+    --graphite:#475569; --emerald:#059669; --cyan:#0891B2; --indigo:#4F46E5; --crimson:#9F1239;
+    /* A potential initiative's stage, one colour each, in this palette */
+    --s-not-started:#546F88; --s-in-progress:#2C74A6; --s-in-approvals:#8A5F16; --s-kickoff-set:#14486E; --s-launched:#0F7B5C;
+    color-scheme:light;
+  }
+  html[data-theme="dark"]{
+    --paper:#0B1826; --surface:#112336; --sunk:#172D44;
+    --ink:#EEF3F8; --ink-2:#B9C8D6; --ink-3:#8C9FB1;
+    --line:#1A3048; --line-2:#243E5A; --line-3:#3A5A7C;
+    --accent:#50A4DB; --accent-soft:#173A57;
+    --good:#72C08E; --good-soft:#1F3328;
+    --warn-ink:#E0A83C; --warn-soft:#3A3020;
+    --btn:#50A4DB; --btn-ink:#0F314C;
+    --shadow-s:0 1px 2px rgba(0,0,0,.45);
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 26px -18px rgba(0,0,0,.9);
+    --brand:#5B85FF; --teal:#14B8A6; --gold:#F0930D; --rose:#E0417A; --violet:#9660F5; --fuchsia:#D946E4;
+    --graphite:#64748B; --emerald:#22C55E; --cyan:#22D3EE; --indigo:#818CF8; --crimson:#FB7185;
+    --s-not-started:#8C9FB1; --s-in-progress:#50A4DB; --s-in-approvals:#E0A83C; --s-kickoff-set:#A3CDE7; --s-launched:#72C08E;
+    color-scheme:dark;
+    /* Deep Circuit dark mode (29 Sept) */
+    --bad:#F08579; --bad-soft:#3D2220; --scrim:rgba(0,0,0,.65);
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-top:calc(var(--hq-h) + env(safe-area-inset-top,0px));padding-left:var(--rail-w)}
+  html.railmini body{padding-left:var(--rail-mini)}
+  svg.i{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ───────── the masthead, as Summit HQ wears it ───────── */
+  .hqtop{position:fixed;top:0;left:0;right:0;z-index:30;height:calc(var(--hq-h) + env(safe-area-inset-top,0px));
+    padding:env(safe-area-inset-top,0px) 22px 0;background:var(--navy);color:#fff;display:flex;align-items:center;
+    box-shadow:0 1px 0 rgba(80,164,219,.28)}
+  .logoplate{background:#fff;border-radius:5px;padding:9px 13px;display:flex;align-items:center;line-height:0;
+    flex:0 0 auto;box-shadow:0 1px 0 rgba(80,164,219,.35)}
+  .logoplate svg{height:24px;width:auto;display:block}
+  .mastrule{display:block;width:2px;height:34px;flex:0 0 auto;margin-inline:20px;border-radius:1px;background:var(--sky)}
+  .hqname{font-size:15.5px;font-weight:700;letter-spacing:-.005em;color:var(--sky);white-space:nowrap;
+    min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hqtop-r{margin-left:auto;display:flex;align-items:center;gap:13px;flex:0 0 auto}
+  .eyebrow-m{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600;white-space:nowrap}
+
+  /* ───────── the sections, down the left ───────── */
+  .rail{position:fixed;left:0;bottom:0;top:calc(var(--hq-h) + env(safe-area-inset-top,0px));width:var(--rail-w);z-index:20;
+    background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow:hidden auto;
+    box-shadow:1px 0 0 rgba(80,164,219,.22), 4px 0 18px rgba(6,32,47,.14)}
+  html.railmini .rail{width:var(--rail-mini)}
+  .rail-top{display:flex;align-items:center;gap:8px;padding:11px 10px 9px;border-bottom:1px solid rgba(80,164,219,.2)}
+  .rail-lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.55);padding-left:3px}
+  .railhide{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:5px;
+    color:rgba(255,255,255,.75);width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+  .railhide svg{width:16px;height:16px}
+  .railhide:hover{background:rgba(255,255,255,.14);color:#fff}
+  .railfind{position:relative;padding:11px 12px 3px}
+  .railfind svg{position:absolute;left:21px;top:20px;width:14px;height:14px;stroke:rgba(255,255,255,.5);pointer-events:none}
+  .railfind input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+    border-radius:6px;color:#fff;font:inherit;font-size:12.5px;padding:6px 10px 6px 30px}
+  .railfind input::placeholder{color:rgba(255,255,255,.5)}
+  .railfind input:focus{outline:2px solid var(--sky);outline-offset:-1px;background:rgba(255,255,255,.16)}
+  .rail nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 4px}
+  .rail nav button,.rail nav a,.theme-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+    border-radius:6px;color:rgba(255,255,255,.76);padding:8px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    white-space:nowrap;text-decoration:none}
+  .rail nav button svg,.rail nav a svg,.theme-btn svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .rail nav button:hover,.rail nav a:hover,.theme-btn:hover{color:#fff;background:rgba(255,255,255,.09)}
+  .rail nav button[aria-current]{color:#fff;font-weight:600;background:var(--navy-mid);box-shadow:inset 3px 0 0 var(--sky)}
+  .rail nav button[aria-current] svg{opacity:1;stroke:var(--sky)}
+  .rail nav button:focus-visible,.rail nav a:focus-visible,.theme-btn:focus-visible,.railhide:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .rail nav .count{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);
+    background:rgba(255,255,255,.1);border-radius:999px;padding:0 7px;line-height:18px}
+  .rail nav .count:empty{display:none}
+  .rail .foot{margin-top:auto;padding:8px 8px 10px;border-top:1px solid rgba(80,164,219,.2);display:flex;flex-direction:column;gap:1px}
+  /* narrowed: icons only, the chevron turned round to open it again */
+  html.railmini .rail-top{justify-content:center;padding-inline:0}
+  html.railmini .railhide{margin:0}
+  html.railmini .railhide svg{transform:scaleX(-1)}
+  html.railmini .rail-lbl,html.railmini .railfind,html.railmini .rail nav span,html.railmini .rail nav .count,
+  html.railmini .theme-btn span{display:none}
+  html.railmini .rail nav{padding-inline:6px;align-items:center}
+  html.railmini .rail nav button,html.railmini .rail nav a,html.railmini .theme-btn{justify-content:center;padding:10px 0;width:42px}
+  html.railmini .rail .foot{align-items:center}
+
+  /* ───────── the page ───────── */
+  main{max-width:none;padding:22px 24px 48px;min-width:0}   /* the library fills the screen, whatever its size (Perry, 6 Nov 2026) */
+  .view{display:flex;flex-direction:column;gap:14px}
+  .mast{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .mast > div{min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .mast h1{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em;line-height:1.05;margin:2px 0 0;text-wrap:balance}
+  .mast .sub{color:var(--ink-2);font-size:13px;margin-top:5px;max-width:78ch}
+  .btn{font:inherit;font-size:13px;font-weight:600;border-radius:4px;padding:7px 14px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line-2);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center}
+  .btn:hover{border-color:var(--line-3)}
+  .btn.p{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+  .btn:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+
+  /* ───────── the domains ───────── */
+  .tile-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  @media (max-width:1280px){.tile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:1000px){.tile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:520px){.tile-grid{grid-template-columns:1fr}}
+  .domain-tile{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;font:inherit;color:var(--ink);
+    background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:14px 16px;box-shadow:var(--shadow-s);cursor:pointer;
+    transition:border-color .15s ease, box-shadow .15s ease}
+  .domain-tile:hover{border-color:var(--line-3)}
+  .domain-tile.active{border:2px solid var(--tile-color);padding:13px 15px;box-shadow:var(--shadow)}
+  .domain-tile:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+  .tile-top-row{display:flex;align-items:center;gap:10px}
+  .tile-icon-wrap,.panel-icon-wrap{border-radius:8px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+    background:var(--tile-soft);color:var(--tile-color);transition:background .15s ease, color .15s ease}
+  html[data-theme="dark"] .tile-icon-wrap,html[data-theme="dark"] .panel-icon-wrap{background:color-mix(in srgb, var(--tile-color) 20%, transparent)}
+  .tile-icon-wrap{width:34px;height:34px}
+  .tile-icon-wrap svg{width:18px;height:18px}
+  .tile-name{font-size:14.5px;font-weight:700;letter-spacing:-.005em}
+  .tile-desc{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+  .tile-count{font-size:12px;font-weight:600;color:var(--ink-3);margin-top:auto}
+  /* The color tour: each tile lights in its domain's colour in turn. */
+  .domain-tile.intro-highlight{border-color:var(--tile-color);background:var(--tile-soft);transition:border-color .6s ease, background .6s ease}
+  .domain-tile.intro-highlight-slow{border-color:var(--tile-color);background:var(--tile-soft);transition:border-color .65s ease, background .65s ease}
+  html[data-theme="dark"] .domain-tile.intro-highlight,html[data-theme="dark"] .domain-tile.intro-highlight-slow{background:color-mix(in srgb, var(--tile-color) 16%, var(--surface))}
+  .domain-tile.intro-highlight .tile-icon-wrap{background:var(--tile-color);color:#fff;transition:background .6s ease, color .6s ease}
+  .domain-tile.intro-highlight-slow .tile-icon-wrap{background:var(--tile-color);color:#fff;transition:background .65s ease, color .65s ease}
+
+  /* ───────── a domain's initiatives, and search results ───────── */
+  #panelArea{scroll-margin-top:calc(var(--hq-h) + 16px)}
+  .panel{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+  .panel-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .panel-icon-wrap{width:30px;height:30px;border-radius:7px}
+  .panel-icon-wrap svg{width:17px;height:17px}
+  .panel-title{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+  .panel-sub{font-size:12.5px;color:var(--ink-3);font-weight:600}
+  .panel-head .btn{margin-left:auto}
+
+  .init-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  @media (max-width:1000px){.init-grid{grid-template-columns:1fr}}
+  .init-card{background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:16px 18px 12px;
+    display:flex;flex-direction:column;box-shadow:var(--shadow-s)}
+  /* The description stretches so every collapsed card in a row lines its buttons up at the
+     bottom. Once a card is expanded the buttons move to the end (order:10), so it stops. */
+  .detail-block-grow{flex:1;min-height:0}
+  .init-card.expanded .detail-block-grow{flex:0 0 auto}
+  .init-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .init-title{font-size:15px;font-weight:700;letter-spacing:-.005em;color:var(--ink)}
+  .metastrip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .mlab{font-size:11.5px;font-weight:600;color:var(--ink-3)}
+  .msep{width:1px;height:14px;background:var(--line-2);flex:0 0 auto}
+  .tag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;padding:0 9px;line-height:20px;border-radius:999px;white-space:nowrap}
+  .st-pub{background:var(--good-soft);color:var(--good)}
+  .st-dev{background:var(--warn-soft);color:var(--warn-ink)}
+  .st-app{background:var(--accent-soft);color:var(--accent)}
+  .facchip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+  .facchip .fac-av{width:20px;height:20px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    font-size:9.5px;font-weight:700;background:var(--accent-soft);color:var(--accent)}
+  .facnone{font-size:12.5px;color:var(--ink-3);font-style:italic}
+  .sample-badge{font-size:11px;font-weight:600;border:1px dashed var(--line-3);color:var(--ink-3);border-radius:999px;
+    padding:0 8px;line-height:18px;white-space:nowrap}
+  .detail-block{margin-top:14px}
+  .detail-label{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:3px}
+  .detail-text{font-size:13px;color:var(--ink-2);margin:0;line-height:1.5}
+  .detail-text.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .init-card.expanded .detail-text.clamp{display:block;-webkit-line-clamp:unset;overflow:visible}
+  .why-bullets{margin:0;padding-left:16px;font-size:13px;color:var(--ink-2);line-height:1.5}
+  .snapshot-stat{font-size:13px;font-weight:600;color:var(--ink);margin:0}
+  .card-actions-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
+  .init-card.expanded .card-actions-row{order:10}
+  /* "View dashboard" and "Open initiative": a filled blue button, as before, in this palette */
+  .view-link{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:4px;font-size:13px;font-weight:600;
+    text-decoration:none;white-space:nowrap;background:#2C74A6;color:#fff}
+  html[data-theme="dark"] .view-link{background:#50a4db;color:#06202f}
+  .view-link:hover{filter:brightness(1.12)}
+  .view-link:focus-visible,.expand-toggle:focus-visible{outline:2px solid var(--sky);outline-offset:2px;border-radius:2px}
+  .view-link-disabled{display:inline-flex;align-items:center;padding:6px 13px;border-radius:4px;border:1px dashed var(--line-3);
+    font-size:13px;color:var(--ink-3);font-style:italic;white-space:nowrap}
+  .expand-toggle{margin-left:auto;display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:4px 0;
+    font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+  .expand-toggle:hover{color:var(--ink)}
+  .expand-chevron{font-size:10px;transition:transform .15s ease}
+  .expand-chevron.open{transform:rotate(180deg)}
+  .expand-body{display:none}
+  .expand-body.open{display:block}
+  .none-yet{color:var(--ink-3) !important;font-style:italic}
+  .empty-hint{font-size:13px;color:var(--ink-3);text-align:center;padding:26px 0}
+
+  /* ───────── Potential Initiatives ───────── */
+  .steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:10px 0 0}
+  .step{font-size:10px;line-height:1.15;font-weight:600;color:var(--ink-3);text-align:center}
+  .step::before{content:'';display:block;height:4px;border-radius:2px;background:var(--line-2);margin-bottom:4px}
+  .step.on{font-weight:700;color:var(--s-in-progress)} .step.on::before{background:var(--s-in-progress)}
+  .step.on.s-not-started{color:var(--s-not-started)} .step.on.s-not-started::before{background:var(--s-not-started)}
+  .step.on.s-in-approvals{color:var(--s-in-approvals)} .step.on.s-in-approvals::before{background:var(--s-in-approvals)}
+  .step.on.s-kickoff-set{color:var(--s-kickoff-set)} .step.on.s-kickoff-set::before{background:var(--s-kickoff-set)}
+  .step.on.s-launched{color:var(--s-launched)} .step.on.s-launched::before{background:var(--s-launched)}
+  .pot-empty{background:var(--surface);border:1px dashed var(--line-3);border-radius:8px;padding:48px 24px;text-align:center;color:var(--ink-3);font-size:13.5px}
+  .pot-empty strong{display:block;font-size:16px;color:var(--ink);margin-bottom:6px}
+
+  /* phone width: the sections shrink to icons, as Summit HQ's do */
+  @media (max-width:760px){
+    :root{--hq-h:55px;--rail-w:58px;--rail-mini:58px}
+    .hqtop{padding-inline:12px}
+    .logoplate{padding:7px 10px}
+    .logoplate svg{height:18px}
+    .mastrule{height:30px;margin-inline:10px}
+    .hqname{font-size:13px}
+    .eyebrow-m{display:none}
+    .railhide{display:none}
+    .rail-lbl,.railfind,.rail nav span,.rail nav .count,.theme-btn span{display:none}
+    .rail-top{justify-content:center;padding-inline:0;min-height:12px}
+    .rail nav{padding-inline:6px;align-items:center}
+    .rail nav button,.rail nav a,.theme-btn{justify-content:center;padding:10px 0;width:42px}
+    .rail .foot{align-items:center}
+    main{padding:16px 16px 28px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+
+  /* Work Requests, in every Hub page's sidebar (Sept 30, 2026). Shown to people with access. */
+  .rail .wr-group{border-top:1px solid rgba(80,164,219,.16);margin-top:4px;padding-top:7px}
+  .rail .wr-group[hidden]{display:none}
+  .rail .wr-group > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 2px}
+  html.railmini .rail .wr-group > span{display:none}
+  @media (max-width:760px){ .rail .wr-group > span{display:none} }
+/* ===== The initiative library, redone (Perry, 6 Nov 2026; canvas page "Initiative Library: New Designs", B1): the
+   dashboards' header; eight lifecycle domains A to Z, each one line that opens to narrow cards; pins; a stakeholder
+   type filter; search across names and stakeholder types. ===== */
+.view.lib{gap:0;padding:0}
+.lb-band{position:relative;overflow:hidden;border-radius:16px;background:linear-gradient(120deg,#0F314C 0%,#14486E 58%,#0F7A86 135%);color:#fff;padding:22px 26px 0}
+.lb-band .waves{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.16}
+.lb-row{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.lb-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94C8E9}
+.lb-band h1{font-family:Archivo,'Libre Franklin',sans-serif;font-size:32px;font-weight:800;letter-spacing:-.02em;margin:6px 0 0;color:#fff}
+.lb-band .lb-sub{color:#cfe3f1;font-size:14px;margin:6px 0 0;max-width:640px}
+.lb-band .btn.lb-new{background:#fff;color:#0F314C;border-color:#fff;white-space:nowrap}
+.lb-stats{position:relative;display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
+.lb-stat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 14px;min-width:120px}
+.lb-stat b{display:block;font-family:Archivo,sans-serif;font-size:23px;font-weight:800;line-height:1.1;color:#fff} .lb-stat span{font-size:12px;color:#a9c7dc}
+.lb-search{position:relative;margin-top:16px;max-width:640px;display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px 14px;color:#546F88;box-shadow:0 10px 30px -12px rgba(0,0,0,.4)}
+.lb-search input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:15px;color:#0F314C;background:transparent}
+.lb-search kbd{font-size:11px;border:1px solid #D5E2ED;border-radius:5px;padding:1px 6px;color:#546F88}
+.lb-search:focus-within{box-shadow:0 0 0 3px rgba(116,191,235,.6),0 10px 30px -12px rgba(0,0,0,.4)}
+.lb-tabs{position:relative;display:flex;gap:10px;margin:18px -26px 0;padding:8px 26px 0;background:rgba(5,22,36,.28);border-top:1px solid rgba(255,255,255,.08);overflow-x:auto}
+.lb-tab{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 11px;border-radius:11px 11px 0 0;font-size:13.5px;font-weight:600;color:#cfe3f1;white-space:nowrap}
+.lb-tab:hover{color:#fff} .lb-tab[aria-selected="true"]{background:var(--paper);color:var(--ink);font-weight:700}
+.lb-tab .n{font-size:11px;background:rgba(255,255,255,.16);border-radius:999px;padding:0 7px} .lb-tab[aria-selected="true"] .n{background:var(--sunk)}
+.lb-tab:focus-visible{outline:2px solid #74BFEB;outline-offset:-2px}
+.lb-body{padding:18px 0 32px}
+.lb-pins{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:14px 16px;margin-bottom:16px}
+.lb-pins[hidden]{display:none}
+.lb-sech{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap} .lb-sech h2{font-family:Archivo,sans-serif;font-size:17px;margin:0} .lb-sech span{color:var(--ink-3);font-size:13px}
+.lb-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.lb-tools .grow{flex:1}
+.lb-tools label{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.lb-sel{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line-2);border-radius:8px;padding:6px 10px;background:var(--surface);color:var(--ink-2);min-height:34px}
+.lb-sel.stk{min-width:240px}
+.lb-btn2{font:inherit;font-size:12.5px;font-weight:700;border:1px solid var(--line-3);border-radius:8px;padding:6px 12px;background:var(--surface);color:var(--accent);cursor:pointer;min-height:34px}
+.lb-res{display:flex;align-items:center;gap:12px;background:#0F314C;color:#fff;border-radius:12px;padding:9px 12px 9px 16px;margin-bottom:10px;font-size:13.5px}
+.lb-res[hidden]{display:none} .lb-res b{color:#94C8E9} .lb-res .lb-btn2{margin-left:auto}
+.lb-dom{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:background .6s ease,border-color .6s ease}
+.lb-dom.none{opacity:.5}
+.lb-dom-h{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:22px 34px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px}
+.lb-dom-h:focus-visible{outline:2px solid var(--sky,#74BFEB);outline-offset:-2px;border-radius:14px}
+.lb-dom-h .chev{color:var(--ink-2);transition:transform .2s ease;display:inline-flex} .lb-dom.open .lb-dom-h .chev{transform:rotate(90deg)}
+.lb-sw{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Archivo,sans-serif;font-weight:800;font-size:13px;background:var(--dc)}
+.lb-nm b{display:block;font-family:Archivo,sans-serif;font-size:15.5px;color:var(--ink)} .lb-nm span{font-size:12px;color:var(--ink-3)}
+.lb-rgt{display:flex;align-items:center;gap:14px;justify-content:flex-end}
+.lb-cnt{font-size:12.5px;color:var(--ink-2);white-space:nowrap;text-align:right} .lb-cnt b{color:var(--ink)} .lb-cnt .none{color:var(--ink-3);font-style:italic}
+.lb-strip{display:flex;gap:4px}
+.lb-strip i{width:22px;height:22px;border-radius:6px;display:block;box-sizing:border-box;background:var(--dc)}
+.lb-strip i.dev{opacity:.55}
+.lb-strip i.pot{background:color-mix(in srgb,var(--dc) 16%,var(--surface));border:1.5px dashed color-mix(in srgb,var(--dc) 50%,var(--surface))}
+.lb-strip i.faded{opacity:.18}
+.lb-dom-b{padding:2px 14px 14px 82px}
+.lb-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}   /* narrow cards; more per row on a wider screen */
+.lb-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:92px;padding:11px 12px;border-radius:12px;color:#fff;text-decoration:none;box-shadow:0 10px 22px -18px rgba(15,49,76,.7);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--dc) 45%,#0F314C) 0%,var(--dc) 115%);transition:transform .15s ease,box-shadow .15s ease;cursor:pointer;font:inherit;text-align:left;border:0}
+.lb-card:hover{transform:translateY(-2px);box-shadow:0 14px 26px -16px rgba(15,49,76,.75)}
+.lb-card:focus-visible{outline:3px solid var(--sky,#74BFEB);outline-offset:2px}
+.lb-card b{font-family:Archivo,sans-serif;font-size:13.5px;font-weight:800;line-height:1.25;padding-right:30px}
+.lb-card .st{align-self:flex-start;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.lb-card .st.pub{background:#E3F3EC;color:#0b5c44} .lb-card .st.dev{background:#FBF1DE;color:#7a5413} .lb-card .st.app{background:#E4F2FB;color:#14486E}
+.lb-card .mt{font-size:11.5px;font-weight:700;margin-top:-2px}
+.lb-card.pot{color:var(--ink);background:color-mix(in srgb,var(--dc) 14%,var(--surface));border:1.5px dashed color-mix(in srgb,var(--dc) 50%,var(--surface));box-shadow:none}
+.lb-card.pot .st{background:var(--surface);color:color-mix(in srgb,var(--dc) 60%,var(--ink))}
+.lb-card[hidden]{display:none}
+.lb-pin{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:1}
+.lb-card.pot .lb-pin{border-color:var(--line-2);background:var(--surface);color:var(--ink-3)}
+.lb-pin[aria-pressed="true"]{background:#DCEDF8;border-color:#DCEDF8;color:#14486E} .lb-pin[aria-pressed="true"] path{fill:currentColor}
+.lb-pin:focus-visible{outline:2px solid var(--sky,#74BFEB);outline-offset:1px}
+.lb-empty{font-size:12.5px;color:var(--ink-3);font-style:italic}
+.lb-dom.intro-highlight{border-color:var(--dc);background:color-mix(in srgb,var(--dc) 12%,var(--surface))}
+.lb-dom.intro-highlight .lb-sw{transform:scale(1.08);transition:transform .3s ease}
+dialog.lb-dlg{border:0;border-radius:16px;padding:0;max-width:min(560px,calc(100vw - 32px));width:100%;background:var(--surface);color:var(--ink);box-shadow:0 24px 60px -20px rgba(6,32,47,.6)}
+dialog.lb-dlg::backdrop{background:rgba(6,32,47,.45)}
+.lb-dlg .dh{padding:18px 20px;color:#fff;background:linear-gradient(120deg,color-mix(in srgb,var(--dc) 45%,#0F314C),var(--dc) 140%)}
+.lb-dlg .dh h3{font-family:Archivo,sans-serif;font-size:19px;margin:6px 0 0}
+.lb-dlg .db{padding:16px 20px 20px} .lb-dlg .db h4{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 4px} .lb-dlg .db p{margin:0;line-height:1.55}
+.lb-dlg .db ul{margin:0;padding-left:18px} .lb-dlg .acts{display:flex;justify-content:flex-end;padding:0 20px 18px}
+@media (max-width:700px){ .lb-band{padding:18px 16px 0;border-radius:12px} .lb-tabs{margin:16px -16px 0;padding:8px 16px 0} .lb-band h1{font-size:25px}
+  .lb-dom-h{grid-template-columns:18px 30px minmax(0,1fr);row-gap:6px} .lb-rgt{grid-column:3;justify-content:flex-start} .lb-dom-b{padding-left:14px}
+  .lb-cards{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} .lb-sel.stk{min-width:0;flex:1} }
+@media (prefers-reduced-motion: reduce){ .lb-card,.lb-dom,.lb-dom-h .chev{transition:none} .lb-card:hover{transform:none} }
+
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+  <script src="/assets/session.js"></script>
+<script src="hub-gate.js"></script>
+<script src="dashboard-data.js?v=6a91d1367f"></script>
+
+<style>
+/* Help (Perry, 6 Nov 2026): Jonna's pattern, in the library's header */
+.view.help{gap:0;padding:0}
+.hp-switch{position:relative;display:inline-flex;gap:4px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:3px;margin-top:14px}
+.hp-switch button{all:unset;cursor:pointer;font-size:12.5px;font-weight:700;color:#cfe3f1;padding:5px 14px;border-radius:999px}
+.hp-switch button[aria-pressed="true"]{background:#fff;color:#0F314C} .hp-switch button:focus-visible{outline:2px solid #74BFEB}
+.lb-tabs .lbl{align-self:center;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#94C8E9;margin-right:6px}
+.hp-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;margin-top:18px}
+.hp-card{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;padding:18px 20px;box-shadow:0 1px 2px rgba(15,49,76,.06),0 10px 26px -20px rgba(15,49,76,.45)}
+.hp-card h2{font-family:Archivo,sans-serif;font-size:16.5px;margin:0 0 6px;color:var(--ink)} .hp-card h2.more{margin-top:18px}
+.hp-who{color:var(--ink-2);margin:0 0 12px;font-size:14px}
+.hp-steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.hp-steps li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:14px;line-height:1.5}
+.hp-steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;background:#0F314C;color:#fff;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center}
+html[data-theme="dark"] .hp-steps li::before{background:#50A4DB;color:#0F314C}
+.hp-good{margin:0;padding-left:18px;font-size:14px;line-height:1.55} .hp-good li{margin:4px 0}
+.hp-what{margin:0;font-size:14px;line-height:1.6;color:var(--ink-2)}
+.hp-q{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--sunk);font-size:13px;color:var(--ink-2)} .hp-q b{color:var(--ink)} .hp-q a{color:var(--accent)}
+.hp-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.hp-node{border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;background:var(--sunk);color:var(--ink);border:1px solid var(--line-2);text-align:center}
+.hp-node small{display:block;font-weight:600;font-size:11px;color:var(--ink-3)}
+.hp-node.go{background:#E3F3EC;border-color:#BFE3D2;color:#0b5c44} .hp-node.no{background:#FBE9E7;border-color:#F1C9C4;color:#8a2a20} .hp-node.ask{background:#FBF1DE;border-color:#EBD7AE;color:#7a5413}
+.hp-node.go small,.hp-node.no small,.hp-node.ask small{color:inherit;opacity:.8}
+.hp-node.dk{background:#0F314C;color:#fff;border-color:#0F314C} .hp-node.dk small{color:#a9c7dc}
+.hp-arr{color:var(--ink-3);font-weight:800} .hp-split{display:flex;flex-direction:column;gap:6px}
+@media (max-width:900px){ .hp-grid{grid-template-columns:1fr} }
+#hubHelpBtn[aria-current="page"]{background:rgba(116,191,235,.18);color:#fff;box-shadow:inset 3px 0 0 #74BFEB;font-weight:600}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="mismo-logo" viewBox="0 0 708 108"><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-body, #0f314c)"><path d="M5917 1065 c-169 -46 -279 -153 -335 -323 -21 -65 -25 -96 -25 -197
+0 -101 4 -132 25 -197 57 -172 168 -280 335 -323 84 -22 723 -22 808 0 222 58
+355 253 355 520 0 270 -132 459 -361 520 -74 20 -730 20 -802 0z m692 -320
+c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
+-297 0 -307 2 -346 83 -30 61 -31 198 -2 262 41 93 68 100 368 97 219 -2 243
+-4 274 -22z M0 545 l0 -515 225 0 225 0 2 296 3 296 116 -294 116 -293 197 0 198
+0 119 295 118 295 1 -297 0 -298 225 0 225 0 0 515 0 515 -337 -2 -338 -3
+-104 -264 c-80 -204 -107 -260 -113 -245 -5 10 -52 129 -106 264 l-98 245
+-337 3 -337 2 0 -515z M1892 1044 l-22 -15 0 -483 c0 -455 1 -484 18 -499 16 -15 48 -17
+246 -17 128 0 235 4 246 10 32 17 34 57 4 95 -33 44 -64 143 -64 206 l0 49
+203 0 c191 0 205 -1 222 -20 10 -11 34 -24 54 -30 49 -13 586 -13 612 0 22 12
+26 62 7 78 -8 6 -174 15 -413 21 -502 15 -549 23 -628 110 -43 48 -57 93 -57
+187 0 82 19 156 55 208 30 44 32 77 7 99 -27 25 -456 25 -490 1z M3716 1044 c-23 -22 -20 -31 19 -77 43 -49 78 -155 73 -218 l-3 -44
+-204 -3 c-194 -2 -205 -1 -218 17 -24 35 -78 41 -355 41 -255 0 -269 -1 -288
+-20 -27 -27 -26 -58 3 -70 12 -5 202 -14 422 -19 421 -12 476 -18 555 -62 92
+-51 132 -159 111 -299 -12 -77 -34 -129 -77 -179 -23 -28 -25 -36 -16 -57 l12
+-24 215 0 215 0 2 306 3 306 120 -303 120 -304 197 -3 196 -2 118 296 119 297
+3 -296 2 -297 225 0 225 0 0 515 0 515 -338 0 -337 0 -104 -265 c-58 -146
+-106 -263 -108 -261 -2 2 -50 120 -107 262 l-104 259 -340 3 c-300 2 -342 0
+-356 -14z"/></g><g transform="translate(0.000000,108.000000) scale(0.100000,-0.100000)" fill="var(--logo-s, #50a4db)"><path d="M2485 1046 c-44 -20 -111 -94 -136 -151 -27 -60 -37 -198 -20 -263
+13 -48 68 -115 114 -138 64 -34 162 -43 562 -55 239 -6 405 -15 413 -21 19
+-16 15 -66 -7 -78 -26 -13 -563 -13 -612 0 -20 6 -44 19 -54 30 -17 19 -31 20
+-222 20 l-203 0 0 -49 c0 -81 34 -172 86 -230 78 -87 31 -81 672 -81 l568 0
+46 29 c79 50 122 121 139 231 21 140 -19 248 -111 299 -79 44 -134 50 -555 62
+-220 5 -410 14 -422 19 -29 12 -30 43 -3 70 19 19 33 20 288 20 277 0 331 -6
+355 -41 13 -18 24 -19 218 -17 l204 3 3 44 c4 60 -31 168 -70 215 -17 21 -52
+52 -77 67 l-45 29 -550 0 c-440 -1 -557 -3 -581 -14z"/></g></symbol>
+</defs></svg>
+
+<header class="hqtop">
+  <span class="logoplate"><svg role="img" aria-label="MISMO" viewBox="0 0 708 108"><use href="#mismo-logo"/></svg></span>
+  <span class="mastrule"></span>
+  <span class="hqname">Initiative Hub</span>
+  <span class="hqtop-r"><span class="eyebrow-m">Programs &amp; Operations</span>
+    <!-- The shared account bubble every tool shows in this spot (session.js fills it).
+         Admins reach the admin panel from its menu. -->
+    <div id="rs-account"></div></span>
+</header>
+
+<aside class="rail" id="rail">
+  <div class="rail-top">
+    <span class="rail-lbl">Sections</span>
+    <button class="railhide" id="railHide" type="button" aria-label="Narrow the sections" title="Narrow the sections (backslash)">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+  </div>
+  <nav aria-label="Initiative Hub">
+    <a href="index.html" title="MISMO Initiatives">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg>
+      <span>MISMO Initiatives</span></a>
+    <a href="index.html#potential" title="Potential Initiatives">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>
+      <span>Potential Initiatives</span></a>
+    <a href="calendar.html" title="Meeting Calendar">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M8 3v4 M16 3v4 M3 10h18"/></svg>
+      <span>Meeting Calendar</span></a>
+  </nav>
+  <div class="wr-group" id="wrGroup" hidden><span>Work Requests</span>
+    <nav aria-label="Work requests">
+      <a href="work-requests.html#new" title="New Work Request"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg><span>New Work Request</span></a>
+      <a href="work-requests.html#mine" title="My Work Requests"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5"/></svg><span>My Work Requests</span></a>
+      <a href="work-requests.html#all" title="All Work Requests"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h10"/></svg><span>All Work Requests</span></a>
+    </nav>
+  </div>
+  <div class="foot">
+    <button type="button" class="theme-btn" id="themeToggleBtn"></button>
+  </div>
+</aside>
+
+<main>
+  <section class="view lib help" id="view-help" aria-label="Help"></section>
+</main>
+<script>
+  /* Help (Perry, 6 Nov 2026): one guide per kind of user, for the Hub and for Work Requests (#work-requests).
+     Built by _dev/make-help.py from index.html's frame; the wording lives there. */
+  const GUIDES = {"hub": {"name": "the Initiative Hub", "what": "The Initiative Hub keeps MISMO’s initiatives in one place: the library of MISMO and potential initiatives by lifecycle domain, each initiative’s dashboard, potential initiatives’ pages, and the Meeting Calendar.", "flowTitle": "How an Initiative Comes Together", "flow": [["An Idea", "Ideas Inbox", ""], ["A Work Request", "confirmed, then approved", ""], ["Potential Initiative", "Not Started → In Progress → In Approvals → Kick Off Set", "ask"], ["Launched", "", ""], ["MISMO Initiative", "In Development → Published", "dk"]], "roles": [["Facilitator", "You lead one or more initiatives for MISMO and keep their pages current.", ["Open your initiative from the Initiative Library: each lifecycle domain opens to its initiatives, and Pin keeps yours at the top.", "On its dashboard, keep the roster current: each organization’s engagement, contact and notes. Update deliverables and meetings as the work moves.", "For a potential initiative, add status updates as things happen, and fill in its stakeholders and potential leaders on the Stakeholders & Leadership tab.", "Move its stage when it’s ready: In Approvals and Kick Off Set ask for the date, which shows beside the facilitator.", "Start a new one from + New Potential Initiative in the library."], ["Every change saves itself a moment later. “All changes saved” in the corner says it’s done; there is no Save button.", "If someone else saves the same page while you’re editing, you’ll be asked to reload, so nobody’s work is overwritten.", "Search the library by stakeholder type, like “LOS Provider,” to find every initiative that involves one.", "Files on a potential initiative open only for people signed in with access."]], ["Anyone with View Access", "You follow MISMO’s initiatives. You can read everything here; changing it needs edit access.", ["Open MISMO Initiatives in the sidebar for the Initiative Library. Each lifecycle domain is one line; open one to see its initiatives.", "Search by name, description, facilitator or stakeholder type, or pick a stakeholder type to see every initiative that involves it.", "Pin the initiatives you follow; they gather at the top of the library.", "Open a card for its dashboard: what the initiative is building, who leads it, its stakeholders and when it meets.", "See every workgroup meeting in the Meeting Calendar."], ["“View only” shows on pages you can read but not change.", "Pins are kept in this browser.", "Ask Perry Williams if you need edit access."]], ["Hub Admin", "You look after the Hub itself: who can use it, and the lists every page relies on.", ["Give people access in People & Access in the Admin Console: view, edit or admin.", "Keep the facilitator list and the stakeholder types current; every dashboard and potential initiative uses them.", "Review new potential initiatives and Work Requests as they come in."], ["Every change saves itself a moment later, on every page.", "Questions, or something not working: tell Perry Williams."]]]}, "work-requests": {"name": "Work Requests", "what": "Work Requests is how new work reaches MISMO. Facilitators send them; Programs & Operations confirms each one, and the executive team decides.", "flowTitle": "How a Work Request Moves", "flow": [["An Idea", "Ideas Inbox", ""], ["Work Request Sent", "To Confirm", ""], ["Confirmed", "gets its WR number", ""], ["Approval Queue", "with the executive team", ""], [["Approved", "", "go"], ["More Information", "", "ask"], ["Declined", "to the Archive, with the reason", "no"]], [["A New Potential Initiative", "", "dk"], ["Part of an Existing Initiative", "", "dk"]]], "roles": [["Facilitator", "Sending Work Requests is a core part of your role: it’s how your workgroup’s new work, or a change to a standard, reaches MISMO.", ["When your workgroup has new work to propose, choose New Work Request in the sidebar.", "Fill in each section of the form: what the work is, why it matters and who supports it. Your draft is saved, so you can finish it after your next call.", "Send it. It appears in My Work Requests, where you can follow it every step of the way.", "Programs & Operations confirms it and gives it its Work Request number, like WR2026_12, then it goes to the executive team.", "If the executive team needs more information, My Work Requests shows what they asked. Once it’s decided, you’ll see the outcome and where the work goes next."], ["My Work Requests lists every request you’ve sent and where each one stands.", "An approved request becomes a new potential initiative, or joins an initiative already under way.", "Not ready for a full request? Send an idea instead; Programs & Operations reaches out about it."]], ["Programs & Operations", "You confirm each Work Request, take it to the executive team and record what they decide.", ["Open All Work Requests. To Confirm lists the requests that have just come in.", "Confirm a request to give it its Work Request number, like WR2026_12. It moves to the Approval Queue.", "Set the date it goes to the executive team.", "After they meet, record the decision: approved, more information needed, or declined with the reason.", "For an approved request, choose where it goes: a new potential initiative or an existing initiative.", "Check the Ideas Inbox for ideas people have sent, reach out, and turn good ones into Work Requests."], ["Declined requests move to the Archive with their reason.", "Every Step shows all the requests at once, wherever they are."]]]}};
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const WAVES = '<svg class="waves" viewBox="0 0 1200 260" preserveAspectRatio="none" aria-hidden="true"><path d="M0 200 C 300 120, 600 260, 1200 150" stroke="#94C8E9" stroke-width="1.5" fill="none"/><path d="M0 230 C 350 160, 700 280, 1200 190" stroke="#94C8E9" stroke-width="1.5" fill="none"/></svg>';
+  const view = document.getElementById('view-help');
+  let guide = location.hash.slice(1) === 'work-requests' ? 'work-requests' : 'hub', role = {};
+  const node = n => `<div class="hp-node ${n[2] || ''}">${esc(n[0])}${n[1] ? `<small>${esc(n[1])}</small>` : ''}</div>`;
+  function render(focus){
+    const G = GUIDES[guide], r = Math.min(role[guide] || 0, G.roles.length - 1), R = G.roles[r];
+    view.innerHTML = `<header class="lb-band">${WAVES}<div class="lb-eyebrow" style="position:relative">Help</div><h1 style="position:relative">How ${esc(G.name.replace(/^the /, 'the '))} Works</h1>
+        <p class="lb-sub">For each person who uses it: pick who you are. Questions: Perry Williams.</p>
+        <div class="hp-switch" role="group" aria-label="Which guide">${[['hub', 'Initiative Hub'], ['work-requests', 'Work Requests']].map(([k, l]) => `<button type="button" data-guide="${k}" aria-pressed="${k === guide}">${l}</button>`).join('')}</div>
+        <div class="lb-tabs" role="tablist" aria-label="Who are you?"><span class="lbl" aria-hidden="true">Who Are You?</span>${G.roles.map((x, i) =>
+          `<button type="button" class="lb-tab" role="tab" data-role="${i}" aria-selected="${i === r}" tabindex="${i === r ? 0 : -1}">${esc(x[0])}</button>`).join('')}</div></header>
+      <div class="lb-body"><div class="hp-grid">
+        <section class="hp-card" aria-labelledby="hpDo"><h2 id="hpDo">${esc(R[0])}: What You Do Here</h2><p class="hp-who">${esc(R[1])}</p><ol class="hp-steps">${R[2].map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol></section>
+        <section class="hp-card" aria-labelledby="hpGood"><h2 id="hpGood">Good to Know</h2><ul class="hp-good">${R[3].map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+          <h2 class="more">What This Is</h2><p class="hp-what">${esc(G.what)}</p>
+          <div class="hp-q">Something missing or unclear? Tell <b>Perry Williams</b> (<a href="mailto:pwilliams@mba.org">pwilliams@mba.org</a>).</div></section></div>
+        <section class="hp-card" style="margin-top:16px" aria-labelledby="hpFlow"><h2 id="hpFlow">${esc(G.flowTitle)}</h2><div class="hp-flow">${G.flow.map(n =>
+          Array.isArray(n[0]) ? `<div class="hp-split">${n.map(node).join('')}</div>` : node(n)).join('<span class="hp-arr" aria-hidden="true">→</span>')}</div></section></div>`;
+    view.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', () => { guide = b.dataset.guide;
+      try { history.replaceState(null, '', location.pathname + (guide === 'hub' ? '' : '#work-requests')); } catch (e) {} render('[data-guide="' + guide + '"]'); }));
+    view.querySelectorAll('[data-role]').forEach(b => { b.addEventListener('click', () => { role[guide] = +b.dataset.role; render('[data-role="' + b.dataset.role + '"]'); });
+      b.addEventListener('keydown', ev => { if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return; ev.preventDefault();
+        const n = G.roles.length; role[guide] = (r + (ev.key === 'ArrowRight' ? 1 : n - 1)) % n; render('[data-role="' + role[guide] + '"]'); }); });
+    if (focus) { const f = view.querySelector(focus); if (f) f.focus(); }
+  }
+  addEventListener('hashchange', () => { guide = location.hash.slice(1) === 'work-requests' ? 'work-requests' : 'hub'; render(); });
+  render();
+
+  /* the sidebar: narrowing (the button or backslash), as on the library page */
+  const railHide = document.getElementById('railHide');
+  function setMini(on){ document.documentElement.classList.toggle('railmini', on); railHide.setAttribute('aria-label', on ? 'Widen the sections' : 'Narrow the sections');
+    try { localStorage.setItem('resources:hub:rail', on ? 'mini' : 'full'); } catch (e) {} }
+  railHide.addEventListener('click', () => setMini(!document.documentElement.classList.contains('railmini')));
+  document.addEventListener('keydown', ev => { if (ev.key !== '\\' || ev.metaKey || ev.ctrlKey || ev.altKey) return; const t = ev.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; ev.preventDefault(); setMini(!document.documentElement.classList.contains('railmini')); });
+  if (document.documentElement.classList.contains('railmini')) setMini(true);
+  /* light or dark: the Hub's one saved choice, light unless chosen */
+  const themeBtn = document.getElementById('themeToggleBtn');
+  const MOON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6.4 6.4 0 009 9 9 9 0 11-9-9z"/></svg>';
+  const SUN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.4 12h2.3M19.3 12h2.3M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
+  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); const d = t === 'dark';
+    themeBtn.innerHTML = (d ? SUN : MOON) + `<span>${d ? 'Light Mode' : 'Dark Mode'}</span>`; themeBtn.title = d ? 'Switch to light mode' : 'Switch to dark mode'; }
+  let saved = 'light'; try { saved = localStorage.getItem('resources:hub:theme') || 'light'; } catch (e) {}
+  applyTheme(saved);
+  themeBtn.addEventListener('click', () => { const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; applyTheme(next);
+    try { localStorage.setItem('resources:hub:theme', next); } catch (e) {} });
+</script>
+
+</body>
+</html>

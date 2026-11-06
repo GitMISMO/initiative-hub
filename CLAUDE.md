@@ -637,6 +637,15 @@ Updates and Stakeholders"). Checks: `initiative-hub-data/_dev/home-checks/t-pote
 - **Edit Details:** giving an organization a type that isn't ticked ticks it and says why. Unticking a type on purpose
   still hides its organizations, as before.
 
+## Help (6 Nov 2026)
+
+`help.html` holds Help for the Hub and for Work Requests (`#work-requests`), in Jonna's pattern: pick who you are; What
+You Do Here (steps), Good to Know, What This Is, and how work moves. Its wording and frame are built by
+`_dev/make-help.py` from index.html (styles, top bar, sidebar), so rerun it after changing either. Every Hub page gets a
+Help button first in its bottom-left corner from `addHelpButton()` in dashboard-data.js, made from that page's Dark
+Mode button so it matches (the dashboards included, never inside a frame); calendar.html has it in its markup.
+Checks: `initiative-hub-data/_dev/home-checks/t-help.mjs` (20).
+
 ## The initiative library, redone (6 Nov 2026)
 
 `index.html` is one library view (`#view-library`), designed with Perry on the canvas page "Initiative Library: New

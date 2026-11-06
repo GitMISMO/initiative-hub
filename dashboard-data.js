@@ -182,6 +182,33 @@
    * the key is rejected, so a bad key degrades to viewing rather than breaking the page. */
   /* The Hub's data lives in a private repository (Perry, 6 Oct 2026), so every read goes through the relay;
      nothing is read from the public site any more. Returns { status, data, sha }. */
+  /* Help, in every Hub page's bottom-left corner (Perry, 6 Nov 2026), as in Jonna's apps: a button made from that page's
+   * Dark Mode button, so it looks the same on each page, opening help.html (its Work Requests guide from the Work
+   * Requests pages). Added here because every Hub page, the dashboards included, loads this file; calendar.html, which
+   * doesn't, has it in its markup. Never inside a frame (the dashboards' roster). */
+  function addHelpButton() {
+    try {
+      if (window.top !== window || document.getElementById('hubHelpBtn')) return;
+      var t = document.getElementById('themeToggleBtn') || document.getElementById('themeBtn') || document.getElementById('darkModeBtn');
+      if (!t || !t.parentNode) return;
+      var onHelp = /\/help\.html$/.test(location.pathname), wr = /work-requests/.test(location.pathname);
+      var a = document.createElement('a');
+      a.id = 'hubHelpBtn'; a.className = t.className; a.href = wr ? 'help.html#work-requests' : 'help.html'; a.title = 'Help';
+      a.style.textDecoration = 'none';
+      if (onHelp) a.setAttribute('aria-current', 'page');
+      var svg = t.querySelector('svg'), cls = (svg && svg.getAttribute('class')) || (svg ? '' : 'i');
+      a.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
+        '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 015 .9c0 1.7-2.5 2.2-2.5 3.8"/><path d="M12 17.2v.1"/></svg><span>Help</span>';
+      var mine = a.querySelector('svg');   // the icon takes the Dark Mode icon's size and look, wherever that's set
+      if (cls) mine.setAttribute('class', cls);
+      ['width', 'height', 'style'].forEach(function (k) { if (svg && svg.getAttribute(k)) mine.setAttribute(k, svg.getAttribute(k)); });
+      t.parentNode.insertBefore(a, t.parentNode.firstElementChild);    // first in the corner, above Color Tour and Dark Mode
+    } catch (e) {}
+  }
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addHelpButton); else addHelpButton();
+  }
+
   async function relayFile(path) {
     var res = await relay('/file/' + path, { method: 'GET' });
     if (res.status === 404) return { status: 404, data: null, sha: null };
