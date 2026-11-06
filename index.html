@@ -122,7 +122,7 @@
   html.railmini .rail .foot{align-items:center}
 
   /* ───────── the page ───────── */
-  main{max-width:1180px;padding:22px 24px 48px;min-width:0}
+  main{max-width:none;padding:22px 24px 48px;min-width:0}   /* the library fills the screen, whatever its size (Perry, 6 Nov 2026) */
   .view{display:flex;flex-direction:column;gap:14px}
   .mast{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;
     border-bottom:2px solid var(--ink);padding-bottom:14px}
@@ -310,7 +310,7 @@
 .lb-strip i.pot{background:color-mix(in srgb,var(--dc) 16%,var(--surface));border:1.5px dashed color-mix(in srgb,var(--dc) 50%,var(--surface))}
 .lb-strip i.faded{opacity:.18}
 .lb-dom-b{padding:2px 14px 14px 82px}
-.lb-cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.lb-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}   /* narrow cards; more per row on a wider screen */
 .lb-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:92px;padding:11px 12px;border-radius:12px;color:#fff;text-decoration:none;box-shadow:0 10px 22px -18px rgba(15,49,76,.7);
   background:linear-gradient(135deg,color-mix(in srgb,var(--dc) 45%,#0F314C) 0%,var(--dc) 115%);transition:transform .15s ease,box-shadow .15s ease;cursor:pointer;font:inherit;text-align:left;border:0}
 .lb-card:hover{transform:translateY(-2px);box-shadow:0 14px 26px -16px rgba(15,49,76,.75)}
@@ -335,10 +335,9 @@ dialog.lb-dlg::backdrop{background:rgba(6,32,47,.45)}
 .lb-dlg .dh h3{font-family:Archivo,sans-serif;font-size:19px;margin:6px 0 0}
 .lb-dlg .db{padding:16px 20px 20px} .lb-dlg .db h4{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 4px} .lb-dlg .db p{margin:0;line-height:1.55}
 .lb-dlg .db ul{margin:0;padding-left:18px} .lb-dlg .acts{display:flex;justify-content:flex-end;padding:0 20px 18px}
-@media (max-width:1100px){ .lb-cards{grid-template-columns:repeat(4,minmax(0,1fr))} }
 @media (max-width:700px){ .lb-band{padding:18px 16px 0;border-radius:12px} .lb-tabs{margin:16px -16px 0;padding:8px 16px 0} .lb-band h1{font-size:25px}
   .lb-dom-h{grid-template-columns:18px 30px minmax(0,1fr);row-gap:6px} .lb-rgt{grid-column:3;justify-content:flex-start} .lb-dom-b{padding-left:14px}
-  .lb-cards{grid-template-columns:repeat(2,minmax(0,1fr))} .lb-sel.stk{min-width:0;flex:1} }
+  .lb-cards{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} .lb-sel.stk{min-width:0;flex:1} }
 @media (prefers-reduced-motion: reduce){ .lb-card,.lb-dom,.lb-dom-h .chev{transition:none} .lb-card:hover{transform:none} }
 
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
