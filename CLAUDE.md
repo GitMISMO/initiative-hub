@@ -637,6 +637,34 @@ Updates and Stakeholders"). Checks: `initiative-hub-data/_dev/home-checks/t-pote
 - **Edit Details:** giving an organization a type that isn't ticked ticks it and says why. Unticking a type on purpose
   still hides its organizations, as before.
 
+## The initiative library, redone (6 Nov 2026)
+
+`index.html` is one library view (`#view-library`), designed with Perry on the canvas page "Initiative Library: New
+Designs" (B1, then the eight-domain, narrow-card versions). Checks: `initiative-hub-data/_dev/home-checks/t-library.mjs`
+(36); preview builder `initiative-hub-data/_dev/library-checks/make-library-preview.py`.
+- **Eight lifecycle domains** (`LIB_DOMAINS`, Perry's order and colours), shown A to Z by default or in lifecycle order.
+  Each is one line (counts, then a colour square per initiative, dashed for potential) that opens to narrow cards: the
+  name, then the status. Folding and the order are remembered in the browser.
+- **Placements** are in `LIB_PLACE` (MISMO initiatives, by title) and `LIB_POT_PLACE` (potential ones, by name; a
+  potential record's own `domain` wins once it is one of the eight). All confirmed by Perry on 6 Nov 2026. `LIB_OLD`
+  maps the old eleven domains for anything new. The potential page's domain picker still offers the old eleven.
+- **Tabs:** By Domain (both), MISMO Initiatives, Potential Initiatives; `#initiatives` and `#potential` open the last two,
+  so links to `index.html#potential` still work. + New Potential Initiative only for those who can edit.
+- **Stakeholder type filter and search:** types come from each dashboard's `rosterData` (read with the new
+  `MismoStore.readFile()`) and potential initiatives' organizations. Search matches names, descriptions, facilitators
+  and stakeholder types; the sidebar box feeds it. `hub-search.js` is no longer loaded here (its box sat under the old
+  heading); its extra results, workgroups and Hub tasks, aren't in the new search.
+- **Pins** are kept in each browser (`resources:hub:library-pins`). The account pins route is the home page's whole list,
+  and the home page drops ids it doesn't know, so sharing needs the home page taught about initiatives first.
+- **Color Tour** now lights the eight domains in turn on a rising scale, then all together.
+- A card opens its dashboard or potential page; one with no dashboard opens a details window.
+
+## Potential initiatives save as you go (6 Nov 2026)
+
+Like the active dashboards: no Save button; every change saves 0.8 s after the last one, with "Saving…" then "All
+changes saved" in a corner note (placed beside the sidebar, not over its Dark Mode button as on the dashboards). A
+conflict stops saving and offers Reload; other problems offer Try again; leaving with a save pending warns.
+
 ## Potential initiatives: saving through the general route (5 Nov 2026)
 
 An EXISTING potential initiative now saves through the relay's general `/commit` route (`S.potential.save()` in

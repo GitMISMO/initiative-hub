@@ -913,6 +913,8 @@
       if (window.ResourcesSession) window.ResourcesSession.onChange(apply);
       apply();
     },
+    /* any file of the Hub's data, e.g. a dashboard's data/<id>.json for its roster (the library, 6 Nov 2026) */
+    readFile: relayFile,
     potential: { list: potentialList, get: potentialGet, put: potentialPut, save: potentialSave, validate: potentialValidate, slug: potentialSlug,
                  STAGES: POT.STAGES, ENGAGEMENTS: POT.ENGAGEMENTS, LEADERSHIP_ROLES: POT.LEADERSHIP_ROLES,
                  stageLabel: function (k) { return potLabel(POT.STAGES, k); }, engagementLabel: function (k) { return potLabel(POT.ENGAGEMENTS, k); } },

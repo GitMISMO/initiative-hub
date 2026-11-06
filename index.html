@@ -16,7 +16,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <style>
   /* Summit HQ's own tokens, as the admin panel wears them. Every colour on the page comes
      from here, so dark mode is a second block rather than a hunt through the rules. */
@@ -260,10 +260,92 @@
   .rail .wr-group > span{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.52);font-weight:700;padding:4px 20px 2px}
   html.railmini .rail .wr-group > span{display:none}
   @media (max-width:760px){ .rail .wr-group > span{display:none} }
+/* ===== The initiative library, redone (Perry, 6 Nov 2026; canvas page "Initiative Library: New Designs", B1): the
+   dashboards' header; eight lifecycle domains A to Z, each one line that opens to narrow cards; pins; a stakeholder
+   type filter; search across names and stakeholder types. ===== */
+.view.lib{gap:0;padding:0}
+.lb-band{position:relative;overflow:hidden;border-radius:16px;background:linear-gradient(120deg,#0F314C 0%,#14486E 58%,#0F7A86 135%);color:#fff;padding:22px 26px 0}
+.lb-band .waves{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.16}
+.lb-row{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.lb-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94C8E9}
+.lb-band h1{font-family:Archivo,'Libre Franklin',sans-serif;font-size:32px;font-weight:800;letter-spacing:-.02em;margin:6px 0 0;color:#fff}
+.lb-band .lb-sub{color:#cfe3f1;font-size:14px;margin:6px 0 0;max-width:640px}
+.lb-band .btn.lb-new{background:#fff;color:#0F314C;border-color:#fff;white-space:nowrap}
+.lb-stats{position:relative;display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
+.lb-stat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 14px;min-width:120px}
+.lb-stat b{display:block;font-family:Archivo,sans-serif;font-size:23px;font-weight:800;line-height:1.1;color:#fff} .lb-stat span{font-size:12px;color:#a9c7dc}
+.lb-search{position:relative;margin-top:16px;max-width:640px;display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px 14px;color:#546F88;box-shadow:0 10px 30px -12px rgba(0,0,0,.4)}
+.lb-search input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:15px;color:#0F314C;background:transparent}
+.lb-search kbd{font-size:11px;border:1px solid #D5E2ED;border-radius:5px;padding:1px 6px;color:#546F88}
+.lb-search:focus-within{box-shadow:0 0 0 3px rgba(116,191,235,.6),0 10px 30px -12px rgba(0,0,0,.4)}
+.lb-tabs{position:relative;display:flex;gap:10px;margin:18px -26px 0;padding:8px 26px 0;background:rgba(5,22,36,.28);border-top:1px solid rgba(255,255,255,.08);overflow-x:auto}
+.lb-tab{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 11px;border-radius:11px 11px 0 0;font-size:13.5px;font-weight:600;color:#cfe3f1;white-space:nowrap}
+.lb-tab:hover{color:#fff} .lb-tab[aria-selected="true"]{background:var(--paper);color:var(--ink);font-weight:700}
+.lb-tab .n{font-size:11px;background:rgba(255,255,255,.16);border-radius:999px;padding:0 7px} .lb-tab[aria-selected="true"] .n{background:var(--sunk)}
+.lb-tab:focus-visible{outline:2px solid #74BFEB;outline-offset:-2px}
+.lb-body{padding:18px 0 32px}
+.lb-pins{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:14px 16px;margin-bottom:16px}
+.lb-pins[hidden]{display:none}
+.lb-sech{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap} .lb-sech h2{font-family:Archivo,sans-serif;font-size:17px;margin:0} .lb-sech span{color:var(--ink-3);font-size:13px}
+.lb-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.lb-tools .grow{flex:1}
+.lb-tools label{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.lb-sel{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line-2);border-radius:8px;padding:6px 10px;background:var(--surface);color:var(--ink-2);min-height:34px}
+.lb-sel.stk{min-width:240px}
+.lb-btn2{font:inherit;font-size:12.5px;font-weight:700;border:1px solid var(--line-3);border-radius:8px;padding:6px 12px;background:var(--surface);color:var(--accent);cursor:pointer;min-height:34px}
+.lb-res{display:flex;align-items:center;gap:12px;background:#0F314C;color:#fff;border-radius:12px;padding:9px 12px 9px 16px;margin-bottom:10px;font-size:13.5px}
+.lb-res[hidden]{display:none} .lb-res b{color:#94C8E9} .lb-res .lb-btn2{margin-left:auto}
+.lb-dom{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:background .6s ease,border-color .6s ease}
+.lb-dom.none{opacity:.5}
+.lb-dom-h{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:22px 34px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px}
+.lb-dom-h:focus-visible{outline:2px solid var(--sky,#74BFEB);outline-offset:-2px;border-radius:14px}
+.lb-dom-h .chev{color:var(--ink-2);transition:transform .2s ease;display:inline-flex} .lb-dom.open .lb-dom-h .chev{transform:rotate(90deg)}
+.lb-sw{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Archivo,sans-serif;font-weight:800;font-size:13px;background:var(--dc)}
+.lb-nm b{display:block;font-family:Archivo,sans-serif;font-size:15.5px;color:var(--ink)} .lb-nm span{font-size:12px;color:var(--ink-3)}
+.lb-rgt{display:flex;align-items:center;gap:14px;justify-content:flex-end}
+.lb-cnt{font-size:12.5px;color:var(--ink-2);white-space:nowrap;text-align:right} .lb-cnt b{color:var(--ink)} .lb-cnt .none{color:var(--ink-3);font-style:italic}
+.lb-strip{display:flex;gap:4px}
+.lb-strip i{width:22px;height:22px;border-radius:6px;display:block;box-sizing:border-box;background:var(--dc)}
+.lb-strip i.dev{opacity:.55}
+.lb-strip i.pot{background:color-mix(in srgb,var(--dc) 16%,var(--surface));border:1.5px dashed color-mix(in srgb,var(--dc) 50%,var(--surface))}
+.lb-strip i.faded{opacity:.18}
+.lb-dom-b{padding:2px 14px 14px 82px}
+.lb-cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.lb-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:92px;padding:11px 12px;border-radius:12px;color:#fff;text-decoration:none;box-shadow:0 10px 22px -18px rgba(15,49,76,.7);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--dc) 45%,#0F314C) 0%,var(--dc) 115%);transition:transform .15s ease,box-shadow .15s ease;cursor:pointer;font:inherit;text-align:left;border:0}
+.lb-card:hover{transform:translateY(-2px);box-shadow:0 14px 26px -16px rgba(15,49,76,.75)}
+.lb-card:focus-visible{outline:3px solid var(--sky,#74BFEB);outline-offset:2px}
+.lb-card b{font-family:Archivo,sans-serif;font-size:13.5px;font-weight:800;line-height:1.25;padding-right:30px}
+.lb-card .st{align-self:flex-start;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.lb-card .st.pub{background:#E3F3EC;color:#0b5c44} .lb-card .st.dev{background:#FBF1DE;color:#7a5413} .lb-card .st.app{background:#E4F2FB;color:#14486E}
+.lb-card .mt{font-size:11.5px;font-weight:700;margin-top:-2px}
+.lb-card.pot{color:var(--ink);background:color-mix(in srgb,var(--dc) 14%,var(--surface));border:1.5px dashed color-mix(in srgb,var(--dc) 50%,var(--surface));box-shadow:none}
+.lb-card.pot .st{background:var(--surface);color:color-mix(in srgb,var(--dc) 60%,var(--ink))}
+.lb-card[hidden]{display:none}
+.lb-pin{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:1}
+.lb-card.pot .lb-pin{border-color:var(--line-2);background:var(--surface);color:var(--ink-3)}
+.lb-pin[aria-pressed="true"]{background:#DCEDF8;border-color:#DCEDF8;color:#14486E} .lb-pin[aria-pressed="true"] path{fill:currentColor}
+.lb-pin:focus-visible{outline:2px solid var(--sky,#74BFEB);outline-offset:1px}
+.lb-empty{font-size:12.5px;color:var(--ink-3);font-style:italic}
+.lb-dom.intro-highlight{border-color:var(--dc);background:color-mix(in srgb,var(--dc) 12%,var(--surface))}
+.lb-dom.intro-highlight .lb-sw{transform:scale(1.08);transition:transform .3s ease}
+dialog.lb-dlg{border:0;border-radius:16px;padding:0;max-width:min(560px,calc(100vw - 32px));width:100%;background:var(--surface);color:var(--ink);box-shadow:0 24px 60px -20px rgba(6,32,47,.6)}
+dialog.lb-dlg::backdrop{background:rgba(6,32,47,.45)}
+.lb-dlg .dh{padding:18px 20px;color:#fff;background:linear-gradient(120deg,color-mix(in srgb,var(--dc) 45%,#0F314C),var(--dc) 140%)}
+.lb-dlg .dh h3{font-family:Archivo,sans-serif;font-size:19px;margin:6px 0 0}
+.lb-dlg .db{padding:16px 20px 20px} .lb-dlg .db h4{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 4px} .lb-dlg .db p{margin:0;line-height:1.55}
+.lb-dlg .db ul{margin:0;padding-left:18px} .lb-dlg .acts{display:flex;justify-content:flex-end;padding:0 20px 18px}
+@media (max-width:1100px){ .lb-cards{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media (max-width:700px){ .lb-band{padding:18px 16px 0;border-radius:12px} .lb-tabs{margin:16px -16px 0;padding:8px 16px 0} .lb-band h1{font-size:25px}
+  .lb-dom-h{grid-template-columns:18px 30px minmax(0,1fr);row-gap:6px} .lb-rgt{grid-column:3;justify-content:flex-start} .lb-dom-b{padding-left:14px}
+  .lb-cards{grid-template-columns:repeat(2,minmax(0,1fr))} .lb-sel.stk{min-width:0;flex:1} }
+@media (prefers-reduced-motion: reduce){ .lb-card,.lb-dom,.lb-dom-h .chev{transition:none} .lb-card:hover{transform:none} }
+
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
   <script src="/assets/session.js"></script>
 <script src="hub-gate.js"></script>
-<script src="dashboard-data.js?v=8ba7ae77e9"></script>
+<script src="dashboard-data.js?v=063cdcbac3"></script>
 </head>
 <body>
 
@@ -343,18 +425,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
 </aside>
 
 <main>
-  <section class="view" id="view-initiatives">
-    <header class="mast"><div>
-      <div class="eyebrow">Initiative Library</div>
-      <h1>MISMO Initiatives</h1>
-      <div class="sub">Explore active workgroup initiatives organized by domain — pick a domain below to see what's being built, who's involved, and how far along it is.</div>
-    </div></header>
-    <div class="tile-grid" id="tileGrid"></div>
-    <div id="panelArea"></div>
-    <section class="panel" id="searchArea" hidden></section>
-  </section>
-  <!-- Filled by renderPotential(): the page header, then the cards. -->
-  <section class="view" id="view-potential" hidden></section>
+  <section class="view lib" id="view-library" aria-label="Initiative library"></section>
 </main>
 
 
@@ -475,330 +546,184 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     }
   ];
 
-  const domainIcons = {
-    'Mortgage Compliance': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4Z"/><path d="M9 12l2 2 4-4"/></svg>',
-    'eMortgage': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
-    'Servicing': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h14v-9"/></svg>',
-    'Title & Closing': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
-    'Originations': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 0 1 2-2h8l6 6v9a2 2 0 0 1-2 2Z"/><path d="M14 4v5h5"/></svg>',
-    'Valuation': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>',
-    'Artificial Intelligence': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 4h6"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/></svg>',
-    'Governance': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z"/></svg>',
-    'Mortgage Insurance': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10.06 10.06 0 0 0-20 0Z"/><path d="M12 12v8a2 2 0 0 0 4 0"/><path d="M12 2v1"/></svg>',
-    'Secondary': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l-4-4 4-4"/><path d="M3 6h13a4 4 0 0 1 4 4v1"/><path d="M17 14l4 4-4 4"/><path d="M21 18H8a4 4 0 0 1-4-4v-1"/></svg>',
-    'Credit Reporting': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>'
-  };
-
-  const domainMeta = {
-    'Mortgage Compliance': {abbr:'MCD', color:'var(--teal)', soft:'#E3F5F3', desc:'Standardized data for regulatory exams and compliance reporting.'},
-    'eMortgage': {color:'var(--gold)', soft:'#FDF0DE', desc:'Standards for eNotes, eClosing, and digital mortgage agreements.'},
-    'Servicing': {color:'var(--brand)', soft:'#EAF0FF', desc:'Data standards for the handoff from origination into loan servicing.'},
-    'Title & Closing': {color:'var(--cyan)', soft:'#E1F3F7', desc:'Standards for title data exchange, closing documents, and title pricing.'},
-    'Originations': {color:'var(--rose)', soft:'#FCE7EF', desc:'Standards used during loan origination and underwriting.'},
-    'Valuation': {color:'var(--violet)', soft:'#F1EBFD', desc:'Appraisal and automated valuation model (AVM) standards.'},
-    'Artificial Intelligence': {abbr:'AI', color:'var(--fuchsia)', soft:'#FBE8FC', desc:'Governance frameworks for responsible AI use in mortgage lending.'},
-    'Governance': {color:'var(--graphite)', soft:'#EEF1F4', desc:'Oversight and risk-management standards across MISMO\'s initiatives.'},
-    'Mortgage Insurance': {abbr:'MI', color:'var(--emerald)', soft:'#E1F6EA', desc:'Standards for mortgage insurance claims, activation, and rate quoting.'},
-    'Secondary': {color:'var(--indigo)', soft:'#EBEAFD', desc:'Standards for the secondary market where loans are sold, pooled, and securitized.'},
-    'Credit Reporting': {color:'var(--crimson)', soft:'#FBE7EC', desc:'Standards for pulling, formatting, and exchanging consumer credit data.'}
-  };
-  const domainOrder = ['Artificial Intelligence','Credit Reporting','eMortgage','Governance','Mortgage Compliance','Mortgage Insurance','Originations','Secondary','Servicing','Title & Closing','Valuation'];
-
-  const tileGrid = document.getElementById('tileGrid');
-  const panelArea = document.getElementById('panelArea');
-  const searchArea = document.getElementById('searchArea');
-  const initiativesView = document.getElementById('view-initiatives');
-  const potentialView = document.getElementById('view-potential');
-  const railQ = document.getElementById('railQ');
-  let currentView = 'initiatives';
-  let query = '';
-
-  let activeDomain = null;
-
-  /* A domain as shown: its name, with its acronym where it has one (Perry, 5 Oct 2026). */
-  function domainLabel(domain){ const ab = (domainMeta[domain] || {}).abbr; return ab ? `${domain} (${ab})` : domain; }
-
-  function itemsFor(domain){
-    return initiatives.filter(i => i.domains.includes(domain));
-  }
-
-  function renderTiles(){
-    tileGrid.innerHTML = domainOrder.map(domain => {
-      const count = itemsFor(domain).length;
-      const meta = domainMeta[domain];
-      return `<button type="button" class="domain-tile${domain === activeDomain ? ' active' : ''}" aria-pressed="${domain === activeDomain ? 'true' : 'false'}" style="--tile-color:${meta.color}; --tile-soft:${meta.soft};" data-domain="${domain}">
-        <div class="tile-top-row">
-          <span class="tile-icon-wrap">${domainIcons[domain]}</span>
-          <span class="tile-name">${domainLabel(domain)}</span>
-        </div>
-        <span class="tile-desc">${meta.desc}</span>
-        <span class="tile-count">${count} initiative${count !== 1 ? 's' : ''}</span>
-      </button>`;
-    }).join('');
-    tileGrid.querySelectorAll('.domain-tile').forEach(btn => {
-      btn.addEventListener('click', () => {
-        activeDomain = btn.dataset.domain;
-        renderTiles();
-        renderPanel();
-        panelArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    });
-  }
-
-  // Expanding one card expands every card in its visual grid row, and collapsing
-  // one collapses that whole row. Rows are a CSS Grid concept with no DOM
-  // equivalent, so the row has to be derived at click time.
-  //
-  // Column count comes from the grid's *computed* gridTemplateColumns, which
-  // resolves to one length per column (e.g. "341px 341px 341px") and already
-  // reflects whichever media-query breakpoint is currently active — so this
-  // follows the 3 / 2 / 1 column responsive steps with no hardcoded widths.
-  //
-  // Deliberately not grouping by geometry (comparing each card's offsetTop):
-  // cards that sit in the same visual row have been observed reporting tops a
-  // few px apart in this layout, which would silently split a row.
-  function toggleRowDetails(btn){
-    const card = btn.closest('.init-card');
-    const grid = card.closest('.init-grid');
-    if (!card || !grid) return;
-
-    const cards = Array.from(grid.querySelectorAll('.init-card'));
-    const idx = cards.indexOf(card);
-    if (idx === -1) return;
-
-    const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
-    const rowStart = Math.floor(idx / cols) * cols;
-    const rowCards = cards.slice(rowStart, rowStart + cols);
-
-    // Resolve the target state once from the clicked card, then apply that same
-    // state to every card in the row, rather than toggling each independently —
-    // so the row always ends up consistent even if it somehow started mixed.
-    const willOpen = !card.classList.contains('expanded');
-
-    rowCards.forEach(c => {
-      const body = c.querySelector('.expand-body');
-      const toggle = c.querySelector('.expand-toggle');
-      if (!body || !toggle) return;
-      body.classList.toggle('open', willOpen);
-      c.classList.toggle('expanded', willOpen);
-      const label = toggle.querySelector('.expand-label');
-      const chevron = toggle.querySelector('.expand-chevron');
-      if (label) label.textContent = willOpen ? 'Hide additional details' : 'See additional details';
-      if (chevron) chevron.classList.toggle('open', willOpen);
-    });
-  }
-
-  function initCard(item){
-    return `
-      <div class="init-card">
-        <div class="init-top">
-          <span class="init-title">${item.title}</span>
-        </div>
-        ${metaStrip(item.lifecycle, item.facilitator,
-            item.sample ? '<span class="msep"></span><span class="sample-badge">Sample data</span>' : '')}
-        <div class="detail-block detail-block-grow">
-          <span class="detail-label">What is it</span>
-          <p class="detail-text clamp">${item.whatIsIt}</p>
-        </div>
-        <div class="card-actions-row">
-          ${item.href ? `<a class="view-link" href="${item.href}">View dashboard →</a>` : `<span class="view-link-disabled">No dashboard yet</span>`}
-          <button type="button" class="expand-toggle" onclick="toggleRowDetails(this)"><span class="expand-label">See additional details</span> <span class="expand-chevron">▾</span></button>
-        </div>
-        <div class="expand-body">
-          <!-- "Why MISMO is working on this" is deliberately not here. The card is a
-               scannable summary; the reasoning lives on the initiative's own dashboard.
-               item.whyWorking is still in the data and still used there. -->
-          <div class="detail-block">
-            <span class="detail-label">Who brought it</span>
-            <p class="detail-text">${item.whoBroughtIt}</p>
-          </div>
-          <div class="detail-block">
-            <span class="detail-label">Publication status</span>
-            <p class="detail-text">${item.publicationStatus}</p>
-          </div>
-          <div class="detail-block">
-            <span class="detail-label">Estimated savings</span>
-            <p class="snapshot-stat">${item.estimatedSavings}</p>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderPanel(){
-    if (!activeDomain){
-      panelArea.innerHTML = '';
-      return;
-    }
-    const items = itemsFor(activeDomain);
-    const meta = domainMeta[activeDomain];
-    const cardsHtml = items.map(initCard).join('');
-
-    panelArea.innerHTML = `
-      <section class="panel" aria-label="${escapeHtml(domainLabel(activeDomain))}" style="--tile-color:${meta.color}; --tile-soft:${meta.soft};">
-        <div class="panel-head">
-          <span class="panel-icon-wrap">${domainIcons[activeDomain]}</span>
-          <h2 class="panel-title">${domainLabel(activeDomain)}</h2>
-          <span class="panel-sub">${items.length} initiative${items.length !== 1 ? 's' : ''}</span>
-          <button type="button" class="btn" id="panelClose">Close</button>
-        </div>
-        ${items.length ? `<div class="init-grid">${cardsHtml}</div>` : `<div class="empty-hint">No initiatives tagged with this domain yet.</div>`}
-      </section>
-    `;
-    document.getElementById('panelClose').addEventListener('click', () => {
-      const was = activeDomain;
-      activeDomain = null; renderTiles(); renderPanel();
-      const tile = tileGrid.querySelector(`[data-domain="${CSS.escape(was)}"]`);
-      if (tile) tile.focus();
-    });
-  }
-
-  renderTiles();
-  renderPanel();
-
-  // Counts unique initiatives, not domain placements - two initiatives are
-  // cross-listed across two domains each, so summing the tiles would over-report.
-  (function setTabCounts(){
-    const el = document.getElementById('countActive');
-    if (el) el.textContent = initiatives.length;
-  })();
-
-  // --- Potential Initiatives: real records from data/potential/, rendered as cards ---
-  let potentialItems = null;   // null until loaded
-  async function loadPotential(){
-    const r = await MismoStore.potential.list();
-    potentialItems = r.ok ? r.items : [];
-    const pot = document.getElementById('countPotential');
-    if (pot) pot.textContent = potentialItems.length;
-    return potentialItems;
-  }
-  function fmtWhen(iso){
-    const d = new Date(iso); if (isNaN(d)) return '';
-    return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
-  }
-  /* One set of helpers for both card types, so the two can never drift apart. */
-  const LIFECYCLE = { dev:{label:'In Development', cls:'st-dev'},
-                      app:{label:'In Approvals',   cls:'st-app'},
-                      pub:{label:'Published',      cls:'st-pub'} };
-
-  function facChip(name){
-    if (!name) return '<span class="facnone">Not assigned</span>';
-    return `<span class="facchip" title="MISMO facilitator"><span class="fac-av">${escapeHtml(MismoStore.initials(name))}</span>${escapeHtml(name)}</span>`;
-  }
-  function statusTag(key){
-    const s = LIFECYCLE[key];
-    return s ? `<span class="tag ${s.cls}">${s.label}</span>` : '';
-  }
-  /* status is optional: potential initiatives carry their own stage rail instead. */
-  function metaStrip(statusKey, facilitator, extra){
-    return `<div class="metastrip">${statusKey ? statusTag(statusKey) + '<span class="msep"></span>' : ''}` +
-           `<span class="mlab">Facilitator</span>${facChip(facilitator)}${extra || ''}</div>`;
-  }
-
-  function potentialCard(p){
+  /* ===== The initiative library (Perry, 6 Nov 2026; canvas "Initiative Library: New Designs", B1). Eight lifecycle
+     domains, A to Z (or in lifecycle order), each one line that opens to narrow cards: an initiative's name and its
+     status. Pins gather at the top (kept in this browser for now). A stakeholder type picker and the search find
+     initiatives by the types on their rosters (the dashboards' rosterData, and potential initiatives' organizations).
+     Tabs: By Domain (both), MISMO Initiatives, Potential Initiatives; #initiatives and #potential open the last two. ===== */
+  const LIB_DOMAINS = [   // Perry's lifecycle order; one colour family each
+    { name: 'Origination', color: '#BE123C', desc: 'From application through underwriting: credit, eligibility and the loan file.' },
+    { name: 'Close and Fund', color: '#0891B2', desc: 'Title, closing documents, settlement and funding.' },
+    { name: 'Servicing', color: '#1D4ED8', desc: 'Boarding, payments, investor reporting and default.' },
+    { name: 'Secondary Market', color: '#7C3AED', desc: 'Commitments, delivery and pooling for investors.' },
+    { name: 'Third Party Services', color: '#A16207', desc: 'Valuation, credit, insurance and other services lenders order.' },
+    { name: 'Digital Mortgage', color: '#EA580C', desc: 'eNotes, eClosings and the digital loan file.' },
+    { name: 'Risk, Compliance & Governance', color: '#15803D', desc: 'Regulation, controls, agreements and responsible practice.' },
+    { name: 'Data & Technology Enablement', color: '#C026D3', desc: 'The shared data model, APIs and tools behind every standard.' }];
+  const LIB_COLOR = Object.fromEntries(LIB_DOMAINS.map(d => [d.name, d.color]));
+  /* Where each initiative sits (confirmed by Perry, 6 Nov 2026). */
+  const LIB_PLACE = {
+    'Mortgage Compliance Dataset': 'Risk, Compliance & Governance', 'eNote Master Control Agreement': 'Risk, Compliance & Governance', 'MISMO FRAME': 'Risk, Compliance & Governance',
+    'Title and Closing Dataset Specifications': 'Close and Fund', 'Title Order Dataset Specification': 'Close and Fund',
+    'Loan Boarding Dataset': 'Servicing', 'Investor Reporting Dataset': 'Servicing',
+    'Commitment File Dataset': 'Secondary Market',
+    'Common Confidence Score': 'Third Party Services', 'Credit Score Implementation Guide': 'Third Party Services', 'MI Claim Submission Dataset': 'Third Party Services',
+    'Property & Valuation Services Procurement Dataset': 'Third Party Services', 'AVM Testing Guidance and Best Practices': 'Third Party Services', 'AVM Fairness Testing Guidelines': 'Third Party Services' };
+  /* A potential initiative's own domain wins once it's one of the eight; until then, by name (all confirmed by Perry,
+     6 Nov 2026), or from its old domain. */
+  const LIB_POT_PLACE = { 'Consumer Facing AI Disclosure Language': 'Risk, Compliance & Governance', 'Bi-Lateral Ginnie Mae Financing Agreement': 'Risk, Compliance & Governance',
+    'AI Governance Community': 'Risk, Compliance & Governance', 'Credit Score Implementation Challenges': 'Third Party Services', 'Home Equity Community': 'Origination' };
+  const LIB_OLD = { 'Artificial Intelligence': 'Risk, Compliance & Governance', 'Governance': 'Risk, Compliance & Governance', 'Mortgage Compliance': 'Risk, Compliance & Governance',
+    'Credit Reporting': 'Origination', 'Originations': 'Origination', 'eMortgage': 'Digital Mortgage', 'Title & Closing': 'Close and Fund', 'Servicing': 'Servicing',
+    'Secondary': 'Secondary Market', 'Valuation': 'Third Party Services', 'Mortgage Insurance': 'Servicing' };
+  const STATUS = { pub: 'Published', dev: 'In Development', app: 'In Approvals' };
+  const libView = document.getElementById('view-library'), railQ = document.getElementById('railQ');
+  const plain = v => { const d = document.createElement('div'); d.innerHTML = String(v || ''); return d.textContent; };
+  const store = { get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  const AZ = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+  let potentialItems = null, rosters = {}, rostersLoaded = false;
+  let tab = 'all', q = '', stk = '', order = store.get('resources:hub:library-order', 'az');
+  let pins = store.get('resources:hub:library-pins', []), folded = new Set(store.get('resources:hub:library-folded', []));
+  /* every entry, active and potential, in one shape */
+  function entries(){
+    const act = initiatives.map(i => { const title = plain(i.title), dash = i.href || '';
+      return { key: 'i:' + title, kind: 'act', title, status: STATUS[i.lifecycle] || 'In Development', st: i.lifecycle in STATUS ? i.lifecycle : 'dev',
+        domain: LIB_PLACE[title] || (i.domains || []).map(d => LIB_OLD[d]).find(Boolean) || 'Data & Technology Enablement',
+        href: dash, id: dash.replace(/-dashboard\.html$/, ''), item: i,
+        text: [title, plain(i.whatIsIt), i.facilitator, (i.domains || []).join(' ')].join(' ').toLowerCase() }; });
     const stages = MismoStore.potential.STAGES;
-    const orgs = (p.organizations || []).filter(o => (p.stakeholderTypes || []).includes(o.type));
-    const committed = orgs.filter(o => o.engagement === 'committed').length;
-    const interested = orgs.filter(o => o.engagement === 'interested').length;
-    const href = `potential.html?id=${encodeURIComponent(p.id)}`;
-    return `
-      <div class="init-card">
-        <div class="init-top"><span class="init-title">${escapeHtml(p.name)}</span></div>
-        <div class="steps">${stages.map(s => `<div class="step ${s.key === p.stage ? 'on s-' + s.key : ''}">${escapeHtml(s.label)}</div>`).join('')}</div>
-        ${metaStrip(null, p.facilitator)}
-        <div class="detail-block detail-block-grow">
-          <span class="detail-label">What is it</span>
-          ${p.summary ? `<p class="detail-text">${escapeHtml(p.summary)}</p>` : `<p class="detail-text none-yet">Not recorded yet.</p>`}
-        </div>
-        <div class="card-actions-row">
-          <a class="view-link" href="${href}">Open initiative →</a>
-          <button type="button" class="expand-toggle" onclick="toggleRowDetails(this)"><span class="expand-label">See additional details</span> <span class="expand-chevron">▾</span></button>
-        </div>
-        <div class="expand-body">
-          <!-- "Why it was raised" and "What it could produce" are deliberately NOT here.
-               This card is a scannable summary sitting among several others; the long
-               narrative belongs on the initiative's own page, which "Open initiative"
-               links to. Both fields are still rendered in full there. -->
-          <div class="detail-block"><span class="detail-label">Who brought it</span><p class="detail-text">${p.broughtBy ? escapeHtml(p.broughtBy) : '<span class="none-yet">Not recorded</span>'}</p></div>
-          ${p.domain ? `<div class="detail-block"><span class="detail-label">Proposed domain</span><p class="detail-text">${escapeHtml(p.domain)}</p></div>` : ''}
-          <div class="detail-block"><span class="detail-label">Stakeholder engagement</span><span class="snapshot-stat">${committed} of ${orgs.length} organization${orgs.length === 1 ? '' : 's'} committed · ${interested} interested · ${(p.stakeholderTypes || []).length} type${(p.stakeholderTypes || []).length === 1 ? '' : 's'}</span></div>
-        </div>
-      </div>`;
+    const pot = (potentialItems || []).map(p => ({ key: 'p:' + p.id, kind: 'pot', title: p.name, status: (stages.find(s => s.key === p.stage) || stages[0]).label, st: 'pot',
+      domain: (LIB_COLOR[p.domain] && p.domain) || LIB_POT_PLACE[p.name] || LIB_OLD[p.domain] || 'Data & Technology Enablement',
+      href: 'potential.html?id=' + encodeURIComponent(p.id), item: p,
+      types: Object.fromEntries((p.stakeholderTypes || []).map(t => [MismoStore.typeName(t), (p.organizations || []).filter(o => o.type === t).length]).filter(x => x[1])),
+      text: [p.name, p.summary, p.facilitator, p.broughtBy].join(' ').toLowerCase() }));
+    act.forEach(e => { e.types = rosters[e.id] || {}; });
+    return act.concat(pot);
   }
-  function renderPotential(container){
-    const items = potentialItems || [];
-    const head = `<header class="mast"><div>
-      <div class="eyebrow">Initiative Library</div>
-      <h1>Potential Initiatives</h1>
-      <div class="sub">Work requests and proposals being evaluated, before they become chartered initiatives.</div>
-    </div><a class="btn p" href="potential-edit.html">+ New potential initiative</a></header>`;
-    if (potentialItems === null) { container.innerHTML = head + '<div class="empty-hint">Loading…</div>'; return; }
-    if (!items.length) { container.innerHTML = head + `<div class="pot-empty"><strong>Nothing here yet</strong>The first potential initiative will appear as a card once it's created.</div>`; return; }
-    const shown = query ? items.filter(matchesPotential) : items;
-    if (!shown.length) { container.innerHTML = head + `<div class="empty-hint">No potential initiatives match “${escapeHtml(railQ.value.trim())}”.</div>`; return; }
-    const sorted = shown.slice().sort((a, b) => Date.parse((b.updates||[])[0]?.at || b.savedAt || 0) - Date.parse((a.updates||[])[0]?.at || a.savedAt || 0));
-    container.innerHTML = head + `<div class="init-grid pot-grid">${sorted.map(potentialCard).join('')}</div>`;
+  async function loadRosters(){
+    const ids = [...new Set(initiatives.map(i => (i.href || '').replace(/-dashboard\.html$/, '')).filter(Boolean))];
+    await Promise.all(ids.map(async id => { try { const r = await MismoStore.readFile('data/' + id + '.json');
+      const counts = {}; ((r && r.data && r.data.rosterData) || []).forEach(o => { if (o && o.type) counts[o.type] = (counts[o.type] || 0) + 1; }); rosters[id] = counts; } catch (e) {} }));
+    rostersLoaded = true; render();
   }
-  (async () => { await MismoStore.types.load(); await loadPotential(); if (currentView === 'potential') renderPotential(potentialView); })();
-
-  // --- The sections down the left: MISMO Initiatives and Potential Initiatives ---
-  // They replace the two tabs this page used to have. potential.html and the wizard link
-  // back to index.html#potential, so that address still opens the second section.
-  const sectionButtons = document.querySelectorAll('.rail nav button[data-view]');
-  function show(view){
-    currentView = view === 'potential' ? 'potential' : 'initiatives';
-    sectionButtons.forEach(b => {
-      if (b.dataset.view === currentView) b.setAttribute('aria-current', 'page');
-      else b.removeAttribute('aria-current');
-    });
-    initiativesView.hidden = currentView !== 'initiatives';
-    potentialView.hidden = currentView !== 'potential';
-    try {
-      const want = currentView === 'potential' ? '#potential' : '';
-      if (location.hash !== want) history.replaceState(null, '', location.pathname + location.search + want);
-    } catch (e) {}
-    if (currentView === 'potential') renderPotential(potentialView);
-    else renderSearch();
+  async function loadPotential(){
+    const r = await MismoStore.potential.list(); potentialItems = r.ok ? r.items : [];
+    const pot = document.getElementById('countPotential'); if (pot) pot.textContent = potentialItems.length;
+    render();
   }
-  sectionButtons.forEach(b => b.addEventListener('click', () => { show(b.dataset.view); window.scrollTo(0, 0); }));
-  window.addEventListener('hashchange', () => show(location.hash === '#potential' ? 'potential' : 'initiatives'));
-
-  // --- Search, from the sidebar: it searches whichever section is open ---
-  // Titles and descriptions are stored as HTML (with entities such as &amp;), so they are
-  // compared as the reader sees them.
-  function plainText(v){ const d = document.createElement('div'); d.innerHTML = String(v || ''); return d.textContent.toLowerCase(); }
-  function matchesInitiative(i){
-    return [i.title, i.whatIsIt, i.facilitator, (i.domains || []).join(' '), i.whoBroughtIt, i.publicationStatus]
-      .some(v => plainText(v).includes(query));
+  (function setTabCounts(){ const el = document.getElementById('countActive'); if (el) el.textContent = initiatives.length; })();
+  const PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1.2 5.2L17 11.5H7l3.2-3.3z M12 11.5V21"/></svg>';
+  const CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  const WAVES = '<svg class="waves" viewBox="0 0 1200 260" preserveAspectRatio="none" aria-hidden="true"><path d="M0 200 C 300 120, 600 260, 1200 150" stroke="#94C8E9" stroke-width="1.5" fill="none"/><path d="M0 230 C 350 160, 700 280, 1200 190" stroke="#94C8E9" stroke-width="1.5" fill="none"/></svg>';
+  function matches(e){
+    if (tab === 'initiatives' && e.kind !== 'act') return false;
+    if (tab === 'potential' && e.kind !== 'pot') return false;
+    if (stk && !e.types[stk]) return false;
+    if (q && !e.text.includes(q) && !Object.keys(e.types).some(t => t.toLowerCase().includes(q))) return false;
+    return true;
   }
-  function matchesPotential(p){
-    return [p.name, p.summary, p.facilitator, p.domain, p.broughtBy]
-      .some(v => String(v || '').toLowerCase().includes(query));
+  function card(e){
+    const pinned = pins.includes(e.key);
+    const hit = stk || (q ? Object.keys(e.types).find(t => t.toLowerCase().includes(q)) : '');
+    const mt = hit && e.types[hit] ? `<span class="mt">${e.types[hit]} ${escapeHtml(hit)}</span>` : '';
+    const inner = `<button type="button" class="lb-pin" data-pin="${escapeHtml(e.key)}" aria-pressed="${pinned}" aria-label="${pinned ? 'Unpin' : 'Pin'} ${escapeHtml(e.title)}" title="${pinned ? 'Unpin' : 'Pin to the top'}">${PIN}</button>
+      <b>${escapeHtml(e.title)}</b>${mt}<span class="st ${e.st === 'pot' ? '' : e.st}">${escapeHtml(e.status)}</span>`;
+    const style = `--dc:${LIB_COLOR[e.domain]}`;
+    return e.href ? `<a class="lb-card${e.kind === 'pot' ? ' pot' : ''}" style="${style}" href="${escapeHtml(e.href)}" ${e.kind === 'pot' ? 'title="Potential initiative"' : ''}>${inner}</a>`
+                  : `<div class="lb-card" style="${style}" role="button" tabindex="0" data-details="${escapeHtml(e.key)}" aria-haspopup="dialog">${inner}</div>`;
   }
-  function renderSearch(){
-    if (currentView !== 'initiatives') return;
-    const searching = !!query;
-    tileGrid.hidden = searching;
-    panelArea.hidden = searching;
-    searchArea.hidden = !searching;
-    if (!searching) { searchArea.innerHTML = ''; return; }
-    const hits = initiatives.filter(matchesInitiative);
-    searchArea.innerHTML = `
-      <div class="panel-head">
-        <h2 class="panel-title">Search results</h2>
-        <span class="panel-sub">${hits.length} initiative${hits.length !== 1 ? 's' : ''}</span>
-        <button type="button" class="btn" id="searchClear">Clear search</button>
-      </div>
-      ${hits.length ? `<div class="init-grid">${hits.map(initCard).join('')}</div>`
-                    : `<div class="empty-hint">No initiatives match “${escapeHtml(railQ.value.trim())}”.</div>`}`;
-    document.getElementById('searchClear').addEventListener('click', () => {
-      railQ.value = ''; query = ''; renderSearch(); railQ.focus();
-    });
+  function render(){
+    if (!libView) return;
+    const all = entries(), shown = all.filter(matches), on = !!(q || stk);
+    const may = MismoStore.canEdit();
+    const doms = LIB_DOMAINS.slice(); if (order === 'az') doms.sort((a, b) => AZ(a.name, b.name));
+    const nAct = initiatives.length, nPot = (potentialItems || []).length;
+    const types = [...new Set(all.flatMap(e => Object.keys(e.types)))].sort(AZ);
+    const pinned = shown.filter(e => pins.includes(e.key)).sort((a, b) => AZ(a.title, b.title));
+    const head = `<header class="lb-band">${WAVES}<div class="lb-row"><div><div class="lb-eyebrow">Initiative Library</div>
+        <h1>${tab === 'potential' ? 'Potential Initiatives' : tab === 'initiatives' ? 'MISMO Initiatives' : 'Initiative Library'}</h1>
+        <p class="lb-sub">${tab === 'potential' ? 'Ideas and work requests being explored, before they become chartered initiatives.' : 'MISMO’s work across the mortgage lifecycle: every domain on one line, opened when you want the detail. Pin the ones you follow.'}</p></div>
+        ${may && tab !== 'initiatives' ? '<a class="btn lb-new" href="potential-edit.html">+ New Potential Initiative</a>' : ''}</div>
+      <div class="lb-stats"><div class="lb-stat"><b>${nAct}</b><span>MISMO initiatives</span></div><div class="lb-stat"><b>${potentialItems ? nPot : '…'}</b><span>potential initiatives</span></div><div class="lb-stat"><b>${LIB_DOMAINS.length}</b><span>lifecycle domains</span></div></div>
+      <div class="lb-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="libQ" type="search" placeholder="Search initiatives or stakeholder types, e.g. LOS Provider" aria-label="Search initiatives or stakeholder types" value="${escapeHtml(q)}"><kbd>/</kbd></div>
+      <div class="lb-tabs" role="tablist" aria-label="Show">${[['all', 'By Domain', ''], ['initiatives', 'MISMO Initiatives', nAct], ['potential', 'Potential Initiatives', potentialItems ? nPot : '']].map(([k, l, n]) =>
+        `<button type="button" class="lb-tab" role="tab" data-tab="${k}" aria-selected="${tab === k}" tabindex="${tab === k ? 0 : -1}">${l}${n !== '' ? `<span class="n">${n}</span>` : ''}</button>`).join('')}</div></header>`;
+    const pinsHtml = `<section class="lb-pins" ${pinned.length ? '' : 'hidden'} aria-labelledby="lbPinsH"><div class="lb-sech">${PIN}<h2 id="lbPinsH">Pinned</h2><span>Pin any initiative to keep it here. Pins are kept in this browser.</span></div><div class="lb-cards">${pinned.map(card).join('')}</div></section>`;
+    const tools = `<div class="lb-tools"><label for="libStk">Stakeholder type</label><select class="lb-sel stk" id="libStk" ${rostersLoaded ? '' : 'disabled'}><option value="">${rostersLoaded ? 'All stakeholder types' : 'Loading stakeholder types…'}</option>${types.map(t =>
+        `<option value="${escapeHtml(t)}" ${t === stk ? 'selected' : ''}>${escapeHtml(t)} (${all.filter(e => e.types[t]).length})</option>`).join('')}</select><span class="grow"></span>
+      <label for="libOrder" class="visually-hidden">Order</label><select class="lb-sel" id="libOrder"><option value="az" ${order === 'az' ? 'selected' : ''}>Order: A to Z</option><option value="life" ${order === 'life' ? 'selected' : ''}>Order: Lifecycle</option></select>
+      <button type="button" class="lb-btn2" id="libOpenAll">Expand All</button><button type="button" class="lb-btn2" id="libCloseAll">Collapse All</button></div>`;
+    const nA = shown.filter(e => e.kind === 'act').length, nP = shown.filter(e => e.kind === 'pot').length;
+    const res = `<div class="lb-res" role="status" ${on ? '' : 'hidden'}><span>${stk ? `Stakeholder type <b>${escapeHtml(stk)}</b>` : ''}${stk && q ? ' and ' : ''}${q ? `matching <b>“${escapeHtml(q)}”</b>` : ''}: ${tab !== 'potential' ? `${nA} initiative${nA === 1 ? '' : 's'}` : ''}${tab === 'all' && nP ? ', ' : ''}${tab !== 'initiatives' && (nP || tab === 'potential') ? `${nP} potential` : ''}</span><button type="button" class="lb-btn2" id="libClear">Clear</button></div>`;
+    const rows = doms.map(d => {
+      const inDom = all.filter(e => e.domain === d.name && (tab === 'all' || (tab === 'initiatives' ? e.kind === 'act' : e.kind === 'pot'))).sort((a, b) => AZ(a.title, b.title));
+      const vis = inDom.filter(matches), open = !folded.has(d.name) && !(on && !vis.length);
+      const nAd = inDom.filter(e => e.kind === 'act').length, nPd = inDom.filter(e => e.kind === 'pot').length;
+      const ini = d.name.replace(/[&,]/g, ' ').split(/\s+/).filter(w => w && w.toLowerCase() !== 'and').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+      const strip = `<span class="lb-strip" aria-hidden="true">${inDom.map(e => `<i class="${e.kind === 'pot' ? 'pot' : e.st}${on && !vis.includes(e) ? ' faded' : ''}" title="${escapeHtml(e.title)}"></i>`).join('')}</span>`;
+      const cnt = on ? (vis.length ? `<b>${vis.length}</b> matching` : '<span class="none">None match</span>')
+                     : inDom.length ? [nAd || tab !== 'potential' ? `<b>${nAd}</b> initiative${nAd === 1 ? '' : 's'}` : '', nPd ? `<b>${nPd}</b> potential` : ''].filter(Boolean).join(' · ') : '<span class="none">No initiatives yet</span>';
+      return `<section class="lb-dom${open ? ' open' : ''}${on && !vis.length ? ' none' : ''}" style="--dc:${d.color}" data-dom="${escapeHtml(d.name)}">
+        <button type="button" class="lb-dom-h" aria-expanded="${open}" data-fold="${escapeHtml(d.name)}"><span class="chev">${CHEV}</span><span class="lb-sw" aria-hidden="true">${ini}</span>
+          <span class="lb-nm"><b>${escapeHtml(d.name)}</b><span>${escapeHtml(d.desc)}</span></span><span class="lb-rgt"><span class="lb-cnt">${cnt}</span>${inDom.length ? strip : ''}</span></button>
+        ${open ? `<div class="lb-dom-b">${vis.length ? `<div class="lb-cards">${vis.map(card).join('')}</div>` : '<div class="lb-empty">Nothing here yet.</div>'}</div>` : ''}</section>`;
+    }).join('');
+    const hadFocus = document.activeElement && document.activeElement.id, caret = hadFocus === 'libQ' ? document.activeElement.selectionStart : null;
+    libView.innerHTML = head + `<div class="lb-body">${potentialItems === null ? '' : pinsHtml}${tools}${res}${rows}</div>` + (libView.querySelector('dialog') ? '' : '');
+    if (hadFocus) { const f = document.getElementById(hadFocus); if (f) { f.focus(); if (caret != null && f.setSelectionRange) f.setSelectionRange(caret, caret); } }
+    wire();
+    document.querySelectorAll('.rail nav button[data-view]').forEach(b => { if (b.dataset.view === (tab === 'potential' ? 'potential' : 'initiatives')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   }
-  railQ.addEventListener('input', () => {
-    query = railQ.value.trim().toLowerCase();
-    if (currentView === 'potential') renderPotential(potentialView); else renderSearch();
-  });
+  function setTab(t, focus){
+    tab = ['initiatives', 'potential'].includes(t) ? t : 'all';
+    try { const want = tab === 'all' ? '' : '#' + tab; if (location.hash !== want) history.replaceState(null, '', location.pathname + location.search + want); } catch (e) {}
+    render(); if (focus) { const b = libView.querySelector(`.lb-tab[data-tab="${tab}"]`); if (b) b.focus(); }
+  }
+  function show(view){ setTab(view === 'potential' ? 'potential' : view === 'initiatives' ? 'all' : view); }
+  function libReset(){ q = ''; stk = ''; if (railQ) railQ.value = ''; folded = new Set(); setTab('all'); }
+  function details(key){
+    const e = entries().find(x => x.key === key); if (!e) return;
+    const i = e.item, why = Array.isArray(i.whyWorking) ? i.whyWorking : [];
+    let d = document.getElementById('libDlg'); if (d) d.remove();
+    d = document.createElement('dialog'); d.id = 'libDlg'; d.className = 'lb-dlg'; d.style.setProperty('--dc', LIB_COLOR[e.domain]); d.setAttribute('aria-labelledby', 'libDlgT');
+    d.innerHTML = `<div class="dh"><div class="lb-eyebrow">${escapeHtml(e.domain)} · ${escapeHtml(e.status)}</div><h3 id="libDlgT">${escapeHtml(e.title)}</h3></div>
+      <div class="db"><h4>Facilitator</h4><p>${i.facilitator ? escapeHtml(i.facilitator) : 'Not assigned'}</p>
+      ${i.whatIsIt ? `<h4>What It Is</h4><p>${i.whatIsIt}</p>` : ''}${why.length ? `<h4>Why MISMO Is Working on It</h4><ul>${why.map(w => `<li>${w}</li>`).join('')}</ul>` : ''}
+      <h4>Dashboard</h4><p>Not built yet.</p></div><div class="acts"><button type="button" class="btn" id="libDlgX">Close</button></div>`;
+    document.body.appendChild(d); d.showModal(); d.querySelector('#libDlgX').focus();
+    d.querySelector('#libDlgX').addEventListener('click', () => d.close());
+    d.addEventListener('close', () => { const c = document.querySelector(`[data-details="${CSS.escape(key)}"]`); if (c) c.focus(); d.remove(); });
+    d.addEventListener('click', ev => { if (ev.target === d) d.close(); });
+  }
+  function wire(){
+    libView.querySelectorAll('.lb-tab').forEach(b => { b.addEventListener('click', () => setTab(b.dataset.tab));
+      b.addEventListener('keydown', ev => { if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return; ev.preventDefault();
+        const ks = ['all', 'initiatives', 'potential'], i = ks.indexOf(tab); setTab(ks[(i + (ev.key === 'ArrowRight' ? 1 : 2)) % 3], true); }); });
+    const qi = document.getElementById('libQ');
+    qi.addEventListener('input', () => { q = qi.value.trim().toLowerCase(); if (railQ) railQ.value = qi.value; render(); });
+    const sel = document.getElementById('libStk'); sel.addEventListener('change', () => { stk = sel.value; render(); });
+    const ord = document.getElementById('libOrder'); ord.addEventListener('change', () => { order = ord.value; store.set('resources:hub:library-order', order); render(); });
+    document.getElementById('libOpenAll').addEventListener('click', () => { folded = new Set(); store.set('resources:hub:library-folded', []); render(); });
+    document.getElementById('libCloseAll').addEventListener('click', () => { folded = new Set(LIB_DOMAINS.map(d => d.name)); store.set('resources:hub:library-folded', [...folded]); render(); });
+    const clr = document.getElementById('libClear'); if (clr) clr.addEventListener('click', () => { q = ''; stk = ''; if (railQ) railQ.value = ''; render(); document.getElementById('libQ').focus(); });
+    libView.querySelectorAll('[data-fold]').forEach(b => b.addEventListener('click', () => { const n = b.dataset.fold;
+      folded.has(n) ? folded.delete(n) : folded.add(n); store.set('resources:hub:library-folded', [...folded]); render();
+      const nb = libView.querySelector(`[data-fold="${CSS.escape(n)}"]`); if (nb) nb.focus(); }));
+    libView.querySelectorAll('[data-pin]').forEach(b => b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); const k = b.dataset.pin;
+      pins = pins.includes(k) ? pins.filter(x => x !== k) : [...pins, k]; store.set('resources:hub:library-pins', pins); render();
+      const nb = libView.querySelector(`.lb-dom [data-pin="${CSS.escape(k)}"]`) || libView.querySelector(`[data-pin="${CSS.escape(k)}"]`); if (nb) nb.focus(); }));
+    libView.querySelectorAll('[data-details]').forEach(c => { const open = () => details(c.dataset.details);
+      c.addEventListener('click', ev => { if (!ev.target.closest('[data-pin]')) open(); });
+      c.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === c) { ev.preventDefault(); open(); } }); });
+  }
+  document.querySelectorAll('.rail nav button[data-view]').forEach(b => b.addEventListener('click', () => { show(b.dataset.view); window.scrollTo(0, 0); }));
+  window.addEventListener('hashchange', () => setTab(location.hash.slice(1)));
+  if (railQ) railQ.addEventListener('input', () => { q = railQ.value.trim().toLowerCase(); render(); });
+  document.addEventListener('keydown', ev => { if (ev.key !== '/' || ev.metaKey || ev.ctrlKey) return; const t = ev.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    const qi = document.getElementById('libQ'); if (qi) { ev.preventDefault(); qi.focus(); } });
+  tab = ['initiatives', 'potential'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'all';
+  (async () => { try { await MismoStore.types.load(); } catch (e) {} render(); loadPotential(); loadRosters(); })();
 
   // --- Narrowing the sections to icons: the button, or the backslash key ---
   const railHide = document.getElementById('railHide');
@@ -816,7 +741,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   });
   if (document.documentElement.classList.contains('railmini')) setMini(true);
 
-  show(location.hash === '#potential' ? 'potential' : 'initiatives');
 
   // Fun intro touch: briefly highlight each domain tile in turn when triggered (see the
   // replay button below - nothing plays automatically on page load), purely visual — it
@@ -853,88 +777,22 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     osc.stop(startTime + duration);
   }
 
+  /* The Color Tour, over the eight domains (Perry, 6 Nov 2026): each lights up in turn on a rising scale, then all
+     together on a chord. It used to run over a 3x3 grid of domain tiles. */
   function playIntroColorTour(withSound){
-    const tiles = [...tileGrid.querySelectorAll('.domain-tile')];
-    // Group tiles into visual rows based on their actual rendered top offset,
-    // then sort each row left-to-right, so this adapts correctly at any screen
-    // width (3 columns, 2, or 1) rather than assuming a fixed grid shape.
-    const rows = [];
-    tiles.forEach(tile => {
-      const top = tile.offsetTop;
-      let row = rows.find(r => Math.abs(r.top - top) < 5);
-      if (!row){
-        row = { top, tiles: [] };
-        rows.push(row);
-      }
-      row.tiles.push(tile);
-    });
-    rows.forEach(row => row.tiles.sort((a, b) => a.offsetLeft - b.offsetLeft));
-
-    // Ascending phase groups: split tiles by position relative to the main
-    // diagonal (top-left to bottom-right) of the row/column grid — below it,
-    // on it, then above it. With a 3x3 layout this is exactly:
-    //   below: eMortgage, Secondary, Servicing
-    //   on:    Artificial Intelligence, Governance, Valuation
-    //   above: Compliance, Credit Reporting, Originations
-    const belowDiagonal = [], onDiagonal = [], aboveDiagonal = [];
-    rows.forEach((row, r) => {
-      row.tiles.forEach((tile, c) => {
-        if (r > c) belowDiagonal.push(tile);
-        else if (r === c) onDiagonal.push(tile);
-        else aboveDiagonal.push(tile);
-      });
-    });
-    const diagonalGroups = [belowDiagonal, onDiagonal, aboveDiagonal].filter(g => g.length);
-
-    const descendMs = 975; // 35% faster than the original 1500ms cadence
-    const ascendMs = 500; // quicker cadence for the ascending phase
-
-    // Descending tones (one per row, high to low), then ascending tones
-    // (one per diagonal group, low to high) — Close Encounters-ish.
-    // Dropped one octave from the original pitch per earlier feedback.
-    const descendNotes = [440.00, 293.66, 220.00]; // A4, D4, A3
-    const ascendNotes = [261.63, 329.63, 392.00]; // C4, E4, G4
-
-    // withSound is true whenever this runs — the tour is only ever triggered by
-    // the replay button's click handler now, which is always a genuine gesture.
-    const ctx = withSound ? getAudioContext() : null;
-    function audioIsLive(){ return ctx && ctx.state === 'running'; }
-
-    function highlightGroup(tileGroup, freq, duration, holdMs, className){
-      tileGroup.forEach(tile => tile.classList.add(className));
-      if (audioIsLive()) playTone(freq, ctx.currentTime, duration, ctx);
-      setTimeout(() => {
-        tileGroup.forEach(tile => tile.classList.remove(className));
-      }, holdMs);
-    }
-
-    // Descending: one row at a time, ~1s apart (35% faster than the original
-    // 1.5s cadence, per feedback) — still a gradual fade, just a brisker one.
-    rows.forEach((row, i) => {
-      setTimeout(() => {
-        highlightGroup(row.tiles, descendNotes[i] || descendNotes[descendNotes.length - 1], 0.585, descendMs, 'intro-highlight-slow');
-      }, i * descendMs);
-    });
-
-    // Ascending: one diagonal group at a time, starting after the descending
-    // phase finishes, at a quicker cadence — keeps the snappier fade.
-    const ascendStart = rows.length * descendMs + 200;
-    diagonalGroups.forEach((group, i) => {
-      setTimeout(() => {
-        highlightGroup(group, ascendNotes[i] || ascendNotes[ascendNotes.length - 1], 0.35, ascendMs, 'intro-highlight');
-      }, ascendStart + i * ascendMs);
-    });
+    const rows = [...document.querySelectorAll('#view-library .lb-dom')];
+    const ctx = withSound ? getAudioContext() : null, live = () => ctx && ctx.state === 'running';
+    const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25], step = 420;   // C major, one per domain
+    rows.forEach((row, i) => setTimeout(() => {
+      row.classList.add('intro-highlight'); if (live()) playTone(notes[i % notes.length], ctx.currentTime, 0.35, ctx);
+      setTimeout(() => row.classList.remove('intro-highlight'), step + 200);
+    }, i * step));
+    setTimeout(() => {
+      rows.forEach(r => r.classList.add('intro-highlight')); if (live()) [261.63, 329.63, 392.00].forEach(f => playTone(f, ctx.currentTime, 0.9, ctx));
+      setTimeout(() => rows.forEach(r => r.classList.remove('intro-highlight')), 900);
+    }, rows.length * step + 250);
   }
 
-  // The tour now only ever runs when this button is clicked — nothing plays
-  // automatically on page load, visuals or sound. A direct click is a genuine
-  // user gesture, so audio is reliably allowed here every time.
-  // A freshly-created AudioContext can have a brief startup lag before its very
-  // first audible sound — the underlying audio hardware path needs a moment to
-  // spin up. Without accounting for this, the first descending tone on the very
-  // first play can noticeably lag behind its visual highlight. Playing an
-  // inaudible tone immediately after resume, then giving it a brief moment
-  // before the real tour starts, avoids that — but only needs to happen once.
   let audioWarmedUp = false;
   function primeAudio(ctx){
     const osc = ctx.createOscillator();
@@ -956,7 +814,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     replayBtn.addEventListener('click', async () => {
       if (tourRunning) return;
       tourRunning = true;
-      if (currentView !== 'initiatives' || query) { railQ.value = ''; query = ''; show('initiatives'); }
+      libReset();
       setTimeout(() => { tourRunning = false; }, 10000);
       const ctx = getAudioContext();
       if (ctx && ctx.state === 'suspended'){
@@ -1008,9 +866,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     }
   });
 </script>
-<!-- Search (Perry, 5 Oct 2026): the shared engine, then the Hub's box and results. -->
-<script src="/assets/search-core.js"></script>
-<script src="hub-search.js"></script>
+<!-- The Hub's old search box (hub-search.js) sat under the old page heading; the library's header has its own search now (Perry, 6 Nov 2026). -->
 
 </body>
 </html>

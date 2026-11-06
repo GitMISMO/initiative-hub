@@ -26,7 +26,7 @@
 </script>
 <script src="/assets/session.js"></script>
 <script src="hub-gate.js"></script>
-<script src="dashboard-data.js?v=8ba7ae77e9"></script>
+<script src="dashboard-data.js?v=063cdcbac3"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Libre+Franklin:wght@400;500;600;700;800&display=swap">
@@ -247,8 +247,11 @@
 .pband .mast-acts{display:flex;align-items:center;gap:8px;flex:0 0 auto}
 .pband .st{color:#cfe3f1;font-size:12.5px}
 .pband .btn.secondary{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)}
-.pband #saveBtn{background:#fff;color:#0F314C;border-color:#fff}
-.pband #saveBtn:disabled{opacity:.55}
+/* Saving as you go, like the active initiatives (Perry, 5 Nov 2026): the same note, in the corner */
+.ov-save{position:fixed;left:calc(var(--rail-w, 0px) + 16px);bottom:calc(16px + env(safe-area-inset-bottom, 0px));z-index:80;display:flex;align-items:center;gap:10px;max-width:min(520px,calc(100vw - 32px));padding:8px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line-2);box-shadow:0 10px 26px -14px rgba(15,49,76,.45);font-size:12.5px;color:var(--ink-2)}
+.ov-save[hidden]{display:none} .ov-save{transition:opacity .5s ease} .ov-save.gone{opacity:0;pointer-events:none} .ov-save[data-kind="error"]{background:#FBE9E7;border-color:#F1C9C4;color:#7A2E26} .ov-save button{border:0;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;background:var(--navy,#0F314C);color:#fff;cursor:pointer}
+@media (prefers-reduced-motion: reduce){ .ov-save{transition:none} }
+@media (max-width:760px){ .ov-save{left:16px} }   /* on a phone the sidebar folds away */
 .pb-chips{position:relative;display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
 .pchip{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 13px;min-width:0;max-width:520px;text-align:left;color:#fff;font:inherit}
 .pchip .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;background:#1f6a5a;border:2px solid rgba(255,255,255,.35);flex:0 0 auto;color:#fff}
@@ -583,9 +586,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
         <div class="pb-eyebrow"><span>Potential Initiative</span><span id="pDomain"></span></div>
         <div id="pNameBox"><h1 id="pName">Potential initiative</h1></div>
       </div><div class="mast-acts">
-        <span class="st" id="status"></span>
         <span class="btn secondary viewonly" id="viewOnly" title="Your account can read this initiative but not change it" style="display:none">View only</span>
-        <button class="btn" id="saveBtn" disabled>Save</button>
       </div></div>
       <div class="pb-chips" id="pChips"></div>
       <div class="pb-stage" id="pStage" role="group" aria-label="Stage"></div>
@@ -679,8 +680,49 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }
   function fmtDate(s){ if (!s) return ''; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}); }
   function engColor(k){ const e = P.ENGAGEMENTS.find(x => x.key === k); return e ? e.color : '#8B94A7'; }
-  function setDirty(v){ dirty = v; $('saveBtn').disabled = !v; $('saveBtn').classList.toggle('dirty', v); $('status').textContent = v ? 'Unsaved changes' : ''; }
-  window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  /* Saving as you go, like the active initiatives (Perry, 5 Nov 2026): every change saves itself 0.8 seconds after the
+     last one, with "Saving…" then "All changes saved" in the corner. If someone else saved meanwhile, saving stops and
+     offers Reload, as the active pages do; any other problem offers Try again. */
+  let saveTimer = null, saving = false, saveAgain = false, saveBlocked = false;
+  function saveNote(kind, text, action){
+    let el = $('ovSave');
+    if (!el) { el = document.createElement('div'); el.id = 'ovSave'; el.className = 'ov-save'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+    el.dataset.kind = kind; el.innerHTML = '<span></span>' + (action ? '<button type="button"></button>' : '');
+    el.querySelector('span').textContent = text; el.hidden = !text; el.classList.remove('gone');
+    if (action) { const b = el.querySelector('button'); b.textContent = action[0]; b.onclick = action[1]; }
+    clearTimeout(el.fade);
+    if (kind === 'ok' && text) el.fade = setTimeout(() => el.classList.add('gone'), 2200);   // "All changes saved" fades; problems stay
+  }
+  function setDirty(v){
+    dirty = v;
+    if (!v || saveBlocked || !S.canEdit()) return;
+    saveNote('pending', 'Saving…'); clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 800);
+  }
+  async function flushSave(){
+    saveTimer = null;
+    if (saving) { saveAgain = true; return; }
+    saving = true; saveAgain = false;
+    if (!(await S.signInToSave())) { saving = false; saveNote('error', 'Sign in to save your changes.', ['Try again', () => { saveNote('pending', 'Saving…'); flushSave(); }]); return; }
+    const raw = { ...rec }; delete raw.savedBy; delete raw.savedAt;
+    raw.updates = (raw.updates || []).map(({ _pending, ...u }) => u);
+    const v = P.validate(raw, S.typeKeys());
+    if (v.problems.length) { saving = false; saveNote('error', 'Not saved: ' + v.problems.join(' '), ['Try again', () => { saveNote('pending', 'Saving…'); flushSave(); }]); return; }
+    const r = await P.save(id, v.content, sha);
+    saving = false;
+    if (r.ok) {
+      sha = r.sha;
+      /* what was saved stops looking pending, without redrawing (someone may be typing) */
+      const done = new Set(v.content.updates.map(u => u.text + '|' + u.at));
+      (rec.updates || []).forEach(u => { if (u._pending && done.has(u.text + '|' + u.at)) delete u._pending; });
+      document.querySelectorAll('.tl-i.pending').forEach(el => el.classList.remove('pending'));
+      if (saveAgain || saveTimer) { if (!saveTimer) flushSave(); return; }
+      dirty = false; saveNote('ok', 'All changes saved'); return;
+    }
+    if (r.reason === 'CONFLICT') { saveBlocked = true; saveNote('error', 'Someone else saved this page while you were editing. Reload to get their changes, then redo yours.', ['Reload', () => location.reload()]); return; }
+    const msg = r.reason === 'REJECTED' && r.detail ? `Not saved: ${r.detail.error}${r.detail.type ? ' (' + r.detail.type + ')' : ''}${r.detail.org ? ' — ' + r.detail.org : ''}.` : 'Not saved: ' + S.explain(r.reason);
+    saveNote('error', msg, ['Try again', () => { saveNote('pending', 'Saving…'); flushSave(); }]);
+  }
+  window.addEventListener('beforeunload', e => { if (saveTimer || saving || (dirty && !saveBlocked)) { e.preventDefault(); e.returnValue = ''; } });
 
   const KIND = { pdf:'#C0392B', doc:'#2A4DFF', docx:'#2A4DFF', xls:'#1D9E75', xlsx:'#1D9E75',
                  ppt:'#D35400', pptx:'#D35400', png:'#7F5AF0', jpg:'#7F5AF0', jpeg:'#7F5AF0' };
@@ -845,7 +887,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   function renderPage(){
     const may = S.canEdit();
     if (!may) editing = null;
-    $('saveBtn').style.display = may ? '' : 'none'; $('viewOnly').style.display = may ? 'none' : '';
+    $('viewOnly').style.display = may ? 'none' : '';
     const types = typesAZ();
     if (!activeType || !types.includes(activeType)) activeType = types[0] || null;
     const visible = (rec.organizations || []).filter(o => types.includes(o.type));
@@ -1252,22 +1294,6 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     rec.organizations = [...(rec.organizations || []), { org, type, engagement: $('aoEng').value, contact: $('aoContact').value.trim(), barrier: '', notes: '' }];
     activeType = $('aoType').value;
     $('addOrg').classList.remove('open'); setDirty(true); render();
-  });
-
-  $('saveBtn').addEventListener('click', async () => {
-    if (!(await S.signInToSave())) { alert(S.explain('NO_KEY')); return; }   // shared sign-in, not prompt() boxes
-    $('status').textContent = 'Saving…'; $('saveBtn').disabled = true;
-    const raw = { ...rec }; delete raw.savedBy; delete raw.savedAt;
-    raw.updates = (raw.updates || []).map(({ _pending, ...u }) => u);
-    /* Saved through the general route, like Work Requests, so the newer fields are kept; the same field checks the
-       relay's own route ran happen here first (Perry, 5 Nov 2026). */
-    const v = P.validate(raw, S.typeKeys());
-    if (v.problems.length) { setDirty(true); $('status').textContent = ''; $('err').textContent = 'Not saved: ' + v.problems.join(' '); $('err').classList.remove('hidden'); return; }
-    const r = await P.save(id, v.content, sha);
-    if (r.ok) { sha = r.sha; Object.assign(rec, v.content); $('err').classList.add('hidden'); setDirty(false); $('status').textContent = 'Saved'; render(); return; }
-    setDirty(true);
-    const msg = r.reason === 'REJECTED' && r.detail ? `Not saved: ${r.detail.error}${r.detail.type ? ' (' + r.detail.type + ')' : ''}${r.detail.org ? ' — ' + r.detail.org : ''}.` : S.explain(r.reason);
-    $('err').textContent = msg; $('err').classList.remove('hidden');
   });
 
   (async () => {
