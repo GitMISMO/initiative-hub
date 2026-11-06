@@ -583,7 +583,9 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   const AZ = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
   let potentialItems = null, rosters = {}, rostersLoaded = false;
   let tab = 'all', q = '', stk = '', order = store.get('resources:hub:library-order', 'az');
-  let pins = store.get('resources:hub:library-pins', []), folded = new Set(store.get('resources:hub:library-folded', []));
+  /* Domains start folded (Perry, 6 Nov 2026); the ones you open are remembered. While searching or filtering, those with
+     matches open by themselves, unless you fold one during that search. */
+  let pins = store.get('resources:hub:library-pins', []), opened = new Set(store.get('resources:hub:library-open', [])), searchFolded = new Set(), lastFilter = '';
   /* every entry, active and potential, in one shape */
   function entries(){
     const act = initiatives.map(i => { const title = plain(i.title), dash = i.href || '';
@@ -635,6 +637,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
   function render(){
     if (!libView) return;
     const all = entries(), shown = all.filter(matches), on = !!(q || stk);
+    if (q + '|' + stk !== lastFilter) { searchFolded = new Set(); lastFilter = q + '|' + stk; }
     const may = MismoStore.canEdit();
     const doms = LIB_DOMAINS.slice(); if (order === 'az') doms.sort((a, b) => AZ(a.name, b.name));
     const nAct = initiatives.length, nPot = (potentialItems || []).length;
@@ -658,7 +661,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     const res = `<div class="lb-res" role="status" ${on ? '' : 'hidden'}><span>${stk ? `Stakeholder type <b>${escapeHtml(stk)}</b>` : ''}${stk && q ? ' and ' : ''}${q ? `matching <b>“${escapeHtml(q)}”</b>` : ''}: ${tab !== 'potential' ? `${nA} initiative${nA === 1 ? '' : 's'}` : ''}${tab === 'all' && nP ? ', ' : ''}${tab !== 'initiatives' && (nP || tab === 'potential') ? `${nP} potential` : ''}</span><button type="button" class="lb-btn2" id="libClear">Clear</button></div>`;
     const rows = doms.map(d => {
       const inDom = all.filter(e => e.domain === d.name && (tab === 'all' || (tab === 'initiatives' ? e.kind === 'act' : e.kind === 'pot'))).sort((a, b) => AZ(a.title, b.title));
-      const vis = inDom.filter(matches), open = !folded.has(d.name) && !(on && !vis.length);
+      const vis = inDom.filter(matches), open = on ? vis.length > 0 && !searchFolded.has(d.name) : opened.has(d.name);
       const nAd = inDom.filter(e => e.kind === 'act').length, nPd = inDom.filter(e => e.kind === 'pot').length;
       const ini = d.name.replace(/[&,]/g, ' ').split(/\s+/).filter(w => w && w.toLowerCase() !== 'and').slice(0, 2).map(w => w[0]).join('').toUpperCase();
       const strip = `<span class="lb-strip" aria-hidden="true">${inDom.map(e => `<i class="${e.kind === 'pot' ? 'pot' : e.st}${on && !vis.includes(e) ? ' faded' : ''}" title="${escapeHtml(e.title)}"></i>`).join('')}</span>`;
@@ -667,7 +670,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       return `<section class="lb-dom${open ? ' open' : ''}${on && !vis.length ? ' none' : ''}" style="--dc:${d.color}" data-dom="${escapeHtml(d.name)}">
         <button type="button" class="lb-dom-h" aria-expanded="${open}" data-fold="${escapeHtml(d.name)}"><span class="chev">${CHEV}</span><span class="lb-sw" aria-hidden="true">${ini}</span>
           <span class="lb-nm"><b>${escapeHtml(d.name)}</b><span>${escapeHtml(d.desc)}</span></span><span class="lb-rgt"><span class="lb-cnt">${cnt}</span>${inDom.length ? strip : ''}</span></button>
-        ${open ? `<div class="lb-dom-b">${vis.length ? `<div class="lb-cards">${vis.map(card).join('')}</div>` : '<div class="lb-empty">Nothing here yet.</div>'}</div>` : ''}</section>`;
+        ${open && vis.length ? `<div class="lb-dom-b"><div class="lb-cards">${vis.map(card).join('')}</div></div>` : ''}</section>`;
     }).join('');
     const hadFocus = document.activeElement && document.activeElement.id, caret = hadFocus === 'libQ' ? document.activeElement.selectionStart : null;
     libView.innerHTML = head + `<div class="lb-body">${potentialItems === null ? '' : pinsHtml}${tools}${res}${rows}</div>` + (libView.querySelector('dialog') ? '' : '');
@@ -681,7 +684,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     render(); if (focus) { const b = libView.querySelector(`.lb-tab[data-tab="${tab}"]`); if (b) b.focus(); }
   }
   function show(view){ setTab(view === 'potential' ? 'potential' : view === 'initiatives' ? 'all' : view); }
-  function libReset(){ q = ''; stk = ''; if (railQ) railQ.value = ''; folded = new Set(); setTab('all'); }
+  function libReset(){ q = ''; stk = ''; if (railQ) railQ.value = ''; opened = new Set(LIB_DOMAINS.map(d => d.name)); setTab('all'); }   // the tour shows them open
   function details(key){
     const e = entries().find(x => x.key === key); if (!e) return;
     const i = e.item, why = Array.isArray(i.whyWorking) ? i.whyWorking : [];
@@ -704,11 +707,13 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
     qi.addEventListener('input', () => { q = qi.value.trim().toLowerCase(); if (railQ) railQ.value = qi.value; render(); });
     const sel = document.getElementById('libStk'); sel.addEventListener('change', () => { stk = sel.value; render(); });
     const ord = document.getElementById('libOrder'); ord.addEventListener('change', () => { order = ord.value; store.set('resources:hub:library-order', order); render(); });
-    document.getElementById('libOpenAll').addEventListener('click', () => { folded = new Set(); store.set('resources:hub:library-folded', []); render(); });
-    document.getElementById('libCloseAll').addEventListener('click', () => { folded = new Set(LIB_DOMAINS.map(d => d.name)); store.set('resources:hub:library-folded', [...folded]); render(); });
+    document.getElementById('libOpenAll').addEventListener('click', () => { opened = new Set(LIB_DOMAINS.map(d => d.name)); searchFolded = new Set(); store.set('resources:hub:library-open', [...opened]); render(); });
+    document.getElementById('libCloseAll').addEventListener('click', () => { opened = new Set(); if (q || stk) searchFolded = new Set(LIB_DOMAINS.map(d => d.name)); store.set('resources:hub:library-open', []); render(); });
     const clr = document.getElementById('libClear'); if (clr) clr.addEventListener('click', () => { q = ''; stk = ''; if (railQ) railQ.value = ''; render(); document.getElementById('libQ').focus(); });
     libView.querySelectorAll('[data-fold]').forEach(b => b.addEventListener('click', () => { const n = b.dataset.fold;
-      folded.has(n) ? folded.delete(n) : folded.add(n); store.set('resources:hub:library-folded', [...folded]); render();
+      if (q || stk) { searchFolded.has(n) ? searchFolded.delete(n) : searchFolded.add(n); }
+      else { opened.has(n) ? opened.delete(n) : opened.add(n); store.set('resources:hub:library-open', [...opened]); }
+      render();
       const nb = libView.querySelector(`[data-fold="${CSS.escape(n)}"]`); if (nb) nb.focus(); }));
     libView.querySelectorAll('[data-pin]').forEach(b => b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); const k = b.dataset.pin;
       pins = pins.includes(k) ? pins.filter(x => x !== k) : [...pins, k]; store.set('resources:hub:library-pins', pins); render();

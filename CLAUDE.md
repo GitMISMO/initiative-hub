@@ -644,7 +644,9 @@ Designs" (B1, then the eight-domain, narrow-card versions). Checks: `initiative-
 (36); preview builder `initiative-hub-data/_dev/library-checks/make-library-preview.py`.
 - **Eight lifecycle domains** (`LIB_DOMAINS`, Perry's order and colours), shown A to Z by default or in lifecycle order.
   Each is one line (counts, then a colour square per initiative, dashed for potential) that opens to narrow cards: the
-  name, then the status. Folding and the order are remembered in the browser.
+  name, then the status. Domains start folded (Perry); the ones you open (`resources:hub:library-open`) and the order
+  are remembered in the browser. While searching or filtering, domains with matches open by themselves. An empty domain
+  shows no body when opened.
 - **Placements** are in `LIB_PLACE` (MISMO initiatives, by title) and `LIB_POT_PLACE` (potential ones, by name; a
   potential record's own `domain` wins once it is one of the eight). All confirmed by Perry on 6 Nov 2026. `LIB_OLD`
   maps the old eleven domains for anything new. The potential page's domain picker still offers the old eleven.
