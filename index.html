@@ -572,6 +572,12 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
      6 Nov 2026), or from its old domain. */
   const LIB_POT_PLACE = { 'Consumer Facing AI Disclosure Language': 'Risk, Compliance & Governance', 'Bi-Lateral Ginnie Mae Financing Agreement': 'Risk, Compliance & Governance',
     'AI Governance Community': 'Risk, Compliance & Governance', 'Credit Score Implementation Challenges': 'Third Party Services', 'Home Equity Community': 'Origination' };
+  /* Other names people search by: acronyms and short names (Perry, 6 Nov 2026). The library's search matches them, and
+     GitMISMO.github.io/_internal/build-home-index.py reads this list for the home page's search, so the two agree.
+     Add an initiative's acronym here when people use one. */
+  const LIB_AKA = {
+    'Mortgage Compliance Dataset': 'MCD', 'Common Confidence Score': 'CCS', 'Loan Boarding Dataset': 'LBDS Loan Boarding Data Segment',
+    'MI Claim Submission Dataset': 'MI Mortgage Insurance', 'MISMO FRAME': 'AI Artificial Intelligence' };
   const LIB_OLD = { 'Artificial Intelligence': 'Risk, Compliance & Governance', 'Governance': 'Risk, Compliance & Governance', 'Mortgage Compliance': 'Risk, Compliance & Governance',
     'Credit Reporting': 'Origination', 'Originations': 'Origination', 'eMortgage': 'Digital Mortgage', 'Title & Closing': 'Close and Fund', 'Servicing': 'Servicing',
     'Secondary': 'Secondary Market', 'Valuation': 'Third Party Services', 'Mortgage Insurance': 'Servicing' };
@@ -591,7 +597,7 @@ c57 -33 76 -84 76 -200 0 -116 -19 -167 -76 -200 -32 -19 -52 -20 -294 -20
       return { key: 'i:' + title, kind: 'act', title, status: STATUS[i.lifecycle] || 'In Development', st: i.lifecycle in STATUS ? i.lifecycle : 'dev',
         domain: LIB_PLACE[title] || (i.domains || []).map(d => LIB_OLD[d]).find(Boolean) || 'Data & Technology Enablement',
         href: dash, id: dash.replace(/-dashboard\.html$/, ''), item: i,
-        text: [title, plain(i.whatIsIt), i.facilitator, (i.domains || []).join(' ')].join(' ').toLowerCase() }; });
+        aka: LIB_AKA[title] || '', text: [title, LIB_AKA[title] || '', plain(i.whatIsIt), i.facilitator, (i.domains || []).join(' ')].join(' ').toLowerCase() }; });
     const stages = MismoStore.potential.STAGES;
     const pot = (potentialItems || []).map(p => ({ key: 'p:' + p.id, kind: 'pot', title: p.name, status: (stages.find(s => s.key === p.stage) || stages[0]).label, st: 'pot',
       domain: (LIB_COLOR[p.domain] && p.domain) || LIB_POT_PLACE[p.name] || LIB_OLD[p.domain] || 'Data & Technology Enablement',
