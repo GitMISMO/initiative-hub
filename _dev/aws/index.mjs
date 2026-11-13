@@ -2156,6 +2156,50 @@ async function attemptSignIn(email, password, origin) {
  * /file and /commit are refused for this project, so the files cannot be read or written
  * whole around these rules.
  * ===================================================================================== */
+/* =====================================================================================
+ * THE MMS: ADMIN-ONLY SETTINGS, DELETING WORK REQUESTS, AND EACH PERSON'S OWN EMAIL CHOICES
+ * Relay request 11 (the MMS's Claude, 8 Nov 2026; Perry, 13 Nov 2026, before the MMS goes live on 20 Nov). Until now
+ * the relay only knew View or Edit on project "mms"; who could change settings or delete was enforced only in the page,
+ * so anyone with Edit, which includes every facilitator, could get round it from the browser. Now, for project mms:
+ * - data/config.json: the documents config/people (People and Roles), config/notify (Notifications), config/process
+ *   (Process) and config/digest (Daily Digest) change only for an MMS administrator. The page's other config documents
+ *   (leaders, feed, digestLog, imauto), which it saves on its own as people work, stay open to Edit.
+ * - data/tickets-<year>.json and tickets-other.json: taking a work request out (deleting it) only for an administrator.
+ * - data/prefs.json: anyone else may change only their own document, prefs/<their email as the MMS files it>.
+ * - POST /mms/commit can't write those files except for an administrator (the MMS itself never uses /commit).
+ * An MMS administrator is Admin on the MMS in People & Access, or a platform administrator. Documents are compared with
+ * their keys sorted, so a page writing the same content in another order isn't mistaken for a change. A save from a
+ * stale copy gets 409 CONFLICT first, the answer GitHub would give, so the page re-reads and re-applies as it always
+ * has rather than being refused for someone else's change. Refused: 403 MMS_ADMIN_ONLY or MMS_OWN_PREFS, nothing written.
+ * ===================================================================================== */
+const MMS_PROJECT = 'mms';
+const MMS_ADMIN_DOCS = { 'config/people': 'People and Roles', 'config/notify': 'Notifications', 'config/process': 'Process', 'config/digest': 'the Daily Digest' };
+const MMS_TICKETS = /^tickets-(\d{4}|other)$/;
+const mmsGuarded = id => id === 'config' || id === 'prefs' || MMS_TICKETS.test(id);
+const mmsGuardedPath = p => { const m = String(p).match(/^data\/([a-z0-9-]+)\.json$/); return !!m && mmsGuarded(m[1]); };
+const mmsPrefKey = email => String(email || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '_').slice(0, 80);   /* as the MMS files them */
+const canonOf = v => JSON.stringify(v, (k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
+async function mmsAdmin(who) { return who.role === 'admin' || (await isPlatformAdmin(lowerOf(who.email))).ok === true; }
+async function mmsSaveCheck(id, body, who, repo, branch) {
+  if (await mmsAdmin(who)) return null;
+  const file = await readFile(repo, branch, `data/${id}.json`);
+  if (file.status !== 200 && file.status !== 404) return respond(502, { error: 'GITHUB', status: file.status, message: file.message });
+  if (file.corrupt) return respond(502, { error: 'CORRUPT', message: 'The committed data file is not valid JSON.' });
+  if (file.status === 200 && (body.sha || null) !== file.sha) return respond(409, { error: 'CONFLICT' });
+  const was = docsOf(file.status === 200 ? file.data : null), now = docsOf(body.content);
+  if (id === 'config') {
+    const k = Object.keys(MMS_ADMIN_DOCS).find(k => canonOf(was[k]) !== canonOf(now[k]));
+    if (k) return respond(403, { error: 'MMS_ADMIN_ONLY', message: `Only MMS administrators can change ${MMS_ADMIN_DOCS[k]}.` });
+  } else if (id === 'prefs') {
+    const mine = 'prefs/' + mmsPrefKey(who.email);
+    if ([...new Set([...Object.keys(was), ...Object.keys(now)])].some(k => k !== mine && canonOf(was[k]) !== canonOf(now[k])))
+      return respond(403, { error: 'MMS_OWN_PREFS', message: 'You can change only your own email choices.' });
+  } else if (Object.keys(was).some(k => k.startsWith('tickets/') && !Object.prototype.hasOwnProperty.call(now, k))) {
+    return respond(403, { error: 'MMS_ADMIN_ONLY', message: 'Only MMS administrators can delete a work request.' });
+  }
+  return null;
+}
+
 const OWNED_FILES = {
   'hub-requests': {
     requests: { owner: d => d && d.createdBy && d.createdBy.email, adminsSeeAll: true, addOnly: true, prefix: 'REQ-',
@@ -2856,6 +2900,7 @@ export async function handler(event, context) {
       if (error) return error;
       if (!body || typeof body.content !== 'object' || body.content === null) return respond(400, { error: 'BAD_CONTENT' });
       if (body.sha != null && !BLOB_SHA.test(body.sha)) return respond(400, { error: 'BAD_SHA' });
+      if (proj.key === MMS_PROJECT && mmsGuarded(id)) { const refused = await mmsSaveCheck(id, body, who, repo, branch); if (refused) return refused; }   /* see THE MMS */
 
       const payload = { ...body.content, savedBy: who.name, savedAt: new Date().toISOString() };
       const { status, json } = await github('PUT', `/repos/${repo}/contents/${filePath}`, {
@@ -2887,6 +2932,7 @@ export async function handler(event, context) {
     const files = Array.isArray(body?.files) ? body.files : null;
     if (!files || !files.length) return respond(400, { error: 'BAD_CONTENT' });
     if (files.length > 50) return respond(400, { error: 'TOO_MANY_FILES' });
+    const mmsAdminHere = proj.key === MMS_PROJECT && files.some(f => mmsGuardedPath(f?.path)) ? await mmsAdmin(who) : true;   /* see THE MMS */
     for (const f of files) {
       if (typeof f?.path !== 'string' || !f.path || f.path.includes('..') || f.path.startsWith('/')) {
         return respond(400, { error: 'BAD_PATH', path: f?.path });
@@ -2897,6 +2943,7 @@ export async function handler(event, context) {
         return respond(403, { error: 'PATH_NOT_WRITABLE', path: f.path,
           message: 'That file cannot be changed through saving. It is outside what this application is allowed to write.' });
       }
+      if (!mmsAdminHere && mmsGuardedPath(f.path)) return respond(403, { error: 'MMS_ADMIN_ONLY', path: f.path, message: 'Only MMS administrators can change that file this way.' });
       if (typeof f?.content !== 'string') return respond(400, { error: 'BAD_FILE', path: f.path });
     }
     const message = typeof body.message === 'string' && body.message.trim()
