@@ -324,6 +324,7 @@ count, the Hub sidebar's Ideas Inbox link, and the inbox's Submit an Idea button
 **One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
 good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
 off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
+**Request 11 is FROZEN (18 Nov 2026): `922dfc8`, fingerprint `1ce1cf15…`, 17 suites and 693 checks passing; code only; rollback is `34040c6` (`c718a5ae`); the document is built by `initiative-hub-data/_dev/it-docs/make11.js`. Anything more for the relay waits for request 12.**
 **Request 11 (collecting; to IT Thursday 19 Nov 2026).** Two parts. (1) The public forms may be sent from mismo.org:
 a project may list `"formOrigins"` (plain https addresses, no path or trailing slash, at most 5), read only by the routes
 in `FORM_ROUTES`: glossary-data's `/suggestions/submit`, hub-requests' `/ideas/submit` and `/ideas/attach`, with their
