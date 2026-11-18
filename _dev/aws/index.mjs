@@ -374,14 +374,31 @@ async function projectConfig(key) {
    * to projects.json, with no deploy.
    * Relay request 10 (Perry, 2 Nov 2026). 'askMaxTokens' lets one tool's Ask answers run longer than the shared cap
    * (ASK_MAX_TOKENS): a whole number from 1,000 to 16,000, anything else ignored. MMS sets 8,000 for its IM Pre-Review
-   * (12 rows an answer, 4 at a time), whose answers were being cut short. Only that tool's answers change. */
+   * (12 rows an answer, 4 at a time), whose answers were being cut short. Only that tool's answers change.
+   * Relay request 11 (Perry, 13 Nov 2026). 'formOrigins' lists the other websites a project's public form may be sent
+   * from, besides the project's own origin, as the forms move onto mismo.org's own pages (collaborate.mismo.org until the
+   * site moves to www.mismo.org). Only the routes in FORM_ROUTES read it, with their preflights: glossary-data's Suggest a
+   * Term and hub-requests' Submit an Idea (sending and attaching files). Not MISMO Link's signing pages (Perry, 13 Nov
+   * 2026), and no route behind a sign-in; every other route keeps the one origin. Each entry is an https address with no
+   * path and no trailing slash, at most 5; anything else is ignored. Absent means the project's own site only, as before,
+   * so it ships switched off and is turned on, or changed when the site moves, by a reviewed commit to projects.json. */
+  const formOrigins = Array.isArray(p.formOrigins)
+    ? p.formOrigins.filter(o => typeof o === 'string').map(o => o.trim().toLowerCase())
+        .filter(o => /^https:\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(o)).slice(0, 5)
+    : [];
   const membersOnly = {};
   if (p.membersOnly && typeof p.membersOnly === 'object' && !Array.isArray(p.membersOnly)) {
     for (const [file, all] of Object.entries(p.membersOnly)) {
       if (DASHBOARD_ID.test(file) && Array.isArray(all)) membersOnly[file] = all.filter(e => typeof e === 'string' && e.includes('@')).map(e => e.trim().toLowerCase());
     }
   }
-  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, askMaxTokens: askTokensOf(p.askMaxTokens), guestLinks: p.guestLinks === true, membersOnly };
+  return { key, repo: p.repo, branch: p.branch || 'main', origin: p.origin, writable, readable, ask: p.ask === true, askMaxTokens: askTokensOf(p.askMaxTokens), guestLinks: p.guestLinks === true, formOrigins, membersOnly };
+}
+
+/* Relay request 11: the public forms that may be sent from a website the project lists in formOrigins. */
+const FORM_ROUTES = { 'glossary-data': ['/suggestions/submit'], 'hub-requests': ['/ideas/submit', '/ideas/attach'] };
+function fromListedSite(proj, subPath, origin) {
+  return !!proj && !!origin && (FORM_ROUTES[proj.key] || []).includes(subPath) && proj.formOrigins.includes(origin);
 }
 
 /* ---------- what /commit may write ----------
@@ -1867,7 +1884,8 @@ async function agreementSubmit(event, proj, headers) {
  * repository, which only administrators of Work Requests and platform administrators can open (the Ideas Inbox; the
  * rule is in the /data route). The sender gets a receipt that repeats nothing they typed, so the form can't be used to
  * send anyone words of a stranger's choosing; the administrators get an alert with the details.
- * Against misuse: only from the project's own site (an Origin header is required); a field people never see (filled
+ * Against misuse: only from the project's own site, or since relay request 11 from a website listed in its formOrigins
+ * (mismo.org's own Submit an Idea page), sending and attaching alike (an Origin header is required); a field people never see (filled
  * means a robot: answered as if accepted, kept nowhere, no email); at least 3 seconds between the form opening and
  * sending; at most 3 ideas an hour from one address and 30 an hour in all (per running copy of the relay); 24 kB at
  * most; every field checked, with line breaks taken out of the one-line fields.
@@ -1916,7 +1934,7 @@ async function updateRepoJson(repo, branch, path, change, message) {
   return { error: 'CONFLICT' };
 }
 async function ideaSubmit(event, proj, headers) {
-  if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
+  if (headers['origin'] !== proj.origin && !fromListedSite(proj, '/ideas/submit', headers['origin'])) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
   if (String(event.body || '').length > IDEA_MAX_BYTES) return respond(413, { error: 'TOO_LARGE', message: 'That is more than the form takes. Shorten the longer answers and try again.' });
   const parsed = parseBody(event); if (parsed.error) return parsed.error;
   const b = parsed.body || {}, now = Date.now();
@@ -1972,7 +1990,7 @@ function fileLooksLike(ext, buf) {
 }
 const ideaTicket = (ref, now) => signToken({ kind:'idea-attach', sub: ref, iat: now, exp: now + IDEA_TICKET_SECONDS }, keyFor('idea-attach'));
 async function ideaAttach(event, proj, headers) {
-  if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
+  if (headers['origin'] !== proj.origin && !fromListedSite(proj, '/ideas/attach', headers['origin'])) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
   if (String(event.body || '').length > IDEA_FILE_BODY_MAX) return respond(413, { error: 'TOO_LARGE', message: 'Files can be up to 4 MB each. Email a larger one to MISMO with your reference.' });
   const parsed = parseBody(event, IDEA_FILE_BODY_MAX); if (parsed.error) return parsed.error;   /* the usual 1 MB limit would stop files at about 750 KB */
   const b = parsed.body || {}, t = verifyToken(b.ticket, keyFor('idea-attach'));
@@ -2018,7 +2036,8 @@ async function ideaFile(event, proj, who) {
  * (SUG-0001 on), which only people with Edit or Admin on glossary-data and platform administrators can open through
  * /data (never View; the rule is in the /data route). The sender gets a receipt repeating nothing they typed; the glossary
  * console's administrators and the platform administrators get an alert.
- * Against misuse, as for ideas, with counters of its own: an Origin from the project's site; 16 kB at most; the hidden
+ * Against misuse, as for ideas, with counters of its own: an Origin from the project's site, or since relay request 11
+ * from a website listed in its formOrigins (mismo.org's own Glossary page); 16 kB at most; the hidden
  * field `website` filled, or under 3 seconds from opening, or no opening time: answered as if accepted, kept nowhere, no
  * email; 3 an hour from one address and 30 an hour in all; every field checked, line breaks out of one-line fields.
  * ===================================================================================== */
@@ -2065,7 +2084,7 @@ async function suggestionNotifyList(proj) {
   return team.length ? team : live.filter(([, x]) => x.platformAdmin === true);
 }
 async function suggestionSubmit(event, proj, headers) {
-  if (headers['origin'] !== proj.origin) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
+  if (headers['origin'] !== proj.origin && !fromListedSite(proj, '/suggestions/submit', headers['origin'])) return respond(403, { error: 'ORIGIN', message: 'This form only works from MISMO\u2019s own site.' });
   if (String(event.body || '').length > SUG_MAX_BYTES) return respond(413, { error: 'TOO_LARGE', message: 'That is more than the form takes. Shorten the longer answers and try again.' });
   const parsed = parseBody(event); if (parsed.error) return parsed.error;
   const b = parsed.body || {}, now = Date.now(), started = Number(b.startedAt);
@@ -2370,6 +2389,9 @@ export async function handler(event, context) {
   const subPath = projMatch ? (projMatch[2] || '/') : '/';
   currentProjectKey = proj ? proj.key : null;
   if (proj) responseOrigin = proj.origin;
+  /* Relay request 11: a public form sent from one of its project's listed websites (formOrigins) is answered to that
+   * website, preflight included, so the browser lets the page read the reply. No other route answers another site. */
+  if (fromListedSite(proj, subPath, headers['origin'])) responseOrigin = headers['origin'];
 
   /* GET /version — no project, no credentials, reveals nothing that is not already in the
    * public repository. See SOURCE_SHA256 above. */

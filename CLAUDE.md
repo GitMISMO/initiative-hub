@@ -324,6 +324,16 @@ count, the Hub sidebar's Ideas Inbox link, and the inbox's Submit an Idea button
 **One request at a time (Perry, 16 Oct 2026).** Everything ready for IT goes into the one request, unless there is a
 good reason to split it, which is said to Perry first. A feature that isn't ready for people yet can still go, switched
 off (as two-step sign-in did in request 10: off until sign-in.json says otherwise), so it never holds a request back.
+**Request 11 (collecting; to IT Thursday 19 Nov 2026).** Two parts. (1) The public forms may be sent from mismo.org:
+a project may list `"formOrigins"` (plain https addresses, no path or trailing slash, at most 5), read only by the routes
+in `FORM_ROUTES`: glossary-data's `/suggestions/submit`, hub-requests' `/ideas/submit` and `/ideas/attach`, with their
+preflights. Not MISMO Link (Perry's choice), nothing behind a sign-in. Ships off: add `formOrigins` to `glossary-data` and
+`hub-requests` in projects.json only when Jonna's pages are ready (`https://collaborate.mismo.org`, then
+`https://www.mismo.org` when the site moves). The Business Glossary chat wrote it (13 Nov); its first patch never
+arrived, so the relay chat rebuilt it from the second, byte-identical (`76e5e515…`), with its own `test-r11.mjs`.
+(2) The MMS's admin-only rules (see THE MMS in index.mjs; `test-mms.mjs`): People and Roles, Notifications, Process and
+the Daily Digest, deleting a work request, and others' email choices are for MMS administrators only (Admin on the MMS
+in People & Access, or a platform administrator).
 **Request 10 is LIVE (IT deployed it 2 Nov 2026; `/version` = `c718a5ae…`).** The next relay request is 11. After the
 deploy: the Scheduler's /poll/ready answers 404 (guest links off, as meant); Suggest a Term took two test suggestions
 (SUG-0001, SUG-0002, receipts to Perry, alerts to Kellie) for Perry or Kellie to decline in the console; the admin
